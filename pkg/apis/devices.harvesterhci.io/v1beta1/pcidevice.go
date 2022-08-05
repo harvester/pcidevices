@@ -18,9 +18,6 @@ type PCIDevice struct {
 	Status PCIDeviceStatus `json:"status,omitempty"`
 }
 
-type PCIDeviceSpec struct {
-}
-
 // PCIDeviceStatus defines the observed state of PCIDevice
 type PCIDeviceStatus struct {
 	Address           string   `json:"address"`
@@ -30,4 +27,12 @@ type PCIDeviceStatus struct {
 	Description       string   `json:"description"`
 	KernelDriverInUse string   `json:"kernelDriverInUse,omitempty"`
 	KernelModules     []string `json:"kernelModules"`
+}
+
+type PCIDeviceSpec struct {
+}
+
+type Node struct {
+	SystemUUID string `json:"systemUUID"`
+	Name       string `json:"name"`
 }
