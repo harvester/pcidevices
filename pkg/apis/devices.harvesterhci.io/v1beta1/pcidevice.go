@@ -23,16 +23,11 @@ type PCIDeviceStatus struct {
 	Address           string   `json:"address"`
 	VendorId          string   `json:"vendorId"`
 	DeviceId          string   `json:"deviceId"`
-	Node              Node     `json:"node"`
+	NodeName          string   `json:"nodeName"`
 	Description       string   `json:"description"`
 	KernelDriverInUse string   `json:"kernelDriverInUse,omitempty"`
 	KernelModules     []string `json:"kernelModules"`
 }
 
 type PCIDeviceSpec struct {
-}
-
-type Node struct {
-	SystemUUID string `json:"systemUUID"`
-	Name       string `json:"name"`
 }

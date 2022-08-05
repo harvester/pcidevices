@@ -1,0 +1,151 @@
+{{- if .Capabilities.APIVersions.Has "apiextensions.k8s.io/v1" -}}
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: pcidevices.devices.harvesterhci.io
+spec:
+  group: devices.harvesterhci.io
+  names:
+    kind: PCIDevice
+    plural: pcidevices
+    singular: pcidevice
+  preserveUnknownFields: false
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.address
+      name: Address
+      type: string
+    - jsonPath: .status.vendorId
+      name: VendorId
+      type: string
+    - jsonPath: .status.deviceId
+      name: DeviceId
+      type: string
+    - jsonPath: .status.nodeName
+      name: NodeName
+      type: string
+    - jsonPath: .status.description
+      name: Description
+      type: string
+    - jsonPath: .kernelDriverInUse
+      name: KernelDriverInUse
+      type: string
+    - jsonPath: .kernelModules
+      name: KernelModules
+      type: string
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            type: object
+          status:
+            properties:
+              address:
+                nullable: true
+                type: string
+              description:
+                nullable: true
+                type: string
+              deviceId:
+                nullable: true
+                type: string
+              kernelDriverInUse:
+                nullable: true
+                type: string
+              kernelModules:
+                items:
+                  nullable: true
+                  type: string
+                nullable: true
+                type: array
+              nodeName:
+                nullable: true
+                type: string
+              vendorId:
+                nullable: true
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+{{- else -}}
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: pcidevices.devices.harvesterhci.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.address
+    name: Address
+    type: string
+  - JSONPath: .status.vendorId
+    name: VendorId
+    type: string
+  - JSONPath: .status.deviceId
+    name: DeviceId
+    type: string
+  - JSONPath: .status.nodeName
+    name: NodeName
+    type: string
+  - JSONPath: .status.description
+    name: Description
+    type: string
+  - JSONPath: .kernelDriverInUse
+    name: KernelDriverInUse
+    type: string
+  - JSONPath: .kernelModules
+    name: KernelModules
+    type: string
+  group: devices.harvesterhci.io
+  names:
+    kind: PCIDevice
+    plural: pcidevices
+    singular: pcidevice
+  preserveUnknownFields: false
+  scope: Cluster
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          type: object
+        status:
+          properties:
+            address:
+              nullable: true
+              type: string
+            description:
+              nullable: true
+              type: string
+            deviceId:
+              nullable: true
+              type: string
+            kernelDriverInUse:
+              nullable: true
+              type: string
+            kernelModules:
+              items:
+                nullable: true
+                type: string
+              nullable: true
+              type: array
+            nodeName:
+              nullable: true
+              type: string
+            vendorId:
+              nullable: true
+              type: string
+          type: object
+      type: object
+  version: v1beta1
+  versions:
+  - name: v1beta1
+    served: true
+    storage: true
+{{- end -}}
