@@ -19,7 +19,7 @@ limitations under the License.
 package devices
 
 import (
-	v1beta1 "github.com/harvester/pcidevices/pkg/controllers/devices.harvesterhci.io/v1beta1"
+	v1beta1 "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 	"github.com/rancher/lasso/pkg/controller"
 )
 

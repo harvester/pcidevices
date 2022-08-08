@@ -25,14 +25,14 @@ func main() {
 	os.Unsetenv("GOPATH")
 	controllergen.Run(
 		args.Options{
-			OutputPackage: "github.com/harvester/pcidevices/pkg",
+			OutputPackage: "github.com/harvester/pcidevices/pkg/generated",
 			Boilerplate:   "scripts/boilerplate.go.txt",
 			Groups: map[string]args.Group{
 				"devices.harvesterhci.io": {
 					Types: []any{
 						"./pkg/apis/devices.harvesterhci.io/v1beta1",
 					},
-					GenerateTypes: true,
+					GenerateTypes:   true,
 					GenerateClients: true,
 				},
 			},
