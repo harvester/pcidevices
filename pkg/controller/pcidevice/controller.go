@@ -30,7 +30,7 @@ func Register(
 	return nil
 }
 
-func (h Handler) OnChange(key string, pd *v1beta1.PCIDevice) (*v1beta1.PCIDevice, error) {
+func (h *Handler) OnChange(key string, pd *v1beta1.PCIDevice) (*v1beta1.PCIDevice, error) {
 	logrus.Infof("PCI Device %s has changed", pd)
 	return pd, nil
 }

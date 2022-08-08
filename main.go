@@ -52,6 +52,9 @@ func run(kubeConfig string) error {
 	if err != nil {
 		return fmt.Errorf("error building pcidevice controllers: %s", err.Error())
 	}
+	if err != nil {
+		return err
+	}
 	start := func(ctx context.Context) {
 		pds := pdfactory.Devices().V1beta1().PCIDevice()
 		if err := pcidevice.Register(ctx, pds); err != nil {
