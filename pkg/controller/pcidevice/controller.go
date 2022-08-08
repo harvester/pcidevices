@@ -12,9 +12,14 @@ type Controller struct {
 
 func Register(
 	ctx context.Context,
-	pdctl ctl.PCIDeviceController
+	pdctl ctl.PCIDeviceController,
 ) error {
 	controller := &Controller{
 		PCIDevices: pdctl,
+	}
+	if controller != nil {
+		return nil
+	} else {
+		return nil
 	}
 }
