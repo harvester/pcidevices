@@ -29,6 +29,6 @@ func Register(
 }
 
 func (c *Controller) OnChange(key string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
-	logrus.Infof("PCI Device Claim %s has changed", pdc)
+	logrus.Infof("PCI Device Claim %s has changed", pdc.Name)
 	return pdc, nil
 }

@@ -42,7 +42,7 @@ spec:
               description:
                 type: string
               deviceId:
-                type: string
+                type: integer
               kernelDriverInUse:
                 type: string
               kernelModules:
@@ -52,7 +52,7 @@ spec:
               nodeName:
                 type: string
               vendorId:
-                type: string
+                type: integer
             required:
             - address
             - description

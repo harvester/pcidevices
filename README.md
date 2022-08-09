@@ -55,9 +55,7 @@ status:
   address: "00:1f.6"
   vendorId: "8086"
   deviceId: "0d4c"
-  node:
-    systemUUID: "30363150-3530-584d-5132-303730435a33"
-    name: "titan"
+  nodeName: "titan"
   description: "Ethernet controller: Intel Corporation Ethernet Connection (11) I219-LM"
   kernelDriverInUse: "e1000e"
   kernelModules:
@@ -111,6 +109,11 @@ The PCIDeviceClaim controller will process the requests by attempting to set up 
 Once the device is confirmed to have been bound to `vfio-pci`, the PCIDeviceClaim controller will delete the request.
 
 The PCIDevice controller will pick up on the new currently active driver automatically, as part of it's normal operation.
+
+# Daemon
+
+The daemon will run on each node in the cluster and build up the PCIDevice list. A daemonset will enforce this daemon is 
+running on each node.
 
 # Alternatives considered
 ## [Node Feature Discovery](https://github.com/kubernetes-sigs/node-feature-discovery)

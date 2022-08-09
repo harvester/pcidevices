@@ -1,6 +1,7 @@
 package v1beta1
 
 import (
+	"github.com/u-root/u-root/pkg/pci"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -21,8 +22,8 @@ type PCIDevice struct {
 // PCIDeviceStatus defines the observed state of PCIDevice
 type PCIDeviceStatus struct {
 	Address           string   `json:"address"`
-	VendorId          string   `json:"vendorId"`
-	DeviceId          string   `json:"deviceId"`
+	VendorId          int      `json:"vendorId"`
+	DeviceId          int      `json:"deviceId"`
 	NodeName          string   `json:"nodeName"`
 	Description       string   `json:"description"`
 	KernelDriverInUse string   `json:"kernelDriverInUse,omitempty"`
@@ -30,4 +31,16 @@ type PCIDeviceStatus struct {
 }
 
 type PCIDeviceSpec struct {
+}
+
+func NewPCIDeviceForHostname(dev *pci.PCI, hostname string) PCIDevice {
+	return PCIDevice{
+		Status: PCIDeviceStatus{
+			Address:     dev.Addr,
+			VendorId:    int(dev.Vendor), // upcasting a uint16 to an int is safe
+			DeviceId:    int(dev.Device),
+			NodeName:    hostname,
+			Description: dev.DeviceName,
+		},
+	}
 }
