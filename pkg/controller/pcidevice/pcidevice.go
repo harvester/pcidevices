@@ -16,21 +16,18 @@ type Controller struct {
 	PCIDevices ctl.PCIDeviceController
 }
 
-type Handler struct {
-	client ctl.PCIDeviceClient
-	cache  ctl.PCIDeviceCache
-}
-
 func Register(
 	ctx context.Context,
 	pdctl ctl.PCIDeviceController,
 ) error {
-	handler := &Handler{}
-	pdctl.OnChange(ctx, controllerName, handler.OnChange)
+	c := &Controller{
+		PCIDevices: pdctl,
+	}
+	pdctl.OnChange(ctx, controllerName, c.OnChange)
 	return nil
 }
 
-func (h *Handler) OnChange(key string, pd *v1beta1.PCIDevice) (*v1beta1.PCIDevice, error) {
+func (c *Controller) OnChange(key string, pd *v1beta1.PCIDevice) (*v1beta1.PCIDevice, error) {
 	logrus.Infof("PCI Device %s has changed", pd)
 	return pd, nil
 }

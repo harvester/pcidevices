@@ -1,0 +1,8 @@
+apiVersion: devices.harvesterhci.io/v1beta1
+kind: PCIDeviceClaim
+metadata:
+  name: pcideviceclaim-sample
+spec:
+  address: "00:1f.6"
+  nodeName:  "titan"
+  userName:  "yuri"

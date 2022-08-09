@@ -72,6 +72,66 @@ spec:
     storage: true
     subresources:
       status: {}
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: pcideviceclaims.devices.harvesterhci.io
+spec:
+  group: devices.harvesterhci.io
+  names:
+    kind: PCIDeviceClaim
+    plural: pcideviceclaims
+    singular: pcideviceclaim
+  preserveUnknownFields: false
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.address
+      name: Address
+      type: string
+    - jsonPath: .spec.nodeName
+      name: NodeName
+      type: string
+    - jsonPath: .spec.userName
+      name: UserName
+      type: string
+    - jsonPath: .status.kernelDriverInUse
+      name: KernelDriverInUse
+      type: string
+    - jsonPath: .status.passthroughEnabled
+      name: PassthroughEnabled
+      type: string
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              address:
+                nullable: true
+                type: string
+              nodeName:
+                nullable: true
+                type: string
+              userName:
+                nullable: true
+                type: string
+            type: object
+          status:
+            properties:
+              kernelDriverToUnbind:
+                nullable: true
+                type: string
+              passthroughEnabled:
+                type: boolean
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
 {{- else -}}
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
@@ -141,6 +201,67 @@ spec:
             vendorId:
               nullable: true
               type: string
+          type: object
+      type: object
+  version: v1beta1
+  versions:
+  - name: v1beta1
+    served: true
+    storage: true
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: pcideviceclaims.devices.harvesterhci.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.address
+    name: Address
+    type: string
+  - JSONPath: .spec.nodeName
+    name: NodeName
+    type: string
+  - JSONPath: .spec.userName
+    name: UserName
+    type: string
+  - JSONPath: .status.kernelDriverInUse
+    name: KernelDriverInUse
+    type: string
+  - JSONPath: .status.passthroughEnabled
+    name: PassthroughEnabled
+    type: string
+  group: devices.harvesterhci.io
+  names:
+    kind: PCIDeviceClaim
+    plural: pcideviceclaims
+    singular: pcideviceclaim
+  preserveUnknownFields: false
+  scope: Cluster
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            address:
+              nullable: true
+              type: string
+            nodeName:
+              nullable: true
+              type: string
+            userName:
+              nullable: true
+              type: string
+          type: object
+        status:
+          properties:
+            kernelDriverToUnbind:
+              nullable: true
+              type: string
+            passthroughEnabled:
+              type: boolean
           type: object
       type: object
   version: v1beta1

@@ -1,0 +1,13 @@
+apiVersion: devices.harvesterhci.io/v1beta1
+kind: PCIDevice
+metadata:
+  name: pcidevice-sample
+status:
+  address: "00:1f.6"
+  vendorId: "8086"
+  deviceId: "0d4c"
+  nodeName: "titan"
+  description: "Ethernet controller: Intel Corporation Ethernet Connection (11) I219-LM"
+  kernelDriverInUse: "vfio-pci"
+  kernelModules:
+  - "e1000e"

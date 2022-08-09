@@ -82,17 +82,21 @@ kind: PCIDeviceClaim
 metadata:
   name: pcideviceclaim-sample
 spec:
-  pciAddress: "00:1f.6"
+  address: "00:1f.6"
   nodeName:  "titan"
+  userName:  "yuri"
 status:
-  result: Succeeded
+  kernelDriverToUnbind: "e1000e"
+  passthroughEnabled: true
 ```
 
 The PCIDeviceClaim is created with a target PCI address, for the device 
-that the user wants to prepare for PCI Passthrough. Then the status.result is 
-set to `InProgress` while it's in progress, then either `Succeeded` or `Failed`, 
-depending on whether the device was successfully prepared, and is currently bound 
-to the `vfio-pci` driver.
+that the user wants to prepare for PCI Passthrough. Then the 
+`status.passthroughEnabled` is set to `false` while it's in progress, 
+then `true` when it is bound to the `vfio-pci` driver.
+
+The `status.kernelDriverToUnbind` is stored so that deleting the claim 
+can re-bind the device to the original driver.
 
 # Controllers 
 

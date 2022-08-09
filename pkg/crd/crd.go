@@ -87,6 +87,15 @@ func List() []crd.CRD {
 				WithColumn("KernelDriverInUse", ".kernelDriverInUse").
 				WithColumn("KernelModules", ".kernelModules")
 		}),
+		newCRD(&devices.PCIDeviceClaim{}, func(c crd.CRD) crd.CRD {
+			c.NonNamespace = true
+			return c.
+				WithColumn("Address", ".spec.address").
+				WithColumn("NodeName", ".spec.nodeName").
+				WithColumn("UserName", ".spec.userName").
+				WithColumn("KernelDriverInUse", ".status.kernelDriverInUse").
+				WithColumn("PassthroughEnabled", ".status.passthroughEnabled")
+		}),
 	}
 }
 
