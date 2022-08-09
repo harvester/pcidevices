@@ -29,6 +29,7 @@ import (
 type DevicesV1beta1Interface interface {
 	RESTClient() rest.Interface
 	PCIDevicesGetter
+	PCIDeviceClaimsGetter
 }
 
 // DevicesV1beta1Client is used to interact with features provided by the devices.harvesterhci.io group.
@@ -38,6 +39,10 @@ type DevicesV1beta1Client struct {
 
 func (c *DevicesV1beta1Client) PCIDevices() PCIDeviceInterface {
 	return newPCIDevices(c)
+}
+
+func (c *DevicesV1beta1Client) PCIDeviceClaims() PCIDeviceClaimInterface {
+	return newPCIDeviceClaims(c)
 }
 
 // NewForConfig creates a new DevicesV1beta1Client for the given config.

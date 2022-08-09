@@ -28,7 +28,8 @@ import (
 )
 
 var (
-	PCIDeviceResourceName = "pcidevices"
+	PCIDeviceResourceName      = "pcidevices"
+	PCIDeviceClaimResourceName = "pcideviceclaims"
 )
 
 // SchemeGroupVersion is group version used to register these objects
@@ -54,6 +55,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
 		&PCIDevice{},
 		&PCIDeviceList{},
+		&PCIDeviceClaim{},
+		&PCIDeviceClaimList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

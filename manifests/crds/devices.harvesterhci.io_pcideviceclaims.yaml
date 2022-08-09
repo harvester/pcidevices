@@ -5,20 +5,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.9.2
   creationTimestamp: null
-  name: pcidevices.devices.harvesterhci.io
+  name: pcideviceclaims.devices.harvesterhci.io
 spec:
   group: devices.harvesterhci.io
   names:
-    kind: PCIDevice
-    listKind: PCIDeviceList
-    plural: pcidevices
-    singular: pcidevice
+    kind: PCIDeviceClaim
+    listKind: PCIDeviceClaimList
+    plural: pcideviceclaims
+    singular: pcideviceclaim
   scope: Namespaced
   versions:
   - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: PCIDevice is the Schema for the pcidevices API
+        description: a PCIDeviceClaim is used to reserve a PCI Device for a single
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -31,35 +31,6 @@ spec:
               submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
-            type: object
-          spec:
-            type: object
-          status:
-            description: PCIDeviceStatus defines the observed state of PCIDevice
-            properties:
-              address:
-                type: string
-              description:
-                type: string
-              deviceId:
-                type: string
-              kernelDriverInUse:
-                type: string
-              kernelModules:
-                items:
-                  type: string
-                type: array
-              nodeName:
-                type: string
-              vendorId:
-                type: string
-            required:
-            - address
-            - description
-            - deviceId
-            - kernelModules
-            - nodeName
-            - vendorId
             type: object
         type: object
     served: true

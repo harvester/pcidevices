@@ -32,6 +32,10 @@ func (c *FakeDevicesV1beta1) PCIDevices() v1beta1.PCIDeviceInterface {
 	return &FakePCIDevices{c}
 }
 
+func (c *FakeDevicesV1beta1) PCIDeviceClaims() v1beta1.PCIDeviceClaimInterface {
+	return &FakePCIDeviceClaims{c}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeDevicesV1beta1) RESTClient() rest.Interface {

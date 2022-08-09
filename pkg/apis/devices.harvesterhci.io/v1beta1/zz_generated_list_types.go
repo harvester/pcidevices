@@ -40,3 +40,20 @@ func NewPCIDevice(namespace, name string, obj PCIDevice) *PCIDevice {
 	obj.Namespace = namespace
 	return &obj
 }
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// PCIDeviceClaimList is a list of PCIDeviceClaim resources
+type PCIDeviceClaimList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+
+	Items []PCIDeviceClaim `json:"items"`
+}
+
+func NewPCIDeviceClaim(namespace, name string, obj PCIDeviceClaim) *PCIDeviceClaim {
+	obj.APIVersion, obj.Kind = SchemeGroupVersion.WithKind("PCIDeviceClaim").ToAPIVersionAndKind()
+	obj.Name = name
+	obj.Namespace = namespace
+	return &obj
+}

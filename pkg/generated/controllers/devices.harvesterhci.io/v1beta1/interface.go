@@ -31,6 +31,7 @@ func init() {
 
 type Interface interface {
 	PCIDevice() PCIDeviceController
+	PCIDeviceClaim() PCIDeviceClaimController
 }
 
 func New(controllerFactory controller.SharedControllerFactory) Interface {
@@ -45,4 +46,7 @@ type version struct {
 
 func (c *version) PCIDevice() PCIDeviceController {
 	return NewPCIDeviceController(schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "PCIDevice"}, "pcidevices", false, c.controllerFactory)
+}
+func (c *version) PCIDeviceClaim() PCIDeviceClaimController {
+	return NewPCIDeviceClaimController(schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "PCIDeviceClaim"}, "pcideviceclaims", false, c.controllerFactory)
 }
