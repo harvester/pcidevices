@@ -20,6 +20,7 @@ func Register(
 	ctx context.Context,
 	pdctl ctl.PCIDeviceController,
 ) error {
+	logrus.Info("Registering PCI Devices controller")
 	c := &Controller{
 		PCIDevices: pdctl,
 	}

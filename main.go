@@ -7,6 +7,7 @@ import (
 
 	"github.com/rancher/wrangler/pkg/kubeconfig"
 	"github.com/rancher/wrangler/pkg/signals"
+	"github.com/rancher/wrangler/pkg/start"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
@@ -52,10 +53,14 @@ func run(kubeConfig string) error {
 	if err != nil {
 		return fmt.Errorf("error building pcidevice controllers: %s", err.Error())
 	}
+	pdcfactory, err := ctl.NewFactoryFromConfig(cfg)
+	if err != nil {
+		return fmt.Errorf("error building pcideviceclaim controllers: %s", err.Error())
+	}
 	if err != nil {
 		return err
 	}
-	start := func(ctx context.Context) {
+	registerControllers := func(ctx context.Context) {
 		pds := pdfactory.Devices().V1beta1().PCIDevice()
 		pdcs := pdfactory.Devices().V1beta1().PCIDeviceClaim()
 		logrus.Info("Starting PCI Devices controller")
@@ -68,7 +73,14 @@ func run(kubeConfig string) error {
 		}
 	}
 
-	start(ctx)
+	startAllControllers := func(ctx context.Context) {
+		if err := start.All(ctx, 2, pdfactory, pdcfactory); err != nil {
+			logrus.Fatalf("Error starting: %s", err.Error())
+		}
+	}
+
+	registerControllers(ctx)
+	startAllControllers(ctx)
 	<-ctx.Done()
 
 	return nil
