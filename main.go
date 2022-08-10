@@ -5,12 +5,20 @@ import (
 	"fmt"
 	"os"
 
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/rest"
+
+	"github.com/rancher/lasso/pkg/controller"
+	"github.com/rancher/wrangler/pkg/generic"
 	"github.com/rancher/wrangler/pkg/kubeconfig"
+	"github.com/rancher/wrangler/pkg/schemes"
 	"github.com/rancher/wrangler/pkg/signals"
 	"github.com/rancher/wrangler/pkg/start"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
+	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/controller/pcidevice"
 	"github.com/harvester/pcidevices/pkg/controller/pcideviceclaim"
 	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
@@ -18,7 +26,21 @@ import (
 
 const VERSION = "v0.0.1-dev"
 
+var (
+	localSchemeBuilder = runtime.SchemeBuilder{
+		v1beta1.AddToScheme,
+	}
+	AddToScheme = localSchemeBuilder.AddToScheme
+	Scheme      = runtime.NewScheme()
+)
+
+func init() {
+	utilruntime.Must(AddToScheme(Scheme))
+	utilruntime.Must(schemes.AddToScheme(Scheme))
+}
+
 func main() {
+	// set up the kubeconfig and other args
 	var kubeConfig string
 	app := cli.NewApp()
 	app.Name = "harvester-pcidevices-controller"
@@ -45,15 +67,25 @@ func main() {
 func run(kubeConfig string) error {
 	ctx := signals.SetupSignalContext()
 
+	var cfg *rest.Config
 	cfg, err := kubeconfig.GetNonInteractiveClientConfig(kubeConfig).ClientConfig()
 	if err != nil {
 		return fmt.Errorf("failed to find kubeconfig: %v", err)
 	}
-	pdfactory, err := ctl.NewFactoryFromConfig(cfg)
+
+	// Register scheme with the shared factory controller
+	factory, err := controller.NewSharedControllerFactoryFromConfig(cfg, Scheme)
+	if err != nil {
+		return err
+	}
+	opts := &generic.FactoryOptions{
+		SharedControllerFactory: factory,
+	}
+	pdfactory, err := ctl.NewFactoryFromConfigWithOptions(cfg, opts)
 	if err != nil {
 		return fmt.Errorf("error building pcidevice controllers: %s", err.Error())
 	}
-	pdcfactory, err := ctl.NewFactoryFromConfig(cfg)
+	pdcfactory, err := ctl.NewFactoryFromConfigWithOptions(cfg, opts)
 	if err != nil {
 		return fmt.Errorf("error building pcideviceclaim controllers: %s", err.Error())
 	}

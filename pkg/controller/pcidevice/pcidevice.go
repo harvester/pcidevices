@@ -84,11 +84,7 @@ func (c *Controller) OnChange(key string, pd *v1beta1.PCIDevice) (*v1beta1.PCIDe
 			var pcidevice v1beta1.PCIDevice = v1beta1.NewPCIDeviceForHostname(dev, hostname)
 			_, err := client.Create(&pcidevice)
 			if err != nil {
-				logrus.Errorf(
-					"Failed to create PCI Device: %s\n\tactual: %v\n\ttobecreated: %v\n",
-					dev,
-					pcidevice.Status,
-				)
+				logrus.Errorf("Failed to create PCI Device: %s\n", err)
 			}
 		}
 	}
