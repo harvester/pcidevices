@@ -20,6 +20,7 @@ import (
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/controller/pcidevice"
+	"github.com/harvester/pcidevices/pkg/crd"
 	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
 )
 
@@ -70,6 +71,12 @@ func run(kubeConfig string) error {
 	cfg, err := kubeconfig.GetNonInteractiveClientConfig(kubeConfig).ClientConfig()
 	if err != nil {
 		return fmt.Errorf("failed to find kubeconfig: %v", err)
+	}
+
+	// Create CRDs
+	err = crd.Create(ctx, cfg)
+	if err != nil {
+		return err
 	}
 
 	// Register scheme with the shared factory controller
