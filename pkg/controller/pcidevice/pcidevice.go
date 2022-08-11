@@ -3,6 +3,7 @@ package pcidevice
 import (
 	"context"
 	"os"
+	"time"
 
 	v1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
@@ -12,47 +13,49 @@ import (
 )
 
 const (
-	controllerName = "harvester-pcidevices-controller"
+	controllerName  = "harvester-pcidevices-controller"
+	reconcilePeriod = time.Second * 10
 )
 
-type Controller struct {
-	PCIDevices ctl.PCIDeviceController
+type Handler struct {
+	pciDeviceClient ctl.PCIDeviceClient
 }
 
 func Register(
 	ctx context.Context,
-	pdctl ctl.PCIDeviceController,
+	pciDeviceClient ctl.PCIDeviceClient,
 ) error {
 	logrus.Info("Registering PCI Devices controller")
-	c := &Controller{
-		PCIDevices: pdctl,
+	handler := &Handler{
+		pciDeviceClient,
 	}
-	pdctl.OnChange(ctx, controllerName, c.OnChange)
-	// HACK: Call OnChange once just to get the PCI Devices list built out
-	c.OnChange("initial run", nil)
+	// start goroutine to regularly reconcile the PCI Devices list
+	go func() {
+		ticker := time.NewTicker(reconcilePeriod)
+		for range ticker.C {
+			logrus.Info("Reconciling PCI Devices list")
+			if err := handler.reconcilePCIDevices(); err != nil {
+				logrus.Errorf("PCI device reconciliation error: %v", err)
+			}
+		}
+	}()
 	return nil
 }
 
-func (c *Controller) OnChange(key string, pd *v1beta1.PCIDevice) (*v1beta1.PCIDevice, error) {
-	if key == "initial run" {
-		logrus.Infof("PCI Device daemon is starting")
-	} else {
-		logrus.Infof("PCI Device %s has changed", &pd.ObjectMeta.Name)
-	}
+func (h Handler) reconcilePCIDevices() error {
 	// List all PCI Devices on host
 	busReader, err := pci.NewBusReader()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	var pcidevices []*pci.PCI
 	pcidevices, err = busReader.Read()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	client := c.PCIDevices
-	pcidevicesCRs, err := client.List(metav1.ListOptions{})
+	pcidevicesCRs, err := h.pciDeviceClient.List(metav1.ListOptions{})
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	var actual map[string]int = make(map[string]int)
@@ -65,7 +68,7 @@ func (c *Controller) OnChange(key string, pd *v1beta1.PCIDevice) (*v1beta1.PCIDe
 	// Stored PCI Device CRs (Custom Resources) for this node
 	hostname, err := os.Hostname()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	for i, devCR := range pcidevicesCRs.Items {
 		// Only look at devices on _this_ node
@@ -82,13 +85,11 @@ func (c *Controller) OnChange(key string, pd *v1beta1.PCIDevice) (*v1beta1.PCIDe
 			// Create a stored CR for this PCI device
 			var dev *pci.PCI = pcidevices[index]
 			var pcidevice v1beta1.PCIDevice = v1beta1.NewPCIDeviceForHostname(dev, hostname)
-			_, err := client.Create(&pcidevice)
+			_, err := h.pciDeviceClient.Create(&pcidevice)
 			if err != nil {
 				logrus.Errorf("Failed to create PCI Device: %s\n", err)
 			}
 		}
 	}
-
-	// TODO Delete stored CRs that are no longer in actual
-	return pd, nil
+	return nil
 }
