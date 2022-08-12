@@ -1,6 +1,11 @@
 package v1beta1
 
 import (
+	"fmt"
+	"strings"
+
+	"github.com/harvester/pcidevices/pkg/lspci"
+	"github.com/sirupsen/logrus"
 	"github.com/u-root/u-root/pkg/pci"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -30,11 +35,38 @@ type PCIDeviceStatus struct {
 	KernelModules     []string `json:"kernelModules"`
 }
 
+func (status *PCIDeviceStatus) Update(dev *pci.PCI) {
+	if status.Address == dev.Addr {
+		driver, err := lspci.GetCurrentPCIDriver(dev.Addr)
+		if err != nil {
+			logrus.Error(err)
+			return
+		}
+		status.KernelDriverInUse = driver
+		//TODO status.KernelModules = //
+	}
+}
+
 type PCIDeviceSpec struct {
 }
 
 func NewPCIDeviceForHostname(dev *pci.PCI, hostname string) PCIDevice {
-	return PCIDevice{
+	vendorName := strings.ToLower(
+		strings.Split(dev.VendorName, " ")[0],
+	)
+	addrDNSsafe := strings.ReplaceAll(strings.ReplaceAll(dev.Addr, ":", ""), ".", "")
+	name := fmt.Sprintf(
+		"%s-%s-%x-%x-%s",
+		hostname,
+		vendorName,
+		dev.Vendor,
+		dev.Device,
+		addrDNSsafe,
+	)
+	pciDevice := PCIDevice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
 		Status: PCIDeviceStatus{
 			Address:     dev.Addr,
 			VendorId:    int(dev.Vendor), // upcasting a uint16 to an int is safe
@@ -43,4 +75,5 @@ func NewPCIDeviceForHostname(dev *pci.PCI, hostname string) PCIDevice {
 			Description: dev.DeviceName,
 		},
 	}
+	return pciDevice
 }

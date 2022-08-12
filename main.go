@@ -99,9 +99,9 @@ func run(kubeConfig string) error {
 		return err
 	}
 	registerControllers := func(ctx context.Context) {
-		pciDeviceClient := pdfactory.Devices().V1beta1().PCIDevice()
+		pd := pdfactory.Devices().V1beta1().PCIDevice()
 		logrus.Info("Starting PCI Devices controller")
-		if err := pcidevice.Register(ctx, pciDeviceClient); err != nil {
+		if err := pcidevice.Register(ctx, pd); err != nil {
 			logrus.Fatalf("failed to register PCI Devices Controller")
 		}
 	}
