@@ -36,15 +36,17 @@ type PCIDeviceStatus struct {
 }
 
 func (status *PCIDeviceStatus) Update(dev *pci.PCI) {
-	if status.Address == dev.Addr {
-		driver, err := lspci.GetCurrentPCIDriver(dev.Addr)
-		if err != nil {
-			logrus.Error(err)
-			return
-		}
-		status.KernelDriverInUse = driver
-		//TODO status.KernelModules = //
+	driver, err := lspci.GetCurrentPCIDriver(dev.Addr)
+	if err != nil {
+		logrus.Error(err)
+		return
 	}
+	status.Address = dev.Addr
+	status.VendorId = int(dev.Vendor)
+	status.DeviceId = int(dev.Device)
+	status.Description = dev.DeviceName
+	status.KernelDriverInUse = driver
+	//TODO status.KernelModules = //
 }
 
 type PCIDeviceSpec struct {

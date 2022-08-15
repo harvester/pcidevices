@@ -119,10 +119,16 @@ func (h Handler) reconcilePCIDevices() error {
 		} else {
 			if supported {
 				// Create the PCIDevice CR if it doesn't exist
-				var pcidevice v1beta1.PCIDevice = v1beta1.NewPCIDeviceForHostname(dev, hostname)
-				_, err := h.pciDeviceClient.Create(&pcidevice)
+				var pdToCreate v1beta1.PCIDevice = v1beta1.NewPCIDeviceForHostname(dev, hostname)
+				pdCreated, err := h.pciDeviceClient.Create(&pdToCreate)
 				if err != nil {
 					logrus.Errorf("Failed to create PCI Device: %s\n", err)
+				}
+				pdCreated.Status.Update(dev)
+				pdCreated.Status.NodeName = hostname
+				_, err = h.pciDeviceClient.UpdateStatus(pdCreated)
+				if err != nil {
+					logrus.Errorf("Failed to update status sub-resource: %s\n", err)
 				}
 			}
 		}
