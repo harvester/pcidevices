@@ -18,7 +18,7 @@ const (
 )
 
 type Handler struct {
-	pciDeviceClient ctl.PCIDeviceClient
+	client ctl.PCIDeviceClient
 }
 
 func Register(
@@ -27,14 +27,18 @@ func Register(
 ) error {
 	logrus.Info("Registering PCI Devices controller")
 	handler := &Handler{
-		pciDeviceClient: pd,
+		client: pd,
+	}
+	hostname, err := os.Hostname()
+	if err != nil {
+		return err
 	}
 	// start goroutine to regularly reconcile the PCI Devices list
 	go func() {
 		ticker := time.NewTicker(reconcilePeriod)
 		for range ticker.C {
 			logrus.Info("Reconciling PCI Devices list")
-			if err := handler.reconcilePCIDevices(); err != nil {
+			if err := handler.reconcilePCIDevices(hostname); err != nil {
 				logrus.Errorf("PCI device reconciliation error: %v", err)
 			}
 		}
@@ -42,12 +46,7 @@ func Register(
 	return nil
 }
 
-type pair struct {
-	v uint16 // vendorId
-	d uint16 // deviceID
-}
-
-func (h Handler) reconcilePCIDevices() error {
+func (h Handler) reconcilePCIDevices(hostname string) error {
 	// List all PCI Devices on host
 	busReader, err := pci.NewBusReader()
 	if err != nil {
@@ -58,7 +57,7 @@ func (h Handler) reconcilePCIDevices() error {
 	if err != nil {
 		return err
 	}
-	pcidevicesCRs, err := h.pciDeviceClient.List(metav1.ListOptions{})
+	pcidevicesCRs, err := h.client.List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -71,10 +70,6 @@ func (h Handler) reconcilePCIDevices() error {
 		actual[dev.Addr] = i
 	}
 	// Stored PCI Device CRs (Custom Resources) for this node
-	if err != nil {
-		return err
-	}
-	hostname, err := os.Hostname()
 	if err != nil {
 		return err
 	}
@@ -94,29 +89,29 @@ func (h Handler) reconcilePCIDevices() error {
 			// Update the PCIDevice CR since it exists
 			devStored := pcidevicesCRs.Items[indexStored]
 			name := devStored.ObjectMeta.Name
-			devCR, err := h.pciDeviceClient.Get(name, metav1.GetOptions{})
+			devCR, err := h.client.Get(name, metav1.GetOptions{})
 			if err != nil {
 				logrus.Errorf("Failed to get %s: %s\n", name, err)
 			}
 			devCR.Status.Update(dev) // update the in-memory CR with the current PCI info
-			_, err = h.pciDeviceClient.Update(devCR)
+			_, err = h.client.Update(devCR)
 			if err != nil {
 				logrus.Errorf("Failed to update %v: %s\n", devCR.Status.Address, err)
 			}
-			_, err = h.pciDeviceClient.UpdateStatus(devCR)
+			_, err = h.client.UpdateStatus(devCR)
 			if err != nil {
 				logrus.Errorf("Failed to update status sub-resource: %s\n", err)
 			}
 		} else {
 			// Create the PCIDevice CR if it doesn't exist
 			var pdToCreate v1beta1.PCIDevice = v1beta1.NewPCIDeviceForHostname(dev, hostname)
-			pdCreated, err := h.pciDeviceClient.Create(&pdToCreate)
+			pdCreated, err := h.client.Create(&pdToCreate)
 			if err != nil {
 				logrus.Errorf("Failed to create PCI Device: %s\n", err)
 			}
 			pdCreated.Status.Update(dev)
 			pdCreated.Status.NodeName = hostname
-			_, err = h.pciDeviceClient.UpdateStatus(pdCreated)
+			_, err = h.client.UpdateStatus(pdCreated)
 			if err != nil {
 				logrus.Errorf("Failed to update status sub-resource: %s\n", err)
 			}

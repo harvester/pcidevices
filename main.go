@@ -20,6 +20,7 @@ import (
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/controller/pcidevice"
+	"github.com/harvester/pcidevices/pkg/controller/pcideviceclaim"
 	"github.com/harvester/pcidevices/pkg/crd"
 	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
 )
@@ -103,6 +104,12 @@ func run(kubeConfig string) error {
 		logrus.Info("Starting PCI Devices controller")
 		if err := pcidevice.Register(ctx, pd); err != nil {
 			logrus.Fatalf("failed to register PCI Devices Controller")
+		}
+
+		pdc := pdcfactory.Devices().V1beta1().PCIDeviceClaim()
+		logrus.Info("Starting PCI Device Claims Controller")
+		if err = pcideviceclaim.Register(ctx, pdc); err != nil {
+			logrus.Fatalf("failed to register PCI Device Claims Controller")
 		}
 	}
 
