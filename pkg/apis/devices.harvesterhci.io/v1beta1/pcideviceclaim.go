@@ -1,6 +1,8 @@
 package v1beta1
 
 import (
+	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -22,6 +24,10 @@ type PCIDeviceClaimSpec struct {
 	Address  string `json:"address"`
 	NodeName string `json:"nodeName"`
 	UserName string `json:"userName"`
+}
+
+func (s PCIDeviceClaimSpec) NodeAddr() string {
+	return fmt.Sprintf("%s-%s", s.NodeName, s.Address)
 }
 
 type PCIDeviceClaimStatus struct {

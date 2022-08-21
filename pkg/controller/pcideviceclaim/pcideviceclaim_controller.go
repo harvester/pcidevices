@@ -2,6 +2,7 @@ package pcideviceclaim
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
 
@@ -21,16 +22,19 @@ type Controller struct {
 }
 
 type Handler struct {
-	client ctl.PCIDeviceClaimClient
+	pdcClient ctl.PCIDeviceClaimClient
+	pdClient  ctl.PCIDeviceClient
 }
 
 func Register(
 	ctx context.Context,
 	pdc ctl.PCIDeviceClaimClient,
+	pd ctl.PCIDeviceClient,
 ) error {
 	logrus.Info("Registering PCI Device Claims controller")
 	handler := &Handler{
-		client: pdc,
+		pdcClient: pdc,
+		pdClient:  pd,
 	}
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -56,15 +60,46 @@ func (c *Controller) OnChange(key string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1
 
 func (h Handler) reconcilePCIDeviceClaims(hostname string) error {
 	// Get all PCI Device Claims
-	pdcs, err := h.client.List(metav1.ListOptions{})
+	pdcs, err := h.pdcClient.List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
+	// Get all PCI Devices
+	pds, err := h.pdClient.List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	// Build up map[node-addr]=>name
+	var pdNames map[string]string = make(map[string]string)
+	for _, pd := range pds.Items {
+		nodeAddr := fmt.Sprintf(
+			"%s-%s", pd.Status.NodeName, pd.Status.Address,
+		)
+		pdNames[nodeAddr] = pd.ObjectMeta.Name
+	}
+
 	// Get those PCI Device Claims for this node
 	for _, pdc := range pdcs.Items {
 		if pdc.Spec.NodeName == hostname {
 			if !pdc.Status.PassthroughEnabled {
 				logrus.Infof("Attempting to enable passthrough")
+				// TEMPORARY, JUST FOR UI DEVELOPMENT
+				pdc.Status.PassthroughEnabled = true
+				// Get PCIDevice for the PCIDeviceClaim
+				name := pdNames[pdc.Spec.NodeAddr()]
+				pd, err := h.pdClient.Get(name, metav1.GetOptions{})
+				if err != nil {
+					return err
+				}
+				pdc.Status.KernelDriverToUnbind = pd.Status.KernelDriverInUse
+				_, err = h.pdcClient.Update(&pdc)
+				if err != nil {
+					return err
+				}
+				_, err = h.pdcClient.UpdateStatus(&pdc)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}

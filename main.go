@@ -108,7 +108,7 @@ func run(kubeConfig string) error {
 
 		pdc := pdcfactory.Devices().V1beta1().PCIDeviceClaim()
 		logrus.Info("Starting PCI Device Claims Controller")
-		if err = pcideviceclaim.Register(ctx, pdc); err != nil {
+		if err = pcideviceclaim.Register(ctx, pdc, pd); err != nil {
 			logrus.Fatalf("failed to register PCI Device Claims Controller")
 		}
 	}
