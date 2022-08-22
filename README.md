@@ -129,3 +129,18 @@ This only detects the presence or absence of device, not the number of them.
 ```
 
 Another reason not to use these simple labels is that we want to be able to allow our customers to set custom RBAC rules that restrict who can use which device in the cluster. We can do that with a custom `PCIDevice` CRD, but it's not clear how to do that with node labels.
+
+## License
+Copyright (c) 2022 [Rancher Labs, Inc.](http://rancher.com)
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+[http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0)
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.

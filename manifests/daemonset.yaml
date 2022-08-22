@@ -6,7 +6,7 @@ metadata:
   namespace: harvester-system
   labels:
     app.kubernetes.io/name: pcidevices
-    app.kubernetes.io/component: network
+    app.kubernetes.io/component: operator
     app.kubernetes.io/version: 0.0.1-dev
 spec:
   selector:
