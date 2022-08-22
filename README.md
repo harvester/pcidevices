@@ -1,4 +1,6 @@
-# PCI Devices Controller
+PCI Devices Controller
+========
+[![Go Report Card](https://goreportcard.com/badge/github.com/harvester/pcidevices)](https://goreportcard.com/report/github.com/harvester/pcidevices)
 
 PCI Devices Controller is a **Kubernetes controller** that:
 
