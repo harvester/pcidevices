@@ -35,29 +35,30 @@ type PCIDeviceStatus struct {
 	KernelModules     []string `json:"kernelModules"`
 }
 
-func (status *PCIDeviceStatus) Update(dev *pci.PCI) {
+func (status *PCIDeviceStatus) Update(dev *pci.PCI, hostname string) {
 	driver, err := lspci.GetCurrentPCIDriver(dev.Addr)
 	if err != nil {
 		logrus.Error(err)
-		return
+		// Continue and update the object even if driver is not found
 	}
 	status.Address = dev.Addr
 	status.VendorId = int(dev.Vendor)
 	status.DeviceId = int(dev.Device)
 	status.Description = dev.DeviceName
 	status.KernelDriverInUse = driver
+	status.NodeName = hostname
 	//TODO status.KernelModules = //
 }
 
 type PCIDeviceSpec struct {
 }
 
-func NewPCIDeviceForHostname(dev *pci.PCI, hostname string) PCIDevice {
+func PCIDeviceNameForHostname(dev *pci.PCI, hostname string) string {
 	vendorName := strings.ToLower(
 		strings.Split(dev.VendorName, " ")[0],
 	)
 	addrDNSsafe := strings.ReplaceAll(strings.ReplaceAll(dev.Addr, ":", ""), ".", "")
-	name := fmt.Sprintf(
+	return fmt.Sprintf(
 		"%s-%s-%x-%x-%s",
 		hostname,
 		vendorName,
@@ -65,6 +66,10 @@ func NewPCIDeviceForHostname(dev *pci.PCI, hostname string) PCIDevice {
 		dev.Device,
 		addrDNSsafe,
 	)
+}
+
+func NewPCIDeviceForHostname(dev *pci.PCI, hostname string) PCIDevice {
+	name := PCIDeviceNameForHostname(dev, hostname)
 	pciDevice := PCIDevice{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,

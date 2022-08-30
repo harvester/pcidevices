@@ -1,0 +1,19 @@
+FROM golang:1.18.5-alpine3.16
+
+ARG DAPPER_HOST_ARCH
+ENV ARCH $DAPPER_HOST_ARCH
+
+RUN apk -U add bash git gcc musl-dev docker vim less file curl wget ca-certificates
+RUN go install golang.org/x/lint/golint@latest
+RUN go install golang.org/x/tools/cmd/goimports@latest
+
+ENV GO111MODULE off
+ENV DAPPER_ENV REPO TAG DRONE_TAG
+ENV DAPPER_SOURCE /go/src/github.com/harvester/pcidevices/
+ENV DAPPER_OUTPUT ./bin ./dist
+ENV DAPPER_DOCKER_SOCKET true
+ENV HOME ${DAPPER_SOURCE}
+WORKDIR ${DAPPER_SOURCE}
+
+ENTRYPOINT ["./scripts/entry"]
+CMD ["ci"]
