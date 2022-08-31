@@ -13,7 +13,6 @@ import (
 )
 
 const (
-	controllerName  = "harvester-pcidevices-controller"
 	reconcilePeriod = time.Second * 20
 )
 

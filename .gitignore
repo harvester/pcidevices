@@ -1,2 +1,4 @@
 .dapper
 pcidevices
+bin/
+dist/
