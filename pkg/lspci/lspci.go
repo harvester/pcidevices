@@ -10,7 +10,7 @@ import (
 )
 
 func lspci(address string) ([]byte, error) {
-	output, err := exec.Command("lspci", "-Dvmmnks", address).Output()
+	output, err := exec.Command("lspci", "-s", address, "-v").Output()
 	if err != nil {
 		return nil, err
 	}
@@ -22,10 +22,11 @@ func GetCurrentPCIDriver(address string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// Grep for the 'Driver: ' line:
+	// Grep for the 'Kernel driver in use: ' line:
 	lines := strings.Split(string(lspciOutput), "\n")
 	for _, line := range lines {
-		if strings.HasPrefix(line, "Driver:") {
+		line = strings.TrimLeft(line, "\t ") // remove whitespace
+		if strings.HasPrefix(line, "Kernel driver in use:") {
 			driver := strings.Trim(strings.Split(line, ":")[1], " \n\t")
 			return driver, nil
 		}
