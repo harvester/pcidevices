@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
@@ -58,6 +60,44 @@ func (c *Controller) OnChange(key string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1
 	return pdc, nil
 }
 
+func vfioPCIDriverIsLoaded() bool {
+	cmd := exec.Command("lsmod")
+	output, err := cmd.Output()
+	if err != nil {
+		fmt.Println(err)
+	}
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "vfio_pci") {
+			return true
+		}
+	}
+	return false
+}
+
+func loadVfioPCIDriver() {
+	cmd := exec.Command("modprobe", "vfio-pci")
+	err := cmd.Run()
+	if err != nil {
+		logrus.Error(err)
+	}
+}
+
+func addNewIdToVfioPCIDriver(vendorId int, deviceId int) error {
+	var id string = fmt.Sprintf("%x %x", vendorId, deviceId)
+
+	file, err := os.OpenFile("/sys/bus/pci/drivers/vfio-pci/new_id", os.O_WRONLY, 0400)
+	if err != nil {
+		return err
+	}
+	_, err = file.WriteString(id)
+	if err != nil {
+		return err
+	}
+	file.Close()
+	return nil
+}
+
 func (h Handler) reconcilePCIDeviceClaims(hostname string) error {
 	// Get all PCI Device Claims
 	pdcs, err := h.pdcClient.List(metav1.ListOptions{})
@@ -78,13 +118,15 @@ func (h Handler) reconcilePCIDeviceClaims(hostname string) error {
 		pdNames[nodeAddr] = pd.ObjectMeta.Name
 	}
 
+	if !vfioPCIDriverIsLoaded() {
+		loadVfioPCIDriver()
+	}
+
 	// Get those PCI Device Claims for this node
 	for _, pdc := range pdcs.Items {
 		if pdc.Spec.NodeName == hostname {
 			if !pdc.Status.PassthroughEnabled {
 				logrus.Infof("Attempting to enable passthrough")
-				// TEMPORARY, JUST FOR UI DEVELOPMENT
-				pdc.Status.PassthroughEnabled = true
 				// Get PCIDevice for the PCIDeviceClaim
 				name := pdNames[pdc.Spec.NodeAddr()]
 				pd, err := h.pdClient.Get(name, metav1.GetOptions{})
@@ -92,6 +134,16 @@ func (h Handler) reconcilePCIDeviceClaims(hostname string) error {
 					return err
 				}
 				pdc.Status.KernelDriverToUnbind = pd.Status.KernelDriverInUse
+				// TODO Check if kernelDriver is non-empty
+				// Add device in PCIDeviceClaim to the vfio-pci driver's list of devices
+				if pd.Status.KernelDriverInUse != "vfio-pci" {
+					err = addNewIdToVfioPCIDriver(pd.Status.VendorId, pd.Status.DeviceId)
+					if err != nil {
+						pdc.Status.PassthroughEnabled = false
+						return err
+					}
+					pdc.Status.PassthroughEnabled = true
+				}
 				_, err = h.pdcClient.Update(&pdc)
 				if err != nil {
 					return err
