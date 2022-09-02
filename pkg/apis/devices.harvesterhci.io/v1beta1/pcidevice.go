@@ -36,7 +36,11 @@ type PCIDeviceStatus struct {
 }
 
 func (status *PCIDeviceStatus) Update(dev *pci.PCI, hostname string) {
-	driver, err := lspci.GetCurrentPCIDriver(dev.Addr)
+	lspciOutput, err := lspci.GetLspciOuptut(dev.Addr)
+	if err != nil {
+		logrus.Error(err)
+	}
+	driver, err := lspci.ExtractCurrentPCIDriver(lspciOutput)
 	if err != nil {
 		logrus.Error(err)
 		// Continue and update the object even if driver is not found
@@ -47,7 +51,13 @@ func (status *PCIDeviceStatus) Update(dev *pci.PCI, hostname string) {
 	status.Description = dev.DeviceName
 	status.KernelDriverInUse = driver
 	status.NodeName = hostname
-	//TODO status.KernelModules = //
+
+	modules, err := lspci.ExtractKernelModules(lspciOutput)
+	if err != nil {
+		logrus.Error(err)
+		// Continue and update the object even if modules are not found
+	}
+	status.KernelModules = modules
 }
 
 type PCIDeviceSpec struct {
