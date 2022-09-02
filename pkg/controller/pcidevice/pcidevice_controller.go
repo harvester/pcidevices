@@ -57,8 +57,10 @@ func (h Handler) reconcilePCIDevices(hostname string) error {
 		return err
 	}
 
+	var setOfRealPCIAddrs map[string]bool = make(map[string]bool)
 	for _, dev := range pcidevices {
 		if dev.ClassName == "NetworkEthernet" || dev.ClassName == "DisplayVGA" {
+			setOfRealPCIAddrs[dev.Addr] = true
 			name := v1beta1.PCIDeviceNameForHostname(dev, hostname)
 			// Check if device is stored
 			devCR, err := h.client.Get(name, metav1.GetOptions{})
@@ -87,6 +89,16 @@ func (h Handler) reconcilePCIDevices(hostname string) error {
 			}
 		}
 	}
-	// TODO loop through stored CRs and see if any need to be deleted
+	pciDeviceCRs, err := h.client.List(metav1.ListOptions{})
+	if err != nil {
+		logrus.Errorf("Failed to list PCI Device CRs")
+	}
+	for _, devCR := range pciDeviceCRs.Items {
+		val, found := setOfRealPCIAddrs[devCR.Status.Address]
+		if !found || !val {
+			h.client.Delete(devCR.Name, &metav1.DeleteOptions{})
+		}
+	}
+
 	return nil
 }
