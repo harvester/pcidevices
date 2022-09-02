@@ -47,7 +47,7 @@ func Register(
 		for range ticker.C {
 			logrus.Info("Reconciling PCI Device Claims list")
 			if err := handler.reconcilePCIDeviceClaims(hostname); err != nil {
-				logrus.Errorf("PCI Device Claim reconciliation error")
+				logrus.Errorf("PCI Device Claim reconciliation error: %v", err)
 			}
 		}
 	}()
@@ -99,24 +99,66 @@ func addNewIdToVfioPCIDriver(vendorId int, deviceId int) error {
 
 func (h Handler) reconcilePCIDeviceClaims(hostname string) error {
 	// Get all PCI Device Claims
+	var pdcNames map[string]string = make(map[string]string)
 	pdcs, err := h.pdcClient.List(metav1.ListOptions{})
 	if err != nil {
 		return err
+	}
+	for _, pdc := range pdcs.Items {
+		// Build up mapping
+		nodeAddr := fmt.Sprintf(
+			"%s-%s", pdc.Spec.NodeName, pdc.Spec.Address,
+		)
+		pdcNames[nodeAddr] = pdc.Name
 	}
 	// Get all PCI Devices
 	pds, err := h.pdClient.List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
-	// Build up map[node-addr]=>name
+	// Join PCI Devices with PCI Device Claims
+	// Perform the join using this map[node-addr]=>name
+	// This is possible because a (Node, PCIAddress) pair uniquely identifies a PCI Device
 	var pdNames map[string]string = make(map[string]string)
 	for _, pd := range pds.Items {
+		// Build up mapping
 		nodeAddr := fmt.Sprintf(
 			"%s-%s", pd.Status.NodeName, pd.Status.Address,
 		)
 		pdNames[nodeAddr] = pd.ObjectMeta.Name
+
+		// Check if PCI Device is already enabled for passthrough,
+		// but has no pre-existing PDC, if so, create a PDC
+		_, found := pdcNames[nodeAddr]
+		if !found && pd.Status.KernelDriverInUse == "vfio-pci" && hostname == pd.Status.NodeName {
+			addrDNSsafe := strings.ReplaceAll(strings.ReplaceAll(pd.Status.Address, ":", ""), ".", "")
+			pdcName := fmt.Sprintf(
+				"%s-%s-%x-%x-%s",
+				hostname,
+				"vendor", // TODO vendorName
+				pd.Status.VendorId,
+				pd.Status.DeviceId,
+				addrDNSsafe,
+			)
+			pdc := v1beta1.PCIDeviceClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: pdcName,
+				},
+				Spec: v1beta1.PCIDeviceClaimSpec{
+					Address:  pd.Status.Address,
+					NodeName: pd.Status.NodeName,
+					UserName: "admin", // if there's no pdc but the device is claimed, assume admin user
+				},
+			}
+			logrus.Infof("PCI Device %s is bound to vfio-pci but has no Claim, attempting to create...", pd.Status.Address)
+			_, err := h.pdcClient.Create(&pdc)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
+	// Load the PCI Passthrough VFIO driver if necessary
 	if !vfioPCIDriverIsLoaded() {
 		loadVfioPCIDriver()
 	}
