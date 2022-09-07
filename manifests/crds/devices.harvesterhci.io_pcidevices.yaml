@@ -51,6 +51,8 @@ spec:
                 type: array
               nodeName:
                 type: string
+              vendorName:
+                type: string
               vendorId:
                 type: integer
             required:
@@ -60,6 +62,7 @@ spec:
             - kernelModules
             - nodeName
             - vendorId
+            - vendorName
             type: object
         type: object
     served: true

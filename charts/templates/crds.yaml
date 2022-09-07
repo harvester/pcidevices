@@ -16,6 +16,9 @@ spec:
     - jsonPath: .status.address
       name: Address
       type: string
+    - jsonPath: .status.vendorName
+      name: VendorName
+      type: string
     - jsonPath: .status.vendorId
       name: VendorId
       type: string
@@ -140,6 +143,9 @@ spec:
   additionalPrinterColumns:
   - JSONPath: .status.address
     name: Address
+    type: string
+  - JSONPath: .status.vendorName
+    name: VendorName
     type: string
   - JSONPath: .status.vendorId
     name: VendorId

@@ -80,6 +80,7 @@ func List() []crd.CRD {
 			c.NonNamespace = true
 			return c.
 				WithColumn("Address", ".status.address").
+				WithColumn("VendorName", ".status.vendorName").
 				WithColumn("VendorId", ".status.vendorId").
 				WithColumn("DeviceId", ".status.deviceId").
 				WithColumn("NodeName", ".status.nodeName").

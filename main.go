@@ -25,7 +25,7 @@ import (
 	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
 )
 
-const VERSION = "v0.0.1-dev"
+const VERSION = "v0.0.2-dev"
 
 var (
 	localSchemeBuilder = runtime.SchemeBuilder{
