@@ -7,7 +7,7 @@ metadata:
   labels:
     app.kubernetes.io/name: pcidevices
     app.kubernetes.io/component: operator
-    app.kubernetes.io/version: 0.0.1-dev
+    app.kubernetes.io/version: 0.0.2-dev
 spec:
   selector:
     matchLabels:
@@ -32,7 +32,7 @@ spec:
                 apiVersion: v1
                 fieldPath: spec.nodeName
           name: network
-          image: harvester/pcidevices:master-head
+          image: rancher/harvester-pcidevices:master-head
           imagePullPolicy: IfNotPresent
           command:
             - pcidevices

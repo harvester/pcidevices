@@ -4,7 +4,7 @@ metadata:
   labels:
     app.kubernetes.io/name: pcidevices
     app.kubernetes.io/component: operator
-    app.kubernetes.io/version: 0.0.1-dev
+    app.kubernetes.io/version: 0.0.2-dev
   name: pcidevices
   namespace: harvester-system
 ---
@@ -25,6 +25,9 @@ rules:
   - apiGroups: [ "" ]
     resources: [ "namespaces" ]
     verbs: [ "get", "watch", "list" ]
+  - apiGroups: [ "devices.harvesterhci.io" ]
+    resources: [ "pcidevices", "pcidevices/status", "pcideviceclaims" ]
+    verbs: [ "get", "watch", "list", "update", "create" ]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -32,7 +35,7 @@ metadata:
   labels:
     app.kubernetes.io/name: pcidevices
     app.kubernetes.io/component: operator
-    app.kubernetes.io/version: 0.0.1-dev
+    app.kubernetes.io/version: 0.0.2-dev
   name: pcidevices
 roleRef:
   apiGroup: rbac.authorization.k8s.io
