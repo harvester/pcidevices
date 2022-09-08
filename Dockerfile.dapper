@@ -3,7 +3,7 @@ FROM golang:1.18.5-alpine3.16
 ARG DAPPER_HOST_ARCH
 ENV ARCH $DAPPER_HOST_ARCH
 
-RUN apk -U add bash git gcc musl-dev docker vim less file curl wget ca-certificates pciutils
+RUN apk -U add bash git gcc musl-dev docker vim less file curl wget ca-certificates
 RUN go install golang.org/x/lint/golint@latest
 RUN go install golang.org/x/tools/cmd/goimports@latest
 
