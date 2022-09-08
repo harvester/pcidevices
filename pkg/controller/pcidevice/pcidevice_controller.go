@@ -96,7 +96,10 @@ func (h Handler) reconcilePCIDevices(hostname string) error {
 	for _, devCR := range pciDeviceCRs.Items {
 		val, found := setOfRealPCIAddrs[devCR.Status.Address]
 		if !found || !val {
-			h.client.Delete(devCR.Name, &metav1.DeleteOptions{})
+			err = h.client.Delete(devCR.Name, &metav1.DeleteOptions{})
+			if err != nil {
+				logrus.Errorf("Failed deleting PCI Device %s: %s", devCR.Name, err)
+			}
 		}
 	}
 

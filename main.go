@@ -25,7 +25,10 @@ import (
 	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
 )
 
-const VERSION = "v0.0.2-dev"
+const (
+	VERSION        = "v0.0.2-dev"
+	controllerName = "harvester-pcideviceclaims-controller"
+)
 
 var (
 	localSchemeBuilder = runtime.SchemeBuilder{
@@ -44,7 +47,7 @@ func main() {
 	// set up the kubeconfig and other args
 	var kubeConfig string
 	app := cli.NewApp()
-	app.Name = "harvester-pcidevices-controller"
+	app.Name = controllerName
 	app.Version = VERSION
 	app.Usage = "Harvester PCI Devices Controller, to discover PCI devices on the nodes of a cluster. Also manages PCI Device Claims, for use in PCI passthrough."
 	app.Flags = []cli.Flag{
@@ -111,6 +114,7 @@ func run(kubeConfig string) error {
 		if err = pcideviceclaim.Register(ctx, pdc, pd); err != nil {
 			logrus.Fatalf("failed to register PCI Device Claims Controller")
 		}
+		pdc.OnRemove(ctx, controllerName, pcideviceclaim.Handler)
 	}
 
 	startAllControllers := func(ctx context.Context) {

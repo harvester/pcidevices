@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
-	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
+	v1beta1gen "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -19,28 +19,29 @@ const (
 )
 
 type Controller struct {
-	PCIDeviceClaims ctl.PCIDeviceClaimController
+	PCIDeviceClaims v1beta1gen.PCIDeviceClaimController
 }
 
 type Handler struct {
-	pdcClient ctl.PCIDeviceClaimClient
-	pdClient  ctl.PCIDeviceClient
+	pdcClient v1beta1gen.PCIDeviceClaimClient
+	pdClient  v1beta1gen.PCIDeviceClient
 }
 
 func Register(
 	ctx context.Context,
-	pdc ctl.PCIDeviceClaimClient,
-	pd ctl.PCIDeviceClient,
+	pdcClient v1beta1gen.PCIDeviceClaimClient,
+	pd v1beta1gen.PCIDeviceClient,
 ) error {
 	logrus.Info("Registering PCI Device Claims controller")
 	handler := &Handler{
-		pdcClient: pdc,
+		pdcClient: pdcClient,
 		pdClient:  pd,
 	}
 	hostname, err := os.Hostname()
 	if err != nil {
 		return err
 	}
+	pdcClient.OnRemove(ctx, "", handler.OnRemove)
 	// start goroutine to regularly reconcile the PCI Device Claims' status with their spec
 	go func() {
 		ticker := time.NewTicker(reconcilePeriod)
@@ -90,6 +91,19 @@ func addNewIdToVfioPCIDriver(vendorId int, deviceId int) error {
 		return err
 	}
 	_, err = file.WriteString(id)
+	if err != nil {
+		return err
+	}
+	file.Close()
+	return nil
+}
+
+func unbindPCIDeviceFromVfioPCIDriver(addr string) error {
+	file, err := os.OpenFile("/sys/bus/pci/drivers/vfio-pci/unbind", os.O_WRONLY, 0400)
+	if err != nil {
+		return err
+	}
+	_, err = file.WriteString(addr)
 	if err != nil {
 		return err
 	}
@@ -150,7 +164,7 @@ func (h Handler) reconcilePCIDeviceClaims(hostname string) error {
 					UserName: "admin", // if there's no pdc but the device is claimed, assume admin user
 				},
 			}
-			logrus.Infof("PCI Device %s is bound to vfio-pci but has no Claim, attempting to create...", pd.Status.Address)
+			logrus.Infof("PCI Device %s is bound to vfio-pci but has no Claim, attempting to create", pd.Status.Address)
 			_, err := h.pdcClient.Create(&pdc)
 			if err != nil {
 				return err
@@ -197,4 +211,23 @@ func (h Handler) reconcilePCIDeviceClaims(hostname string) error {
 		}
 	}
 	return nil
+}
+
+func (c *Controller) OnRemove(
+	ctx context.Context,
+	name string,
+	sync v1beta1gen.PCIDeviceClaimHandler,
+) {
+	logrus.Infof("PCIDeviceClaim %s removed, unbinding the device from vfio-pci driver", name)
+	// Unbind the device
+	pdc, err := c.Get(name, metav1.GetOptions{})
+	if err != nil {
+		logrus.Errorf("Failed to get PCIDeviceClaim %s: %s", name, err)
+		return
+	}
+	var addr string = pdc.Spec.Address
+	err = unbindPCIDeviceFromVfioPCIDriver(addr)
+	if err != nil {
+		logrus.Errorf("Failed to unbind PCIDevice from vfio-driver: %s", err)
+	}
 }
