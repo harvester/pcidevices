@@ -26,7 +26,7 @@ rules:
     resources: [ "namespaces" ]
     verbs: [ "get", "watch", "list" ]
   - apiGroups: [ "devices.harvesterhci.io" ]
-    resources: [ "pcidevices", "pcidevices/status", "pcideviceclaims" ]
+    resources: [ "pcidevices", "pcidevices/status", "pcideviceclaims", "pcideviceclaims/status" ]
     verbs: [ "get", "watch", "list", "update", "create" ]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
