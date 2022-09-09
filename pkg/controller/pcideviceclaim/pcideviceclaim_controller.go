@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	v1beta1gen "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,8 +28,8 @@ type Handler struct {
 
 func Register(
 	ctx context.Context,
-	pdcClient v1beta1gen.PCIDeviceClaimClient,
-	pd v1beta1gen.PCIDeviceClient,
+	pdcClient v1beta1gen.PCIDeviceClaimController,
+	pd v1beta1gen.PCIDeviceController,
 ) error {
 	logrus.Info("Registering PCI Device Claims controller")
 	handler := &Handler{
@@ -41,7 +40,6 @@ func Register(
 	if err != nil {
 		return err
 	}
-	pdcClient.OnRemove(ctx, "", handler.OnRemove)
 	// start goroutine to regularly reconcile the PCI Device Claims' status with their spec
 	go func() {
 		ticker := time.NewTicker(reconcilePeriod)
@@ -53,11 +51,6 @@ func Register(
 		}
 	}()
 	return nil
-}
-
-func (c *Controller) OnChange(key string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
-	logrus.Infof("PCI Device Claim %s has changed", pdc.Name)
-	return pdc, nil
 }
 
 func vfioPCIDriverIsLoaded() bool {
@@ -91,6 +84,20 @@ func addNewIdToVfioPCIDriver(vendorId int, deviceId int) error {
 		return err
 	}
 	_, err = file.WriteString(id)
+	if err != nil {
+		return err
+	}
+	file.Close()
+	return nil
+}
+
+func unbindPCIDeviceFromDriver(addr string, driver string) error {
+	path := fmt.Sprintf("/sys/bus/pci/drivers/%s/unbind", driver)
+	file, err := os.OpenFile(path, os.O_WRONLY, 0400)
+	if err != nil {
+		return err
+	}
+	_, err = file.WriteString(addr)
 	if err != nil {
 		return err
 	}
@@ -141,31 +148,12 @@ func (h Handler) reconcilePCIDeviceClaims(hostname string) error {
 		)
 		pdNames[nodeAddr] = pd.ObjectMeta.Name
 
-		// Check if PCI Device is already enabled for passthrough,
-		// but has no pre-existing PDC, if so, create a PDC
+		// Check if PCI Device is already enabled for passthrough, but has no pre-existing PDC,
+		// if so, unbind the device (to force the user to make a proper PDC)
 		_, found := pdcNames[nodeAddr]
 		if !found && pd.Status.KernelDriverInUse == "vfio-pci" && hostname == pd.Status.NodeName {
-			addrDNSsafe := strings.ReplaceAll(strings.ReplaceAll(pd.Status.Address, ":", ""), ".", "")
-			pdcName := fmt.Sprintf(
-				"%s-%s-%x-%x-%s",
-				hostname,
-				"vendor", // TODO vendorName
-				pd.Status.VendorId,
-				pd.Status.DeviceId,
-				addrDNSsafe,
-			)
-			pdc := v1beta1.PCIDeviceClaim{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: pdcName,
-				},
-				Spec: v1beta1.PCIDeviceClaimSpec{
-					Address:  pd.Status.Address,
-					NodeName: pd.Status.NodeName,
-					UserName: "admin", // if there's no pdc but the device is claimed, assume admin user
-				},
-			}
-			logrus.Infof("PCI Device %s is bound to vfio-pci but has no Claim, attempting to create", pd.Status.Address)
-			_, err := h.pdcClient.Create(&pdc)
+			logrus.Infof("PCI Device %s is bound to vfio-pci but has no Claim, attempting to unbind", pd.Status.Address)
+			err = unbindPCIDeviceFromVfioPCIDriver(pd.Status.Address)
 			if err != nil {
 				return err
 			}
@@ -189,9 +177,17 @@ func (h Handler) reconcilePCIDeviceClaims(hostname string) error {
 					return err
 				}
 				pdc.Status.KernelDriverToUnbind = pd.Status.KernelDriverInUse
-				// TODO Check if kernelDriver is non-empty
-				// Add device in PCIDeviceClaim to the vfio-pci driver's list of devices
-				if pd.Status.KernelDriverInUse != "vfio-pci" {
+				if pd.Status.KernelDriverInUse == "vfio-pci" {
+					pdc.Status.PassthroughEnabled = true
+				} else {
+					// Only unbind from driver is a driver is currently in use
+					if strings.TrimSpace(pd.Status.KernelDriverInUse) != "" {
+						err = unbindPCIDeviceFromDriver(pd.Status.Address, pd.Status.KernelDriverInUse)
+						if err != nil {
+							pdc.Status.PassthroughEnabled = false
+							return err
+						}
+					}
 					err = addNewIdToVfioPCIDriver(pd.Status.VendorId, pd.Status.DeviceId)
 					if err != nil {
 						pdc.Status.PassthroughEnabled = false
@@ -208,26 +204,15 @@ func (h Handler) reconcilePCIDeviceClaims(hostname string) error {
 					return err
 				}
 			}
+			if pdc.DeletionTimestamp != nil {
+				logrus.Infof("Attempting to unbind PCI device %s from vfio-pci", pdc.Spec.Address)
+				err = unbindPCIDeviceFromVfioPCIDriver(pdc.Spec.Address)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
-	return nil
-}
 
-func (c *Controller) OnRemove(
-	ctx context.Context,
-	name string,
-	sync v1beta1gen.PCIDeviceClaimHandler,
-) {
-	logrus.Infof("PCIDeviceClaim %s removed, unbinding the device from vfio-pci driver", name)
-	// Unbind the device
-	pdc, err := c.Get(name, metav1.GetOptions{})
-	if err != nil {
-		logrus.Errorf("Failed to get PCIDeviceClaim %s: %s", name, err)
-		return
-	}
-	var addr string = pdc.Spec.Address
-	err = unbindPCIDeviceFromVfioPCIDriver(addr)
-	if err != nil {
-		logrus.Errorf("Failed to unbind PCIDevice from vfio-driver: %s", err)
-	}
+	return nil
 }
