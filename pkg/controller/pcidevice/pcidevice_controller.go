@@ -64,20 +64,9 @@ func (h Handler) reconcilePCIDevices(hostname string) error {
 			setOfRealPCIAddrs[dev.Addr] = true
 			name := v1beta1.PCIDeviceNameForHostname(dev, hostname)
 			// Check if device is stored
-			devCR, err := h.client.Get(name, metav1.GetOptions{})
+			_, err := h.client.Get(name, metav1.GetOptions{})
 
-			if err == nil {
-				// Update the stored device
-				devCR.Status.Update(dev, hostname) // update the in-memory CR with the current PCI info
-				_, err = h.client.Update(devCR)
-				if err != nil {
-					logrus.Errorf("Failed to update %v: %s\n", devCR.Status.Address, err)
-				}
-				_, err = h.client.UpdateStatus(devCR)
-				if err != nil {
-					logrus.Errorf("(Resource exists) Failed to update status sub-resource: %s\n", err)
-				}
-			} else {
+			if err != nil {
 				logrus.Errorf("Failed to get %s: %s\n", name, err)
 
 				// Create the PCIDevice CR if it doesn't exist
@@ -88,6 +77,20 @@ func (h Handler) reconcilePCIDevices(hostname string) error {
 					logrus.Errorf("Failed to create PCI Device: %s\n", err)
 				}
 			}
+			// Update the stored device
+			devCR, err := h.client.Get(name, metav1.GetOptions{})
+			if err != nil {
+				logrus.Errorf("Failed to get %s: %s\n", name, err)
+			}
+			devCR.Status.Update(dev, hostname) // update the in-memory CR with the current PCI info
+			_, err = h.client.Update(devCR)
+			if err != nil {
+				logrus.Errorf("Failed to update %v: %s\n", devCR.Status.Address, err)
+			}
+			_, err = h.client.UpdateStatus(devCR)
+			if err != nil {
+				logrus.Errorf("(Resource exists) Failed to update status sub-resource: %s\n", err)
+			}
 		}
 	}
 	pciDeviceCRs, err := h.client.List(metav1.ListOptions{})
@@ -96,7 +99,15 @@ func (h Handler) reconcilePCIDevices(hostname string) error {
 	}
 	for _, devCR := range pciDeviceCRs.Items {
 		val, found := setOfRealPCIAddrs[devCR.Status.Address]
+		logrus.Infof(
+			"name: %s, addr: %s, val: %v, found: %v",
+			devCR.Name,
+			devCR.Status.Address,
+			val,
+			found,
+		)
 		if !found || !val {
+			logrus.Infof("Deleting PCI Device: %s", devCR.Name)
 			err = h.client.Delete(devCR.Name, &metav1.DeleteOptions{})
 			if err != nil {
 				logrus.Errorf("Failed deleting PCI Device %s: %s", devCR.Name, err)
