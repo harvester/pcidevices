@@ -93,20 +93,21 @@ func (h Handler) reconcilePCIDevices(hostname string) error {
 			}
 		}
 	}
-	pciDeviceCRs, err := h.client.List(metav1.ListOptions{})
-	if err != nil {
-		logrus.Errorf("Failed to list PCI Device CRs")
-	}
-	for _, devCR := range pciDeviceCRs.Items {
-		val, found := setOfRealPCIAddrs[devCR.Status.Address]
-		if !found || !val {
-			logrus.Infof("Deleting PCI Device: %s", devCR.Name)
-			err = h.client.Delete(devCR.Name, &metav1.DeleteOptions{})
-			if err != nil {
-				logrus.Errorf("Failed deleting PCI Device %s: %s", devCR.Name, err)
-			}
-		}
-	}
+	//pciDeviceCRs, err := h.client.List(metav1.ListOptions{})
+	//if err != nil {
+	//	logrus.Errorf("Failed to list PCI Device CRs")
+	//}
+	// TODO: Properly handle PCI device unplug. Since this is uncommon, not prioritizing this now
+	//for _, devCR := range pciDeviceCRs.Items {
+	//	val, found := setOfRealPCIAddrs[devCR.Status.Address]
+	//	if !found || !val {
+	//		logrus.Infof("Deleting PCI Device: %s", devCR.Name)
+	//		err = h.client.Delete(devCR.Name, &metav1.DeleteOptions{})
+	//		if err != nil {
+	//			logrus.Errorf("Failed deleting PCI Device %s: %s", devCR.Name, err)
+	//		}
+	//	}
+	//}
 
 	return nil
 }
