@@ -59,7 +59,8 @@ func (h Handler) reconcilePCIDevices(hostname string) error {
 
 	var setOfRealPCIAddrs map[string]bool = make(map[string]bool)
 	for _, dev := range pcidevices {
-		if dev.ClassName == "NetworkEthernet" || dev.ClassName == "DisplayVGA" {
+		// For PCI Passthrough with GPUs, some devices need their audio devices to be passed-through as well.
+		if dev.ClassName == "NetworkEthernet" || dev.ClassName == "DisplayVGA" || dev.ClassName == "MultimediaAudioDev" {
 			setOfRealPCIAddrs[dev.Addr] = true
 			name := v1beta1.PCIDeviceNameForHostname(dev, hostname)
 			// Check if device is stored
