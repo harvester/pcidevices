@@ -53,7 +53,7 @@ func Register(
 	return nil
 }
 
-func vfioPCIDriverIsLoaded() bool {
+func driverIsLoaded(driver string) bool {
 	cmd := exec.Command("lsmod")
 	output, err := cmd.Output()
 	if err != nil {
@@ -61,18 +61,26 @@ func vfioPCIDriverIsLoaded() bool {
 	}
 	lines := strings.Split(string(output), "\n")
 	for _, line := range lines {
-		if strings.HasPrefix(line, "vfio_pci") {
+		if strings.HasPrefix(line, driver) {
 			return true
 		}
 	}
 	return false
 }
 
-func loadVfioPCIDriver() {
-	cmd := exec.Command("modprobe", "vfio-pci")
+func loadDriver(driver string) {
+	cmd := exec.Command("modprobe", driver)
 	err := cmd.Run()
 	if err != nil {
 		logrus.Error(err)
+	}
+}
+
+func loadVfioDrivers() {
+	for _, driver := range []string{"vfio-pci", "vfio_iommu_type1"} {
+		if !driverIsLoaded(driver) {
+			loadDriver(driver)
+		}
 	}
 }
 
@@ -160,9 +168,9 @@ func (h Handler) reconcilePCIDeviceClaims(hostname string) error {
 		}
 	}
 
-	// Load the PCI Passthrough VFIO driver if necessary
-	if !vfioPCIDriverIsLoaded() {
-		loadVfioPCIDriver()
+	// Only load the vfio drivers if there are any PCI Device Claims
+	if len(pdcs.Items) > 0 {
+		loadVfioDrivers()
 	}
 
 	// Get those PCI Device Claims for this node
