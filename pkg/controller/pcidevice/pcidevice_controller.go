@@ -59,38 +59,35 @@ func (h Handler) reconcilePCIDevices(hostname string) error {
 
 	var setOfRealPCIAddrs map[string]bool = make(map[string]bool)
 	for _, dev := range pcidevices {
-		// For PCI Passthrough with GPUs, some devices need their audio devices to be passed-through as well.
-		if dev.ClassName == "NetworkEthernet" || dev.ClassName == "DisplayVGA" || dev.ClassName == "MultimediaAudioDev" {
-			setOfRealPCIAddrs[dev.Addr] = true
-			name := v1beta1.PCIDeviceNameForHostname(dev, hostname)
-			// Check if device is stored
-			_, err := h.client.Get(name, metav1.GetOptions{})
+		setOfRealPCIAddrs[dev.Addr] = true
+		name := v1beta1.PCIDeviceNameForHostname(dev, hostname)
+		// Check if device is stored
+		_, err := h.client.Get(name, metav1.GetOptions{})
 
-			if err != nil {
-				logrus.Errorf("Failed to get %s: %s\n", name, err)
+		if err != nil {
+			logrus.Errorf("Failed to get %s: %s\n", name, err)
 
-				// Create the PCIDevice CR if it doesn't exist
-				var pdToCreate v1beta1.PCIDevice = v1beta1.NewPCIDeviceForHostname(dev, hostname)
-				logrus.Infof("Creating PCI Device: %s\n", err)
-				_, err := h.client.Create(&pdToCreate)
-				if err != nil {
-					logrus.Errorf("Failed to create PCI Device: %s\n", err)
-				}
-			}
-			// Update the stored device
-			devCR, err := h.client.Get(name, metav1.GetOptions{})
+			// Create the PCIDevice CR if it doesn't exist
+			var pdToCreate v1beta1.PCIDevice = v1beta1.NewPCIDeviceForHostname(dev, hostname)
+			logrus.Infof("Creating PCI Device: %s\n", err)
+			_, err := h.client.Create(&pdToCreate)
 			if err != nil {
-				logrus.Errorf("Failed to get %s: %s\n", name, err)
+				logrus.Errorf("Failed to create PCI Device: %s\n", err)
 			}
-			devCR.Status.Update(dev, hostname) // update the in-memory CR with the current PCI info
-			_, err = h.client.Update(devCR)
-			if err != nil {
-				logrus.Errorf("Failed to update %v: %s\n", devCR.Status.Address, err)
-			}
-			_, err = h.client.UpdateStatus(devCR)
-			if err != nil {
-				logrus.Errorf("(Resource exists) Failed to update status sub-resource: %s\n", err)
-			}
+		}
+		// Update the stored device
+		devCR, err := h.client.Get(name, metav1.GetOptions{})
+		if err != nil {
+			logrus.Errorf("Failed to get %s: %s\n", name, err)
+		}
+		devCR.Status.Update(dev, hostname) // update the in-memory CR with the current PCI info
+		_, err = h.client.Update(devCR)
+		if err != nil {
+			logrus.Errorf("Failed to update %v: %s\n", devCR.Status.Address, err)
+		}
+		_, err = h.client.UpdateStatus(devCR)
+		if err != nil {
+			logrus.Errorf("(Resource exists) Failed to update status sub-resource: %s\n", err)
 		}
 	}
 	//pciDeviceCRs, err := h.client.List(metav1.ListOptions{})
