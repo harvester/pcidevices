@@ -166,6 +166,16 @@ func (h Handler) reconcilePCIDeviceClaims(hostname string) error {
 				return err
 			}
 		}
+		// After reboot, the PCIDeviceClaim will be there but the PCIDevice won't be bound to vfio-pci
+		if found && pd.Status.KernelDriverInUse != "vfio-pci" && hostname == pd.Status.NodeName {
+			// Set PassthroughEnabled to false
+			for _, pdc := range pdcs.Items {
+				if pdc.Spec.Address == pd.Status.Address {
+					logrus.Infof("Passthrough disabled for device %s", pd.Name)
+					pdc.Status.PassthroughEnabled = false
+				}
+			}
+		}
 	}
 
 	// Only load the vfio drivers if there are any PCI Device Claims
