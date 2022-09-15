@@ -4,7 +4,7 @@ metadata:
   labels:
     app.kubernetes.io/name: pcidevices
     app.kubernetes.io/component: operator
-    app.kubernetes.io/version: 0.0.2-dev
+    app.kubernetes.io/version: 0.0.2
   name: pcidevices
   namespace: harvester-system
 ---
@@ -35,7 +35,7 @@ metadata:
   labels:
     app.kubernetes.io/name: pcidevices
     app.kubernetes.io/component: operator
-    app.kubernetes.io/version: 0.0.2-dev
+    app.kubernetes.io/version: 0.0.2
   name: pcidevices
 roleRef:
   apiGroup: rbac.authorization.k8s.io

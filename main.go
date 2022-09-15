@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	VERSION        = "v0.0.2-dev"
+	VERSION        = "v0.0.2"
 	controllerName = "harvester-pcideviceclaims-controller"
 )
 
