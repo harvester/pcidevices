@@ -48,9 +48,29 @@ func strip(s string) string {
 	return processedString
 }
 
+func extractVendorNameFromBrackets(vendorName string) string {
+	// Make a Regex to say we only want
+	reg, err := regexp.Compile(`\[([^\]]+)\]`)
+	if err != nil {
+		fmt.Printf("%v", err)
+	}
+	matches := reg.FindStringSubmatch(vendorName)
+	preSlash := strings.Split(matches[1], "/")[0]
+	return strip(preSlash)
+}
+
 func description(pci *pcidb.PCIDB, vendorId string, deviceId string) string {
 	vendor := pci.Vendors[vendorId]
-	vendorCleaned := strings.ReplaceAll(strip(vendor.Name), " ", "")
+	var vendorBase string
+	// if vendor name has a '[name]', then use that
+	if strings.Contains(vendor.Name, "[") {
+		vendorBase = extractVendorNameFromBrackets(vendor.Name)
+	} else {
+		vendorBase = strip(strings.Split(vendor.Name, " ")[0])
+	}
+	vendorCleaned := strings.ToLower(
+		strings.ReplaceAll(vendorBase, " ", ""),
+	) + ".com"
 	var product *pcidb.Product
 	for _, product = range vendor.Products {
 		// Example: 1c02 and 1C02 both represent the same device
