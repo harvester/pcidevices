@@ -1,8 +1,6 @@
 package v1beta1
 
 import (
-	"fmt"
-	"os"
 	"reflect"
 	"testing"
 
@@ -60,26 +58,6 @@ func TestDescriptionForVendorDevice(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-
-	// Loop through all Vendors and all Products
-	file, err := os.OpenFile("/home/tobi/descriptions.txt", os.O_RDWR, 0777)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer file.Close()
-	for _, v := range pci.Vendors {
-		vendor := v
-		for _, product := range vendor.Products {
-			file.WriteString(
-				fmt.Sprintf(
-					"%s %s: %s\n",
-					vendor.ID, product.ID,
-					description(pci, vendor.ID, product.ID),
-				),
-			)
-		}
-	}
-	// end debug loop
 
 	type args struct {
 		vendorId string
