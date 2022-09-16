@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	"regexp"
+
 	"github.com/harvester/pcidevices/pkg/lspci"
+	"github.com/jaypipes/pcidb"
 	"github.com/sirupsen/logrus"
 	"github.com/u-root/u-root/pkg/pci"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,6 +38,32 @@ type PCIDeviceStatus struct {
 	KernelModules     []string `json:"kernelModules"`
 }
 
+func strip(s string) string {
+	// Make a Regex to say we only want
+	reg, err := regexp.Compile("[^a-zA-Z0-9]+")
+	if err != nil {
+		fmt.Printf("%v", err)
+	}
+	processedString := reg.ReplaceAllString(s, "")
+	return processedString
+}
+
+func description(pci *pcidb.PCIDB, vendorId string, deviceId string) string {
+	vendor := pci.Vendors[vendorId]
+	vendorCleaned := strings.ReplaceAll(strip(vendor.Name), " ", "")
+	var product *pcidb.Product
+	for _, product = range vendor.Products {
+		// Example: 1c02 and 1C02 both represent the same device
+		if strings.ToLower(product.ID) == strings.ToLower(deviceId) {
+			// Found the product name
+			productCleaned := strings.ReplaceAll(strip(product.Name), " ", "")
+			return fmt.Sprintf("%s/%s", vendorCleaned, productCleaned)
+		}
+	}
+	// If the pcidb doesn't have the deviceId, just show the deviceId
+	return fmt.Sprintf("%s/%s", vendorCleaned, deviceId)
+}
+
 func (status *PCIDeviceStatus) Update(dev *pci.PCI, hostname string) {
 	lspciOutput, err := lspci.GetLspciOuptut(dev.Addr)
 	if err != nil {
@@ -48,7 +77,15 @@ func (status *PCIDeviceStatus) Update(dev *pci.PCI, hostname string) {
 	status.Address = dev.Addr
 	status.VendorId = int(dev.Vendor)
 	status.DeviceId = int(dev.Device)
-	status.Description = dev.DeviceName
+	// Generate the Description field, this is used by KubeVirt to schedule the VM to the node
+	pci, err := pcidb.New()
+	if err != nil {
+		logrus.Errorf("Error opening pcidb: %v", err)
+	}
+	vendorId := fmt.Sprintf("%x", dev.Vendor)
+	deviceId := fmt.Sprintf("%x", dev.Device)
+	status.Description = description(pci, vendorId, deviceId)
+
 	status.KernelDriverInUse = driver
 	status.NodeName = hostname
 
