@@ -5,6 +5,7 @@ import (
 
 	"github.com/harvester/harvester/pkg/webhook/types"
 	"github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
+	"github.com/sirupsen/logrus"
 	admissionregv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -64,6 +65,7 @@ func (m *podMutator) Create(request *types.Request, newObj runtime.Object) (type
 		}
 	}
 	if !match {
+		logrus.Infof("ignoring pod %s in ns %s as no valid labels found", pod.Name, pod.Namespace)
 		return nil, nil
 	}
 
@@ -76,17 +78,23 @@ func (m *podMutator) Create(request *types.Request, newObj runtime.Object) (type
 
 	device, err := m.claimCache.GetByIndex(PCIClaimByVM, vmName)
 	if err != nil {
-		return nil, err
+		logrus.Errorf("error looking up deviceclaim by vmName: %v", err)
+		return nil, fmt.Errorf("error looking up deviceclaim by vmName: %v", err)
 	}
 
 	if len(device) > 0 {
 		capPatchOptions, err := createCapabilityPatch(pod)
 		if err != nil {
-			return nil, err
+			logrus.Infof("error creating capability patch for pod %s in ns %s %v", pod.Name, pod.Namespace, err)
+			return nil, fmt.Errorf("error creating capability patch: %v", err)
 		}
 
 		patchOps = append(patchOps, capPatchOptions...)
+	} else {
+		logrus.Infof("no deviceclaim found by owner vm: %s, nothing to do", vmName)
 	}
+
+	logrus.Debugf("patch generated %v, for pod %s in ns %s", patchOps, pod.Name, pod.Namespace)
 
 	return patchOps, nil
 }
