@@ -5,3 +5,4 @@ cd $(dirname $0)/..
 
 echo Running tests
 go test ./pkg/... -cover -tags=test
+go test -v ./tests/integration

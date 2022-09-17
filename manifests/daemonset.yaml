@@ -23,7 +23,7 @@ spec:
         - key: node-role.kubernetes.io/master
           effect: NoSchedule
       serviceAccountName: pcidevices
-      hostNetwork: true
+      # hostNetwork: true
       containers:
         - env:
           - name: NODENAME
@@ -33,7 +33,7 @@ spec:
                 fieldPath: spec.nodeName
           name: network
           image: rancher/harvester-pcidevices:master-head
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           command:
             - pcidevices
           args:
@@ -47,7 +47,7 @@ spec:
             name: modules
           resources:
             limits:
-              memory: 100Mi
+              memory: 200Mi
             requests:
               cpu: 10m
               memory: 50Mi
@@ -60,3 +60,16 @@ spec:
           path: /lib/modules
           type: Directory
         name: modules
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pcidevices-webhook
+  namespace: harvester-system
+spec:
+  selector:
+    name: pcidevices
+  ports:
+    - protocol: TCP
+      port: 8443
+      targetPort: 8443
