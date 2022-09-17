@@ -9,7 +9,7 @@ import (
 )
 
 func Mutation(clients *Clients) (http.Handler, []types.Resource, error) {
-	resources := []types.Resource{}
+	var resources []types.Resource
 	mutators := []types.Mutator{
 		NewPodMutator(clients.PCIFactory.Devices().V1beta1().PCIDeviceClaim().Cache()),
 	}

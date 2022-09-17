@@ -3,9 +3,6 @@ package webhook
 import (
 	"context"
 	"fmt"
-	"strings"
-	"testing"
-
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/rancher/wrangler/pkg/yaml"
 	"github.com/stretchr/testify/require"
@@ -17,6 +14,8 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"strings"
+	"testing"
 )
 
 const (

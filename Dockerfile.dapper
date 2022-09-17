@@ -6,6 +6,10 @@ ENV ARCH $DAPPER_HOST_ARCH
 RUN apk -U add bash git gcc musl-dev docker vim less file curl wget ca-certificates pciutils
 RUN go install golang.org/x/lint/golint@latest
 RUN go install golang.org/x/tools/cmd/goimports@latest
+RUN export K8S_VERSION=1.24.2 && \
+    curl -sSLo envtest-bins.tar.gz "https://go.kubebuilder.io/test-tools/${K8S_VERSION}/$(go env GOOS)/$(go env GOARCH)" && \
+    mkdir /usr/local/kubebuilder && \
+    tar -C /usr/local/kubebuilder --strip-components=1 -zvxf envtest-bins.tar.gz
 
 ENV GO111MODULE on
 ENV DAPPER_ENV REPO TAG DRONE_TAG

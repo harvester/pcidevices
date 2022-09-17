@@ -24,7 +24,6 @@ var (
 	port     = int32(8443)
 
 	mutationPath        = "/v1/webhook/mutation"
-	failPolicyFail      = v1.Fail
 	failPolicyIgnore    = v1.Ignore
 	sideEffectClassNone = v1.SideEffectClassNone
 	namespace           = "harvester-system"
