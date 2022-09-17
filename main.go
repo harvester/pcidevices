@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/harvester/pcidevices/pkg/webhook"
 	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -124,6 +125,12 @@ func run(kubeConfig string) error {
 
 	registerControllers(ctx)
 	startAllControllers(ctx)
+
+	w := webhook.New(ctx, cfg)
+	if err := w.ListenAndServe(); err != nil {
+		logrus.Fatalf("Error starting webook: %v", err)
+	}
+	
 	<-ctx.Done()
 
 	return nil
