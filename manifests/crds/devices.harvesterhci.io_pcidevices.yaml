@@ -39,6 +39,8 @@ spec:
             properties:
               address:
                 type: string
+              classId:
+                type: string
               description:
                 type: string
               deviceId:
@@ -47,13 +49,17 @@ spec:
                 type: string
               nodeName:
                 type: string
+              resourceName:
+                type: string
               vendorId:
                 type: string
             required:
             - address
+            - classId
             - description
             - deviceId
             - nodeName
+            - resourceName
             - vendorId
             type: object
         type: object

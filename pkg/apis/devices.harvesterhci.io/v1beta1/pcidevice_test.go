@@ -32,19 +32,25 @@ func TestNewPCIDeviceForName(t *testing.T) {
 						ID:   "1521",
 						Name: "I350 Gigabit Network Connection",
 					},
+					Class: &pcidb.Class{
+						ID:   "0200",
+						Name: "Ethernet controller",
+					},
 				},
 				hostname: "deepgreen",
 			},
 			want: PCIDevice{
 				ObjectMeta: v1.ObjectMeta{
-					Name: "deepgreen-8086-1521-001f6",
+					Name: "deepgreen-001f6",
 				},
 				Status: PCIDeviceStatus{
-					NodeName:    "deepgreen",
-					VendorId:    "8086",
-					DeviceId:    "1521",
-					Description: "I350 Gigabit Network Connection",
-					Address:     "00:1f.6",
+					NodeName:     "deepgreen",
+					VendorId:     "8086",
+					DeviceId:     "1521",
+					ClassId:      "0200",
+					ResourceName: "intel.com/I350GigabitNetworkConnection",
+					Description:  "Ethernet controller: Intel Corporation I350 Gigabit Network Connection",
+					Address:      "00:1f.6",
 				},
 			},
 		},
@@ -156,7 +162,7 @@ func TestDescriptionForVendorDevice(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := description(
+			got := resourceName(
 				tt.args.dev,
 			)
 			if !reflect.DeepEqual(got, tt.want) {
