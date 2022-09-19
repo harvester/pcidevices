@@ -7,8 +7,8 @@ import (
 
 	v1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
+	"github.com/jaypipes/ghw"
 	"github.com/sirupsen/logrus"
-	"github.com/u-root/u-root/pkg/pci"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -47,19 +47,14 @@ func Register(
 
 func (h Handler) reconcilePCIDevices(hostname string) error {
 	// List all PCI Devices on host
-	busReader, err := pci.NewBusReader()
-	if err != nil {
-		return err
-	}
-	var pcidevices []*pci.PCI
-	pcidevices, err = busReader.Read()
+	pci, err := ghw.PCI()
 	if err != nil {
 		return err
 	}
 
 	var setOfRealPCIAddrs map[string]bool = make(map[string]bool)
-	for _, dev := range pcidevices {
-		setOfRealPCIAddrs[dev.Addr] = true
+	for _, dev := range pci.Devices {
+		setOfRealPCIAddrs[dev.Address] = true
 		name := v1beta1.PCIDeviceNameForHostname(dev, hostname)
 		// Check if device is stored
 		_, err := h.client.Get(name, metav1.GetOptions{})

@@ -6,10 +6,7 @@ import (
 
 	"regexp"
 
-	"github.com/harvester/pcidevices/pkg/lspci"
-	"github.com/jaypipes/pcidb"
-	"github.com/sirupsen/logrus"
-	"github.com/u-root/u-root/pkg/pci"
+	"github.com/jaypipes/ghw/pkg/pci"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -30,8 +27,8 @@ type PCIDevice struct {
 // PCIDeviceStatus defines the observed state of PCIDevice
 type PCIDeviceStatus struct {
 	Address           string   `json:"address"`
-	VendorId          int      `json:"vendorId"`
-	DeviceId          int      `json:"deviceId"`
+	VendorId          string   `json:"vendorId"`
+	DeviceId          string   `json:"deviceId"`
 	NodeName          string   `json:"nodeName"`
 	Description       string   `json:"description"`
 	KernelDriverInUse string   `json:"kernelDriverInUse,omitempty"`
@@ -59,94 +56,66 @@ func extractVendorNameFromBrackets(vendorName string) string {
 	return strip(preSlash)
 }
 
-func description(pci *pcidb.PCIDB, vendorId string, deviceId string) string {
-	vendor := pci.Vendors[vendorId]
+func description(dev *pci.Device) string {
 	var vendorBase string
 	// if vendor name has a '[name]', then use that
-	if strings.Contains(vendor.Name, "[") {
-		vendorBase = extractVendorNameFromBrackets(vendor.Name)
+	if strings.Contains(dev.Vendor.Name, "[") {
+		vendorBase = extractVendorNameFromBrackets(dev.Vendor.Name)
 	} else {
-		vendorBase = strip(strings.Split(vendor.Name, " ")[0])
+		vendorBase = strip(strings.Split(dev.Vendor.Name, " ")[0])
 	}
 	vendorCleaned := strings.ToLower(
 		strings.ReplaceAll(vendorBase, " ", ""),
 	) + ".com"
-	var product *pcidb.Product
-	for _, product = range vendor.Products {
-		// Example: 1c02 and 1C02 both represent the same device
-		if strings.ToLower(product.ID) == strings.ToLower(deviceId) {
-			// Found the product name
-			productCleaned := strings.ReplaceAll(strip(product.Name), " ", "")
-			return fmt.Sprintf("%s/%s", vendorCleaned, productCleaned)
-		}
+	if dev.Product.Name != "" {
+		productCleaned := strings.ReplaceAll(strip(dev.Product.Name), " ", "")
+		return fmt.Sprintf("%s/%s", vendorCleaned, productCleaned)
 	}
 	// If the pcidb doesn't have the deviceId, just show the deviceId
-	return fmt.Sprintf("%s/%s", vendorCleaned, deviceId)
+	return fmt.Sprintf("%s/%s", vendorCleaned, dev.Product.ID)
 }
 
-func (status *PCIDeviceStatus) Update(dev *pci.PCI, hostname string) {
-	lspciOutput, err := lspci.GetLspciOuptut(dev.Addr)
-	if err != nil {
-		logrus.Error(err)
-	}
-	driver, err := lspci.ExtractCurrentPCIDriver(lspciOutput)
-	if err != nil {
-		logrus.Error(err)
-		// Continue and update the object even if driver is not found
-	}
-	status.Address = dev.Addr
-	status.VendorId = int(dev.Vendor)
-	status.DeviceId = int(dev.Device)
+func (status *PCIDeviceStatus) Update(dev *pci.Device, hostname string) {
+	status.Address = dev.Address
+	status.VendorId = dev.Vendor.ID
+	status.DeviceId = dev.Product.ID
 	// Generate the Description field, this is used by KubeVirt to schedule the VM to the node
-	pci, err := pcidb.New()
-	if err != nil {
-		logrus.Errorf("Error opening pcidb: %v", err)
-	}
-	vendorId := fmt.Sprintf("%x", dev.Vendor)
-	deviceId := fmt.Sprintf("%x", dev.Device)
-	status.Description = description(pci, vendorId, deviceId)
+	status.Description = description(dev)
 
-	status.KernelDriverInUse = driver
+	status.KernelDriverInUse = dev.Driver
 	status.NodeName = hostname
-
-	modules, err := lspci.ExtractKernelModules(lspciOutput)
-	if err != nil {
-		logrus.Error(err)
-		// Continue and update the object even if modules are not found
-	}
-	status.KernelModules = modules
 }
 
 type PCIDeviceSpec struct {
 }
 
-func PCIDeviceNameForHostname(dev *pci.PCI, hostname string) string {
+func PCIDeviceNameForHostname(dev *pci.Device, hostname string) string {
 	vendorName := strings.ToLower(
-		strings.Split(dev.VendorName, " ")[0],
+		strings.Split(dev.Vendor.Name, " ")[0],
 	)
-	addrDNSsafe := strings.ReplaceAll(strings.ReplaceAll(dev.Addr, ":", ""), ".", "")
+	addrDNSsafe := strings.ReplaceAll(strings.ReplaceAll(dev.Address, ":", ""), ".", "")
 	return fmt.Sprintf(
-		"%s-%s-%x-%x-%s",
+		"%s-%s-%s-%s-%s",
 		hostname,
 		vendorName,
-		dev.Vendor,
-		dev.Device,
+		dev.Vendor.ID,
+		dev.Product.ID,
 		addrDNSsafe,
 	)
 }
 
-func NewPCIDeviceForHostname(dev *pci.PCI, hostname string) PCIDevice {
+func NewPCIDeviceForHostname(dev *pci.Device, hostname string) PCIDevice {
 	name := PCIDeviceNameForHostname(dev, hostname)
 	pciDevice := PCIDevice{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
 		Status: PCIDeviceStatus{
-			Address:     dev.Addr,
-			VendorId:    int(dev.Vendor), // upcasting a uint16 to an int is safe
-			DeviceId:    int(dev.Device),
+			Address:     dev.Address,
+			VendorId:    dev.Vendor.ID,
+			DeviceId:    dev.Product.ID,
 			NodeName:    hostname,
-			Description: dev.DeviceName,
+			Description: dev.Product.Name,
 		},
 	}
 	return pciDevice

@@ -52,7 +52,8 @@ spec:
                 nullable: true
                 type: string
               deviceId:
-                type: integer
+                nullable: true
+                type: string
               kernelDriverInUse:
                 nullable: true
                 type: string
@@ -66,7 +67,8 @@ spec:
                 nullable: true
                 type: string
               vendorId:
-                type: integer
+                nullable: true
+                type: string
             type: object
         type: object
     served: true
@@ -188,7 +190,8 @@ spec:
               nullable: true
               type: string
             deviceId:
-              type: integer
+              nullable: true
+              type: string
             kernelDriverInUse:
               nullable: true
               type: string
@@ -202,7 +205,8 @@ spec:
               nullable: true
               type: string
             vendorId:
-              type: integer
+              nullable: true
+              type: string
           type: object
       type: object
   version: v1beta1

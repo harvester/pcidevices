@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
 	v1beta1gen "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 	"github.com/sirupsen/logrus"
+	"github.com/u-root/u-root/pkg/kmodule"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -53,39 +53,16 @@ func Register(
 	return nil
 }
 
-func driverIsLoaded(driver string) bool {
-	cmd := exec.Command("lsmod")
-	output, err := cmd.Output()
-	if err != nil {
-		fmt.Println(err)
-	}
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		if strings.HasPrefix(line, driver) {
-			return true
-		}
-	}
-	return false
-}
-
-func loadDriver(driver string) {
-	cmd := exec.Command("modprobe", driver)
-	err := cmd.Run()
-	if err != nil {
-		logrus.Error(err)
-	}
-}
-
 func loadVfioDrivers() {
 	for _, driver := range []string{"vfio-pci", "vfio_iommu_type1"} {
-		if !driverIsLoaded(driver) {
-			loadDriver(driver)
+		if err := kmodule.Probe(driver, ""); err != nil {
+			logrus.Error(err)
 		}
 	}
 }
 
-func addNewIdToVfioPCIDriver(vendorId int, deviceId int) error {
-	var id string = fmt.Sprintf("%x %x", vendorId, deviceId)
+func addNewIdToVfioPCIDriver(vendorId string, deviceId string) error {
+	var id string = fmt.Sprintf("%s %s", vendorId, deviceId)
 
 	file, err := os.OpenFile("/sys/bus/pci/drivers/vfio-pci/new_id", os.O_WRONLY, 0400)
 	if err != nil {
