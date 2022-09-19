@@ -41,7 +41,7 @@ func TestNewPCIDeviceForName(t *testing.T) {
 			},
 			want: PCIDevice{
 				ObjectMeta: v1.ObjectMeta{
-					Name: "deepgreen-8086-1521-001f6",
+					Name: "deepgreen-001f6",
 				},
 				Status: PCIDeviceStatus{
 					NodeName:     "deepgreen",

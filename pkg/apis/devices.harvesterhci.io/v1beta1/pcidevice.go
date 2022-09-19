@@ -112,10 +112,8 @@ type PCIDeviceSpec struct {
 func PCIDeviceNameForHostname(dev *pci.Device, hostname string) string {
 	addrDNSsafe := strings.ReplaceAll(strings.ReplaceAll(dev.Address, ":", ""), ".", "")
 	return fmt.Sprintf(
-		"%s-%s-%s-%s",
+		"%s-%s",
 		hostname,
-		dev.Vendor.ID,
-		dev.Product.ID,
 		addrDNSsafe,
 	)
 }
