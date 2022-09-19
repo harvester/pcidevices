@@ -31,9 +31,6 @@ spec:
     - jsonPath: .status.kernelDriverInUse
       name: Kernel Driver In Use
       type: string
-    - jsonPath: .status.kernelModules
-      name: Kernel Modules
-      type: string
     name: v1beta1
     schema:
       openAPIV3Schema:
@@ -54,12 +51,6 @@ spec:
               kernelDriverInUse:
                 nullable: true
                 type: string
-              kernelModules:
-                items:
-                  nullable: true
-                  type: string
-                nullable: true
-                type: array
               nodeName:
                 nullable: true
                 type: string
@@ -158,9 +149,6 @@ spec:
   - JSONPath: .status.kernelDriverInUse
     name: Kernel Driver In Use
     type: string
-  - JSONPath: .status.kernelModules
-    name: Kernel Modules
-    type: string
   group: devices.harvesterhci.io
   names:
     kind: PCIDevice
@@ -189,12 +177,6 @@ spec:
             kernelDriverInUse:
               nullable: true
               type: string
-            kernelModules:
-              items:
-                nullable: true
-                type: string
-              nullable: true
-              type: array
             nodeName:
               nullable: true
               type: string

@@ -26,13 +26,12 @@ type PCIDevice struct {
 
 // PCIDeviceStatus defines the observed state of PCIDevice
 type PCIDeviceStatus struct {
-	Address           string   `json:"address"`
-	VendorId          string   `json:"vendorId"`
-	DeviceId          string   `json:"deviceId"`
-	NodeName          string   `json:"nodeName"`
-	Description       string   `json:"description"`
-	KernelDriverInUse string   `json:"kernelDriverInUse,omitempty"`
-	KernelModules     []string `json:"kernelModules"`
+	Address           string `json:"address"`
+	VendorId          string `json:"vendorId"`
+	DeviceId          string `json:"deviceId"`
+	NodeName          string `json:"nodeName"`
+	Description       string `json:"description"`
+	KernelDriverInUse string `json:"kernelDriverInUse,omitempty"`
 }
 
 func strip(s string) string {

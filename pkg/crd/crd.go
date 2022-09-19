@@ -84,8 +84,7 @@ func List() []crd.CRD {
 				WithColumn("Device Id", ".status.deviceId").
 				WithColumn("Node Name", ".status.nodeName").
 				WithColumn("Description", ".status.description").
-				WithColumn("Kernel Driver In Use", ".status.kernelDriverInUse").
-				WithColumn("Kernel Modules", ".status.kernelModules")
+				WithColumn("Kernel Driver In Use", ".status.kernelDriverInUse")
 		}),
 		newCRD(&devices.PCIDeviceClaim{}, func(c crd.CRD) crd.CRD {
 			c.NonNamespace = true

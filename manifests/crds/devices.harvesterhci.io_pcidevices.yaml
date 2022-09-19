@@ -45,10 +45,6 @@ spec:
                 type: string
               kernelDriverInUse:
                 type: string
-              kernelModules:
-                items:
-                  type: string
-                type: array
               nodeName:
                 type: string
               vendorId:
@@ -57,7 +53,6 @@ spec:
             - address
             - description
             - deviceId
-            - kernelModules
             - nodeName
             - vendorId
             type: object
