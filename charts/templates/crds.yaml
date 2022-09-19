@@ -16,26 +16,20 @@ spec:
     - jsonPath: .status.address
       name: Address
       type: string
-    - jsonPath: .status.vendorName
-      name: VendorName
-      type: string
     - jsonPath: .status.vendorId
-      name: VendorId
+      name: Vendor Id
       type: string
     - jsonPath: .status.deviceId
-      name: DeviceId
+      name: Device Id
       type: string
     - jsonPath: .status.nodeName
-      name: NodeName
+      name: Node Name
       type: string
     - jsonPath: .status.description
       name: Description
       type: string
-    - jsonPath: .kernelDriverInUse
-      name: KernelDriverInUse
-      type: string
-    - jsonPath: .kernelModules
-      name: KernelModules
+    - jsonPath: .status.kernelDriverInUse
+      name: Kernel Driver In Use
       type: string
     name: v1beta1
     schema:
@@ -52,21 +46,17 @@ spec:
                 nullable: true
                 type: string
               deviceId:
-                type: integer
+                nullable: true
+                type: string
               kernelDriverInUse:
                 nullable: true
                 type: string
-              kernelModules:
-                items:
-                  nullable: true
-                  type: string
-                nullable: true
-                type: array
               nodeName:
                 nullable: true
                 type: string
               vendorId:
-                type: integer
+                nullable: true
+                type: string
             type: object
         type: object
     served: true
@@ -93,16 +83,16 @@ spec:
       name: Address
       type: string
     - jsonPath: .spec.nodeName
-      name: NodeName
+      name: Node Name
       type: string
     - jsonPath: .spec.userName
-      name: UserName
+      name: User Name
       type: string
     - jsonPath: .status.kernelDriverInUse
-      name: KernelDriverInUse
+      name: Kernel Driver In Use
       type: string
     - jsonPath: .status.passthroughEnabled
-      name: PassthroughEnabled
+      name: Passthrough Enabled
       type: string
     name: v1beta1
     schema:
@@ -144,26 +134,20 @@ spec:
   - JSONPath: .status.address
     name: Address
     type: string
-  - JSONPath: .status.vendorName
-    name: VendorName
-    type: string
   - JSONPath: .status.vendorId
-    name: VendorId
+    name: Vendor Id
     type: string
   - JSONPath: .status.deviceId
-    name: DeviceId
+    name: Device Id
     type: string
   - JSONPath: .status.nodeName
-    name: NodeName
+    name: Node Name
     type: string
   - JSONPath: .status.description
     name: Description
     type: string
-  - JSONPath: .kernelDriverInUse
-    name: KernelDriverInUse
-    type: string
-  - JSONPath: .kernelModules
-    name: KernelModules
+  - JSONPath: .status.kernelDriverInUse
+    name: Kernel Driver In Use
     type: string
   group: devices.harvesterhci.io
   names:
@@ -188,21 +172,17 @@ spec:
               nullable: true
               type: string
             deviceId:
-              type: integer
+              nullable: true
+              type: string
             kernelDriverInUse:
               nullable: true
               type: string
-            kernelModules:
-              items:
-                nullable: true
-                type: string
-              nullable: true
-              type: array
             nodeName:
               nullable: true
               type: string
             vendorId:
-              type: integer
+              nullable: true
+              type: string
           type: object
       type: object
   version: v1beta1
@@ -222,16 +202,16 @@ spec:
     name: Address
     type: string
   - JSONPath: .spec.nodeName
-    name: NodeName
+    name: Node Name
     type: string
   - JSONPath: .spec.userName
-    name: UserName
+    name: User Name
     type: string
   - JSONPath: .status.kernelDriverInUse
-    name: KernelDriverInUse
+    name: Kernel Driver In Use
     type: string
   - JSONPath: .status.passthroughEnabled
-    name: PassthroughEnabled
+    name: Passthrough Enabled
     type: string
   group: devices.harvesterhci.io
   names:

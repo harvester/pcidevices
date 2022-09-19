@@ -42,27 +42,19 @@ spec:
               description:
                 type: string
               deviceId:
-                type: integer
+                type: string
               kernelDriverInUse:
                 type: string
-              kernelModules:
-                items:
-                  type: string
-                type: array
               nodeName:
                 type: string
-              vendorName:
-                type: string
               vendorId:
-                type: integer
+                type: string
             required:
             - address
             - description
             - deviceId
-            - kernelModules
             - nodeName
             - vendorId
-            - vendorName
             type: object
         type: object
     served: true

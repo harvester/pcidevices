@@ -60,8 +60,6 @@ status:
   nodeName: "titan"
   description: "Ethernet controller: Intel Corporation Ethernet Connection (11) I219-LM"
   kernelDriverInUse: "e1000e"
-  kernelModules:
-  - "e1000e"
 ```
 
 
