@@ -7,6 +7,7 @@ import (
 	"regexp"
 
 	"github.com/jaypipes/ghw/pkg/pci"
+	"github.com/jaypipes/ghw/pkg/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -29,9 +30,27 @@ type PCIDeviceStatus struct {
 	Address           string `json:"address"`
 	VendorId          string `json:"vendorId"`
 	DeviceId          string `json:"deviceId"`
+	ClassId           string `json:"classId"`
 	NodeName          string `json:"nodeName"`
+	ResourceName      string `json:"resourceName"`
 	Description       string `json:"description"`
 	KernelDriverInUse string `json:"kernelDriverInUse,omitempty"`
+}
+
+func description(dev *pci.Device) string {
+	vendorName := dev.Vendor.Name
+	if vendorName == util.UNKNOWN {
+		vendorName = fmt.Sprintf("Vendor %s", dev.Vendor.ID)
+	}
+	deviceName := dev.Product.Name
+	if deviceName == util.UNKNOWN {
+		deviceName = fmt.Sprintf("Device %s", dev.Product.ID)
+	}
+	className := dev.Class.Name
+	if className == util.UNKNOWN {
+		className = fmt.Sprintf("Class %s", dev.Class.ID)
+	}
+	return fmt.Sprintf("%s: %s %s", className, vendorName, deviceName)
 }
 
 func strip(s string) string {
@@ -55,7 +74,7 @@ func extractVendorNameFromBrackets(vendorName string) string {
 	return strip(preSlash)
 }
 
-func description(dev *pci.Device) string {
+func resourceName(dev *pci.Device) string {
 	var vendorBase string
 	// if vendor name has a '[name]', then use that
 	if strings.Contains(dev.Vendor.Name, "[") {
@@ -78,7 +97,9 @@ func (status *PCIDeviceStatus) Update(dev *pci.Device, hostname string) {
 	status.Address = dev.Address
 	status.VendorId = dev.Vendor.ID
 	status.DeviceId = dev.Product.ID
-	// Generate the Description field, this is used by KubeVirt to schedule the VM to the node
+	status.ClassId = dev.Class.ID
+	// Generate the ResourceName field, this is used by KubeVirt to schedule the VM to the node
+	status.ResourceName = resourceName(dev)
 	status.Description = description(dev)
 
 	status.KernelDriverInUse = dev.Driver
@@ -106,11 +127,14 @@ func NewPCIDeviceForHostname(dev *pci.Device, hostname string) PCIDevice {
 			Name: name,
 		},
 		Status: PCIDeviceStatus{
-			Address:     dev.Address,
-			VendorId:    dev.Vendor.ID,
-			DeviceId:    dev.Product.ID,
-			NodeName:    hostname,
-			Description: dev.Product.Name,
+			Address:           dev.Address,
+			VendorId:          dev.Vendor.ID,
+			DeviceId:          dev.Product.ID,
+			ClassId:           dev.Class.ID,
+			NodeName:          hostname,
+			ResourceName:      resourceName(dev),
+			Description:       description(dev),
+			KernelDriverInUse: dev.Driver,
 		},
 	}
 	return pciDevice
