@@ -38,17 +38,25 @@ type PCIDeviceStatus struct {
 }
 
 func description(dev *pci.Device) string {
-	vendorName := dev.Vendor.Name
-	if vendorName == util.UNKNOWN {
+	var vendorName string
+	if dev.Vendor.Name != util.UNKNOWN {
+		vendorName = dev.Vendor.Name
+	} else {
 		vendorName = fmt.Sprintf("Vendor %s", dev.Vendor.ID)
 	}
-	deviceName := dev.Product.Name
-	if deviceName == util.UNKNOWN {
+	var deviceName string
+	if dev.Product.Name != util.UNKNOWN {
+		deviceName = dev.Product.Name
+	} else {
 		deviceName = fmt.Sprintf("Device %s", dev.Product.ID)
 	}
-	className := dev.Class.Name
-	if className == util.UNKNOWN {
-		className = fmt.Sprintf("Class %s", dev.Class.ID)
+	var className string
+	if dev.Subclass.Name != util.UNKNOWN {
+		className = dev.Subclass.Name
+	} else if dev.Class.Name != util.UNKNOWN {
+		className = dev.Class.Name
+	} else {
+		className = fmt.Sprintf("Class %s%s", dev.Class.ID, dev.Subclass.ID)
 	}
 	return fmt.Sprintf("%s: %s %s", className, vendorName, deviceName)
 }
@@ -97,7 +105,7 @@ func (status *PCIDeviceStatus) Update(dev *pci.Device, hostname string) {
 	status.Address = dev.Address
 	status.VendorId = dev.Vendor.ID
 	status.DeviceId = dev.Product.ID
-	status.ClassId = dev.Class.ID
+	status.ClassId = fmt.Sprintf("%s%s", dev.Class.ID, dev.Subclass.ID)
 	// Generate the ResourceName field, this is used by KubeVirt to schedule the VM to the node
 	status.ResourceName = resourceName(dev)
 	status.Description = description(dev)
@@ -128,7 +136,7 @@ func NewPCIDeviceForHostname(dev *pci.Device, hostname string) PCIDevice {
 			Address:           dev.Address,
 			VendorId:          dev.Vendor.ID,
 			DeviceId:          dev.Product.ID,
-			ClassId:           dev.Class.ID,
+			ClassId:           fmt.Sprintf("%s%s", dev.Class.ID, dev.Subclass.ID),
 			NodeName:          hostname,
 			ResourceName:      resourceName(dev),
 			Description:       description(dev),

@@ -33,7 +33,11 @@ func TestNewPCIDeviceForName(t *testing.T) {
 						Name: "I350 Gigabit Network Connection",
 					},
 					Class: &pcidb.Class{
-						ID:   "0200",
+						ID:   "02",
+						Name: "Network controller",
+					},
+					Subclass: &pcidb.Subclass{
+						ID:   "00",
 						Name: "Ethernet controller",
 					},
 				},
