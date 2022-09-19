@@ -80,22 +80,21 @@ func List() []crd.CRD {
 			c.NonNamespace = true
 			return c.
 				WithColumn("Address", ".status.address").
-				WithColumn("VendorName", ".status.vendorName").
-				WithColumn("VendorId", ".status.vendorId").
-				WithColumn("DeviceId", ".status.deviceId").
-				WithColumn("NodeName", ".status.nodeName").
+				WithColumn("Vendor Id", ".status.vendorId").
+				WithColumn("Device Id", ".status.deviceId").
+				WithColumn("Node Name", ".status.nodeName").
 				WithColumn("Description", ".status.description").
-				WithColumn("KernelDriverInUse", ".kernelDriverInUse").
-				WithColumn("KernelModules", ".kernelModules")
+				WithColumn("Kernel Driver In Use", ".status.kernelDriverInUse").
+				WithColumn("Kernel Modules", ".status.kernelModules")
 		}),
 		newCRD(&devices.PCIDeviceClaim{}, func(c crd.CRD) crd.CRD {
 			c.NonNamespace = true
 			return c.
 				WithColumn("Address", ".spec.address").
-				WithColumn("NodeName", ".spec.nodeName").
-				WithColumn("UserName", ".spec.userName").
-				WithColumn("KernelDriverInUse", ".status.kernelDriverInUse").
-				WithColumn("PassthroughEnabled", ".status.passthroughEnabled")
+				WithColumn("Node Name", ".spec.nodeName").
+				WithColumn("User Name", ".spec.userName").
+				WithColumn("Kernel Driver In Use", ".status.kernelDriverInUse").
+				WithColumn("Passthrough Enabled", ".status.passthroughEnabled")
 		}),
 	}
 }

@@ -16,26 +16,23 @@ spec:
     - jsonPath: .status.address
       name: Address
       type: string
-    - jsonPath: .status.vendorName
-      name: VendorName
-      type: string
     - jsonPath: .status.vendorId
-      name: VendorId
+      name: Vendor Id
       type: string
     - jsonPath: .status.deviceId
-      name: DeviceId
+      name: Device Id
       type: string
     - jsonPath: .status.nodeName
-      name: NodeName
+      name: Node Name
       type: string
     - jsonPath: .status.description
       name: Description
       type: string
-    - jsonPath: .kernelDriverInUse
-      name: KernelDriverInUse
+    - jsonPath: .status.kernelDriverInUse
+      name: Kernel Driver In Use
       type: string
-    - jsonPath: .kernelModules
-      name: KernelModules
+    - jsonPath: .status.kernelModules
+      name: Kernel Modules
       type: string
     name: v1beta1
     schema:
@@ -95,16 +92,16 @@ spec:
       name: Address
       type: string
     - jsonPath: .spec.nodeName
-      name: NodeName
+      name: Node Name
       type: string
     - jsonPath: .spec.userName
-      name: UserName
+      name: User Name
       type: string
     - jsonPath: .status.kernelDriverInUse
-      name: KernelDriverInUse
+      name: Kernel Driver In Use
       type: string
     - jsonPath: .status.passthroughEnabled
-      name: PassthroughEnabled
+      name: Passthrough Enabled
       type: string
     name: v1beta1
     schema:
@@ -146,26 +143,23 @@ spec:
   - JSONPath: .status.address
     name: Address
     type: string
-  - JSONPath: .status.vendorName
-    name: VendorName
-    type: string
   - JSONPath: .status.vendorId
-    name: VendorId
+    name: Vendor Id
     type: string
   - JSONPath: .status.deviceId
-    name: DeviceId
+    name: Device Id
     type: string
   - JSONPath: .status.nodeName
-    name: NodeName
+    name: Node Name
     type: string
   - JSONPath: .status.description
     name: Description
     type: string
-  - JSONPath: .kernelDriverInUse
-    name: KernelDriverInUse
+  - JSONPath: .status.kernelDriverInUse
+    name: Kernel Driver In Use
     type: string
-  - JSONPath: .kernelModules
-    name: KernelModules
+  - JSONPath: .status.kernelModules
+    name: Kernel Modules
     type: string
   group: devices.harvesterhci.io
   names:
@@ -226,16 +220,16 @@ spec:
     name: Address
     type: string
   - JSONPath: .spec.nodeName
-    name: NodeName
+    name: Node Name
     type: string
   - JSONPath: .spec.userName
-    name: UserName
+    name: User Name
     type: string
   - JSONPath: .status.kernelDriverInUse
-    name: KernelDriverInUse
+    name: Kernel Driver In Use
     type: string
   - JSONPath: .status.passthroughEnabled
-    name: PassthroughEnabled
+    name: Passthrough Enabled
     type: string
   group: devices.harvesterhci.io
   names:
