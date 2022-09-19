@@ -15,14 +15,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 
-	"github.com/harvester/harvester/pkg/webhook"
 	"github.com/harvester/harvester/pkg/webhook/types"
 )
 
 var (
 	certName = "pcidevices-webhook-tls"
 	caName   = "pcidevices-webhook-ca"
-	port     = int32(443)
+	port     = int32(8443)
 
 	mutationPath        = "/v1/webhook/mutation"
 	failPolicyFail      = v1.Fail
@@ -30,6 +29,7 @@ var (
 	sideEffectClassNone = v1.SideEffectClassNone
 	namespace           = "harvester-system"
 	threadiness         = 5
+	MutatorName         = "pcidevices-mutator"
 )
 
 // AdmissionWebhookServer serves the mutating webhook for pcidevices
@@ -87,15 +87,15 @@ func (s *AdmissionWebhookServer) listenAndServe(clients *Clients, handler http.H
 
 		mutatingWebhookConfiguration := &v1.MutatingWebhookConfiguration{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: webhook.MutatingWebhookName,
+				Name: MutatorName,
 			},
 			Webhooks: []v1.MutatingWebhook{
 				{
-					Name: "mutator.harvesterhci.io",
+					Name: "pcidevices.harvesterhci.io",
 					ClientConfig: v1.WebhookClientConfig{
 						Service: &v1.ServiceReference{
 							Namespace: namespace,
-							Name:      "harvester-webhook",
+							Name:      "pcidevices-webhook",
 							Path:      &mutationPath,
 							Port:      &port,
 						},
