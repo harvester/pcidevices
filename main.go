@@ -6,10 +6,15 @@ import (
 	"os"
 
 	"github.com/harvester/pcidevices/pkg/webhook"
+	"github.com/spf13/pflag"
 
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
+
+	//kubevirtv1 "kubevirt.io/api/core/v1"
+	"kubevirt.io/client-go/kubecli"
 
 	"github.com/rancher/lasso/pkg/controller"
 	"github.com/rancher/wrangler/pkg/generic"
@@ -29,7 +34,7 @@ import (
 )
 
 const (
-	VERSION        = "v0.0.2"
+	VERSION        = "v0.0.3"
 	controllerName = "harvester-pcideviceclaims-controller"
 )
 
@@ -126,6 +131,7 @@ func run(kubeConfig string) error {
 		}
 	}
 
+	enableKubeVirtFeatureGateHostDevices()
 	registerControllers(ctx)
 	startAllControllers(ctx)
 
@@ -136,4 +142,39 @@ func run(kubeConfig string) error {
 	<-ctx.Done()
 
 	return nil
+}
+
+func enableKubeVirtFeatureGateHostDevices() {
+	// set up kubevirtClient for PCIDeviceClaims controller
+	clientConfig := kubecli.DefaultClientConfig(&pflag.FlagSet{})
+	var virtClient kubecli.KubevirtClient
+	virtClient, err := kubecli.GetKubevirtClientFromClientConfig(clientConfig)
+	if err != nil {
+		logrus.Fatalf("cannot obtain KubeVirt client: %v\n", err)
+	}
+	ns := "harvester-system"
+	cr := "kubevirt"
+	kubevirt, err := virtClient.KubeVirt(ns).Get(cr, &v1.GetOptions{})
+	if err != nil {
+		logrus.Fatalf("cannot obtain KubeVirt CR: %v\n", err)
+	}
+	featureGates := kubevirt.Spec.Configuration.DeveloperConfiguration.FeatureGates
+	// check for HostDevices
+	var hostDevicesEnabled bool = false
+	for _, featureGate := range featureGates {
+		if featureGate == "HostDevices" {
+			hostDevicesEnabled = true
+		}
+	}
+	if !hostDevicesEnabled {
+		logrus.Infof("Feature gate 'HostDevices' not enabled, enabling it")
+		kubevirt.Spec.Configuration.DeveloperConfiguration.FeatureGates =
+			append(featureGates, "HostDevices")
+
+		logrus.Info("Updating the KubeVirt CR")
+		_, err := virtClient.KubeVirt(ns).Update(kubevirt)
+		if err != nil {
+			logrus.Errorf("Error updating KubeVirt CR: %s", err)
+		}
+	}
 }
