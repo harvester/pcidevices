@@ -28,6 +28,9 @@ rules:
   - apiGroups: ["apiregistration.k8s.io"]
     resources: ["apiservices"]
     verbs: [ "get", "watch", "list", "update", "create", "delete" ]
+  - apiGroups: ["kubevirt.io"]
+    resources: ["kubevirts"]
+    verbs: [ "get", "update" ]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -71,7 +74,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-          image: rancher/harvester-pcidevices:master-head
+          image: tlehman/pcidevices:dev-kubevirt
           imagePullPolicy: Always
           name: agent
           resources:

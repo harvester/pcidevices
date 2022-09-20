@@ -7,10 +7,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	v1beta1gen "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
 	"github.com/u-root/u-root/pkg/kmodule"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubevirtv1 "kubevirt.io/api/core/v1"
+	"kubevirt.io/client-go/kubecli"
 )
 
 const (
@@ -58,7 +63,11 @@ func loadVfioDrivers() {
 	}
 }
 
-func addNewIdToVfioPCIDriver(vendorId string, deviceId string) error {
+// Enabling passthrough for a PCI Device requires two steps:
+// 1. Bind the device to the vfio-pci driver in the host
+// 2. Permit the device in KubeVirt's Config in the cluster
+func enablePassthrough(vendorId string, deviceId string, resourceName string) error {
+	// 1. Bind the device to the vfio-pci driver in the host
 	var id string = fmt.Sprintf("%s %s", vendorId, deviceId)
 
 	file, err := os.OpenFile("/sys/bus/pci/drivers/vfio-pci/new_id", os.O_WRONLY, 0400)
@@ -70,6 +79,45 @@ func addNewIdToVfioPCIDriver(vendorId string, deviceId string) error {
 		return err
 	}
 	file.Close()
+
+	// 2. Permit the device in KubeVirt's Config in the cluster
+	clientConfig := kubecli.DefaultClientConfig(&pflag.FlagSet{})
+	virtClient, err := kubecli.GetKubevirtClientFromClientConfig(clientConfig)
+	if err != nil {
+		logrus.Fatalf("cannot obtain KubeVirt client: %v\n", err)
+	}
+	ns := "harvester-system"
+	cr := "kubevirt"
+	kubevirt, err := virtClient.KubeVirt(ns).Get(cr, &v1.GetOptions{})
+	if err != nil {
+		logrus.Fatalf("cannot obtain KubeVirt CR: %v\n", err)
+	}
+	if kubevirt.Spec.Configuration.PermittedHostDevices == nil {
+		kubevirt.Spec.Configuration.PermittedHostDevices = &kubevirtv1.PermittedHostDevices{
+			PciHostDevices: []kubevirtv1.PciHostDevice{},
+		}
+	}
+	permittedPCIDevices := kubevirt.Spec.Configuration.PermittedHostDevices.PciHostDevices
+	// check if device is currently permitted
+	var devPermitted bool = false
+	for _, permittedPCIDev := range permittedPCIDevices {
+		if permittedPCIDev.ResourceName == resourceName {
+			devPermitted = true
+		}
+	}
+	if !devPermitted {
+		devToPermit := kubevirtv1.PciHostDevice{
+			PCIVendorSelector:        fmt.Sprintf("%s:%s", vendorId, deviceId),
+			ResourceName:             resourceName,
+			ExternalResourceProvider: false,
+		}
+		kubevirt.Spec.Configuration.PermittedHostDevices.PciHostDevices = append(permittedPCIDevices, devToPermit)
+		_, err := virtClient.KubeVirt(ns).Update(kubevirt)
+		if err != nil {
+			logrus.Fatalf("Failed to update kubevirt CR: %s", err)
+		}
+	}
+
 	return nil
 }
 
@@ -100,7 +148,14 @@ func unbindPCIDeviceFromVfioPCIDriver(addr string) error {
 	return nil
 }
 
-func (h Handler) reconcilePCIDeviceClaims(nodename string) error {
+func addHostDeviceToKubeVirtAllowList(pd *v1beta1.PCIDevice) {
+	// Get KubeVirt CR
+	// Get PermittedHostDevices
+	// If pd is not in PermittedHostDevices,
+	// then add it and update the CR
+}
+
+func (h Handler) reconcilePCIDeviceClaims(hostname string) error {
 	// Get all PCI Device Claims
 	var pdcNames map[string]string = make(map[string]string)
 	pdcs, err := h.pdcClient.List(metav1.ListOptions{})
@@ -189,6 +244,8 @@ func (h Handler) reconcilePCIDeviceClaims(nodename string) error {
 				pdc.Status.KernelDriverToUnbind = pd.Status.KernelDriverInUse
 				if pd.Status.KernelDriverInUse == "vfio-pci" {
 					pdc.Status.PassthroughEnabled = true
+					// Add this device to the KubeVirt CR
+					addHostDeviceToKubeVirtAllowList(pd)
 				} else {
 					// Only unbind from driver is a driver is currently in use
 					if strings.TrimSpace(pd.Status.KernelDriverInUse) != "" {
@@ -198,7 +255,7 @@ func (h Handler) reconcilePCIDeviceClaims(nodename string) error {
 							return err
 						}
 					}
-					err = addNewIdToVfioPCIDriver(pd.Status.VendorId, pd.Status.DeviceId)
+					err = enablePassthrough(pd.Status.VendorId, pd.Status.DeviceId, pd.Status.ResourceName)
 					if err != nil {
 						pdc.Status.PassthroughEnabled = false
 						return err
