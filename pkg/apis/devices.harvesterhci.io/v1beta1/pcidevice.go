@@ -93,8 +93,15 @@ func resourceName(dev *pci.Device) string {
 	vendorCleaned := strings.ToLower(
 		strings.ReplaceAll(vendorBase, " ", ""),
 	) + ".com"
-	if dev.Product.Name != "" {
-		productCleaned := strings.ReplaceAll(strip(dev.Product.Name), " ", "")
+	if dev.Product.Name != util.UNKNOWN {
+		productCleaned := strings.TrimSpace(dev.Product.Name)
+		productCleaned = strings.ToUpper(productCleaned)
+		productCleaned = strings.Replace(productCleaned, "/", "_", -1)
+		productCleaned = strings.Replace(productCleaned, ".", "_", -1)
+		reg, _ := regexp.Compile("\\s+")
+		productCleaned = reg.ReplaceAllString(productCleaned, "_") // Replace all spaces with underscore
+		reg, _ = regexp.Compile("[^a-zA-Z0-9_.]+")
+		productCleaned = reg.ReplaceAllString(productCleaned, "") // Removes any char other than alphanumeric and underscore
 		return fmt.Sprintf("%s/%s", vendorCleaned, productCleaned)
 	}
 	// If the pcidb doesn't have the deviceId, just show the deviceId
