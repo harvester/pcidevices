@@ -91,8 +91,7 @@ func (m *podMutator) Create(request *types.Request, newObj runtime.Object) (type
 
 		patchOps = append(patchOps, capPatchOptions...)
 	} else {
-		logrus.Errorf("no deviceclaim found by owner vm: %s", vmName)
-		return nil, fmt.Errorf("no deviceclaim found by owner vm: %s", vmName)
+		logrus.Infof("no deviceclaim found by owner vm: %s, nothing to do", vmName)
 	}
 
 	logrus.Debugf("patch generated %v, for pod %s in ns %s", patchOps, pod.Name, pod.Namespace)
