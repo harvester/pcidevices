@@ -92,7 +92,7 @@ func List() []crd.CRD {
 				WithColumn("Address", ".spec.address").
 				WithColumn("Node Name", ".spec.nodeName").
 				WithColumn("User Name", ".spec.userName").
-				WithColumn("Kernel Driver In Use", ".status.kernelDriverInUse").
+				WithColumn("Kernel Driver Το Unbind", ".status.kernelDriverToUnbind").
 				WithColumn("Passthrough Enabled", ".status.passthroughEnabled")
 		}),
 	}
