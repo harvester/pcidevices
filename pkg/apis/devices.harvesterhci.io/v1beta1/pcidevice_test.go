@@ -33,7 +33,11 @@ func TestNewPCIDeviceForName(t *testing.T) {
 						Name: "I350 Gigabit Network Connection",
 					},
 					Class: &pcidb.Class{
-						ID:   "0200",
+						ID:   "02",
+						Name: "Network controller",
+					},
+					Subclass: &pcidb.Subclass{
+						ID:   "00",
 						Name: "Ethernet controller",
 					},
 				},
@@ -48,7 +52,7 @@ func TestNewPCIDeviceForName(t *testing.T) {
 					VendorId:     "8086",
 					DeviceId:     "1521",
 					ClassId:      "0200",
-					ResourceName: "intel.com/I350GigabitNetworkConnection",
+					ResourceName: "intel.com/I350_GIGABIT_NETWORK_CONNECTION",
 					Description:  "Ethernet controller: Intel Corporation I350 Gigabit Network Connection",
 					Address:      "00:1f.6",
 				},
@@ -89,7 +93,7 @@ func TestDescriptionForVendorDevice(t *testing.T) {
 					},
 				},
 			},
-			want: "nvidia.com/GA100A100SXM440GB",
+			want: "nvidia.com/GA100_A100_SXM4_40GB",
 		},
 		{
 			name: "NVIDIA GeForce GTX 1060",
@@ -106,7 +110,7 @@ func TestDescriptionForVendorDevice(t *testing.T) {
 					},
 				},
 			},
-			want: "nvidia.com/GP106GeForceGTX10603GB",
+			want: "nvidia.com/GP106_GEFORCE_GTX_1060_3GB",
 		},
 		{
 			name: "AMD Radeon X850",
@@ -123,7 +127,7 @@ func TestDescriptionForVendorDevice(t *testing.T) {
 					},
 				},
 			},
-			want: "amd.com/R481RadeonX850XTAGP",
+			want: "amd.com/R481_RADEON_X850_XT_AGP",
 		},
 		{
 			name: "Intel I350 Gigabit Network Connection",
@@ -140,7 +144,7 @@ func TestDescriptionForVendorDevice(t *testing.T) {
 					},
 				},
 			},
-			want: "intel.com/I350GigabitNetworkConnection",
+			want: "intel.com/I350_GIGABIT_NETWORK_CONNECTION",
 		},
 		{
 			name: "Mellanox MT2892",
@@ -157,7 +161,7 @@ func TestDescriptionForVendorDevice(t *testing.T) {
 					},
 				},
 			},
-			want: "mellanox.com/MT2892FamilyConnectX6DxFlashRecovery",
+			want: "mellanox.com/MT2892_FAMILY_CONNECTX6_DX_FLASH_RECOVERY",
 		},
 	}
 	for _, tt := range tests {

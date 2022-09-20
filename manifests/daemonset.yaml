@@ -26,7 +26,7 @@ spec:
       # hostNetwork: true
       containers:
         - env:
-          - name: NODENAME
+          - name: NODE_NAME
             valueFrom:
               fieldRef:
                 apiVersion: v1
@@ -72,4 +72,8 @@ spec:
   ports:
     - protocol: TCP
       port: 8443
+<<<<<<< HEAD
       targetPort: 8443
+=======
+      targetPort: 8443
+>>>>>>> a9bca44af8e99228e29f693cc9cc1aaafeab87ca

@@ -94,8 +94,8 @@ spec:
     - jsonPath: .spec.userName
       name: User Name
       type: string
-    - jsonPath: .status.kernelDriverInUse
-      name: Kernel Driver In Use
+    - jsonPath: .status.kernelDriverToUnbind
+      name: Kernel Driver Το Unbind
       type: string
     - jsonPath: .status.passthroughEnabled
       name: Passthrough Enabled
@@ -219,8 +219,8 @@ spec:
   - JSONPath: .spec.userName
     name: User Name
     type: string
-  - JSONPath: .status.kernelDriverInUse
-    name: Kernel Driver In Use
+  - JSONPath: .status.kernelDriverToUnbind
+    name: Kernel Driver Το Unbind
     type: string
   - JSONPath: .status.passthroughEnabled
     name: Passthrough Enabled

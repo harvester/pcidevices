@@ -59,7 +59,7 @@ status:
   deviceId: "0d4c"
   classId: "0200"
   nodeName: "titan"
-  resourceName: "intel.com/EthernetConnection11I219LM"
+  resourceName: "intel.com/ETHERNET_CONNECTION_11_I219LM"
   description: "Ethernet controller: Intel Corporation Ethernet Connection (11) I219-LM"
   kernelDriverInUse: "e1000e"
 ```

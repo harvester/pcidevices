@@ -28,16 +28,13 @@ func Register(
 	handler := &Handler{
 		client: pd,
 	}
-	hostname, err := os.Hostname()
-	if err != nil {
-		return err
-	}
+	nodename := os.Getenv("NODE_NAME")
 	// start goroutine to regularly reconcile the PCI Devices list
 	go func() {
 		ticker := time.NewTicker(reconcilePeriod)
 		for range ticker.C {
 			logrus.Info("Reconciling PCI Devices list")
-			if err := handler.reconcilePCIDevices(hostname); err != nil {
+			if err := handler.reconcilePCIDevices(nodename); err != nil {
 				logrus.Errorf("PCI device reconciliation error: %v", err)
 			}
 		}

@@ -133,6 +133,10 @@ func run(kubeConfig string) error {
 	if err := w.ListenAndServe(); err != nil {
 		logrus.Fatalf("Error starting webook: %v", err)
 	}
+<<<<<<< HEAD
+=======
+
+>>>>>>> a9bca44af8e99228e29f693cc9cc1aaafeab87ca
 	<-ctx.Done()
 
 	return nil
