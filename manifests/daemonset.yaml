@@ -32,8 +32,7 @@ spec:
                 apiVersion: v1
                 fieldPath: spec.nodeName
           name: network
-          #image: rancher/harvester-pcidevices:master-head
-          image: gmehta3/pcidevices:dev
+          image: rancher/harvester-pcidevices:master-head
           imagePullPolicy: Always
           command:
             - pcidevices
