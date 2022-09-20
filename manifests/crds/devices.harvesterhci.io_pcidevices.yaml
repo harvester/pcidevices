@@ -39,30 +39,28 @@ spec:
             properties:
               address:
                 type: string
+              classId:
+                type: string
               description:
                 type: string
               deviceId:
-                type: integer
+                type: string
               kernelDriverInUse:
                 type: string
-              kernelModules:
-                items:
-                  type: string
-                type: array
               nodeName:
                 type: string
-              vendorName:
+              resourceName:
                 type: string
               vendorId:
-                type: integer
+                type: string
             required:
             - address
+            - classId
             - description
             - deviceId
-            - kernelModules
             - nodeName
+            - resourceName
             - vendorId
-            - vendorName
             type: object
         type: object
     served: true

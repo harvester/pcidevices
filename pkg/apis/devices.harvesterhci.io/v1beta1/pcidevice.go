@@ -6,10 +6,8 @@ import (
 
 	"regexp"
 
-	"github.com/harvester/pcidevices/pkg/lspci"
-	"github.com/jaypipes/pcidb"
-	"github.com/sirupsen/logrus"
-	"github.com/u-root/u-root/pkg/pci"
+	"github.com/jaypipes/ghw/pkg/pci"
+	"github.com/jaypipes/ghw/pkg/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -29,13 +27,30 @@ type PCIDevice struct {
 
 // PCIDeviceStatus defines the observed state of PCIDevice
 type PCIDeviceStatus struct {
-	Address           string   `json:"address"`
-	VendorId          int      `json:"vendorId"`
-	DeviceId          int      `json:"deviceId"`
-	NodeName          string   `json:"nodeName"`
-	Description       string   `json:"description"`
-	KernelDriverInUse string   `json:"kernelDriverInUse,omitempty"`
-	KernelModules     []string `json:"kernelModules"`
+	Address           string `json:"address"`
+	VendorId          string `json:"vendorId"`
+	DeviceId          string `json:"deviceId"`
+	ClassId           string `json:"classId"`
+	NodeName          string `json:"nodeName"`
+	ResourceName      string `json:"resourceName"`
+	Description       string `json:"description"`
+	KernelDriverInUse string `json:"kernelDriverInUse,omitempty"`
+}
+
+func description(dev *pci.Device) string {
+	vendorName := dev.Vendor.Name
+	if vendorName == util.UNKNOWN {
+		vendorName = fmt.Sprintf("Vendor %s", dev.Vendor.ID)
+	}
+	deviceName := dev.Product.Name
+	if deviceName == util.UNKNOWN {
+		deviceName = fmt.Sprintf("Device %s", dev.Product.ID)
+	}
+	className := dev.Class.Name
+	if className == util.UNKNOWN {
+		className = fmt.Sprintf("Class %s", dev.Class.ID)
+	}
+	return fmt.Sprintf("%s: %s %s", className, vendorName, deviceName)
 }
 
 func strip(s string) string {
@@ -59,94 +74,65 @@ func extractVendorNameFromBrackets(vendorName string) string {
 	return strip(preSlash)
 }
 
-func description(pci *pcidb.PCIDB, vendorId string, deviceId string) string {
-	vendor := pci.Vendors[vendorId]
+func resourceName(dev *pci.Device) string {
 	var vendorBase string
 	// if vendor name has a '[name]', then use that
-	if strings.Contains(vendor.Name, "[") {
-		vendorBase = extractVendorNameFromBrackets(vendor.Name)
+	if strings.Contains(dev.Vendor.Name, "[") {
+		vendorBase = extractVendorNameFromBrackets(dev.Vendor.Name)
 	} else {
-		vendorBase = strip(strings.Split(vendor.Name, " ")[0])
+		vendorBase = strip(strings.Split(dev.Vendor.Name, " ")[0])
 	}
 	vendorCleaned := strings.ToLower(
 		strings.ReplaceAll(vendorBase, " ", ""),
 	) + ".com"
-	var product *pcidb.Product
-	for _, product = range vendor.Products {
-		// Example: 1c02 and 1C02 both represent the same device
-		if strings.ToLower(product.ID) == strings.ToLower(deviceId) {
-			// Found the product name
-			productCleaned := strings.ReplaceAll(strip(product.Name), " ", "")
-			return fmt.Sprintf("%s/%s", vendorCleaned, productCleaned)
-		}
+	if dev.Product.Name != "" {
+		productCleaned := strings.ReplaceAll(strip(dev.Product.Name), " ", "")
+		return fmt.Sprintf("%s/%s", vendorCleaned, productCleaned)
 	}
 	// If the pcidb doesn't have the deviceId, just show the deviceId
-	return fmt.Sprintf("%s/%s", vendorCleaned, deviceId)
+	return fmt.Sprintf("%s/%s", vendorCleaned, dev.Product.ID)
 }
 
-func (status *PCIDeviceStatus) Update(dev *pci.PCI, hostname string) {
-	lspciOutput, err := lspci.GetLspciOuptut(dev.Addr)
-	if err != nil {
-		logrus.Error(err)
-	}
-	driver, err := lspci.ExtractCurrentPCIDriver(lspciOutput)
-	if err != nil {
-		logrus.Error(err)
-		// Continue and update the object even if driver is not found
-	}
-	status.Address = dev.Addr
-	status.VendorId = int(dev.Vendor)
-	status.DeviceId = int(dev.Device)
-	// Generate the Description field, this is used by KubeVirt to schedule the VM to the node
-	pci, err := pcidb.New()
-	if err != nil {
-		logrus.Errorf("Error opening pcidb: %v", err)
-	}
-	vendorId := fmt.Sprintf("%x", dev.Vendor)
-	deviceId := fmt.Sprintf("%x", dev.Device)
-	status.Description = description(pci, vendorId, deviceId)
+func (status *PCIDeviceStatus) Update(dev *pci.Device, hostname string) {
+	status.Address = dev.Address
+	status.VendorId = dev.Vendor.ID
+	status.DeviceId = dev.Product.ID
+	status.ClassId = dev.Class.ID
+	// Generate the ResourceName field, this is used by KubeVirt to schedule the VM to the node
+	status.ResourceName = resourceName(dev)
+	status.Description = description(dev)
 
-	status.KernelDriverInUse = driver
+	status.KernelDriverInUse = dev.Driver
 	status.NodeName = hostname
-
-	modules, err := lspci.ExtractKernelModules(lspciOutput)
-	if err != nil {
-		logrus.Error(err)
-		// Continue and update the object even if modules are not found
-	}
-	status.KernelModules = modules
 }
 
 type PCIDeviceSpec struct {
 }
 
-func PCIDeviceNameForHostname(dev *pci.PCI, hostname string) string {
-	vendorName := strings.ToLower(
-		strings.Split(dev.VendorName, " ")[0],
-	)
-	addrDNSsafe := strings.ReplaceAll(strings.ReplaceAll(dev.Addr, ":", ""), ".", "")
+func PCIDeviceNameForHostname(dev *pci.Device, hostname string) string {
+	addrDNSsafe := strings.ReplaceAll(strings.ReplaceAll(dev.Address, ":", ""), ".", "")
 	return fmt.Sprintf(
-		"%s-%s-%x-%x-%s",
+		"%s-%s",
 		hostname,
-		vendorName,
-		dev.Vendor,
-		dev.Device,
 		addrDNSsafe,
 	)
 }
 
-func NewPCIDeviceForHostname(dev *pci.PCI, hostname string) PCIDevice {
+func NewPCIDeviceForHostname(dev *pci.Device, hostname string) PCIDevice {
 	name := PCIDeviceNameForHostname(dev, hostname)
 	pciDevice := PCIDevice{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
 		Status: PCIDeviceStatus{
-			Address:     dev.Addr,
-			VendorId:    int(dev.Vendor), // upcasting a uint16 to an int is safe
-			DeviceId:    int(dev.Device),
-			NodeName:    hostname,
-			Description: dev.DeviceName,
+			Address:           dev.Address,
+			VendorId:          dev.Vendor.ID,
+			DeviceId:          dev.Product.ID,
+			ClassId:           dev.Class.ID,
+			NodeName:          hostname,
+			ResourceName:      resourceName(dev),
+			Description:       description(dev),
+			KernelDriverInUse: dev.Driver,
 		},
 	}
 	return pciDevice
