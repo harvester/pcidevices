@@ -6,6 +6,7 @@ require (
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/gorilla/mux v1.8.0
 	github.com/harvester/harvester v0.0.2-0.20220916012220-3bcba9d3747f
+	github.com/jaypipes/ghw v0.9.0
 	github.com/jaypipes/pcidb v1.0.0
 	github.com/onsi/ginkgo/v2 v2.1.6
 	github.com/onsi/gomega v1.20.1
@@ -41,7 +42,7 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
-	github.com/google/uuid v1.3.0 // indirect
+	github.com/google/uuid v1.3.0
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
@@ -91,7 +92,6 @@ require (
 	k8s.io/gengo v0.0.0-20220613173612-397b4ae3bce7 // indirect
 	k8s.io/klog v1.0.0 // indirect
 	k8s.io/klog/v2 v2.70.1 // indirect
-	k8s.io/kube-aggregator v0.24.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20220803164354-a70c9af30aea // indirect
 	k8s.io/kubernetes v1.25.1
 	k8s.io/utils v0.0.0-20220728103510-ee6ede2d64ed // indirect

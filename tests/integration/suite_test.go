@@ -2,7 +2,6 @@ package integration
 
 import (
 	"context"
-	deviceClient "github.com/harvester/pcidevices/pkg/clientset/versioned"
 	"path/filepath"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"testing"
@@ -12,7 +11,6 @@ import (
 	"github.com/harvester/pcidevices/pkg/webhook"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	coreClients "github.com/rancher/wrangler/pkg/clients"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,8 +36,6 @@ var (
 			Name: "harvester-system",
 		},
 	}
-	dc *deviceClient.Clientset
-	cc *coreClients.Clients
 )
 
 func TestAPIs(t *testing.T) {
@@ -72,12 +68,6 @@ var _ = BeforeSuite(func() {
 
 	err = corev1.AddToScheme(scheme)
 	Expect(err).NotTo(HaveOccurred())
-
-	dc, err = deviceClient.NewForConfig(cfg)
-	Expect(err).ToNot(HaveOccurred())
-
-	cc, err = coreClients.NewFromConfig(cfg, nil)
-	Expect(err).ToNot(HaveOccurred())
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme})
 	Expect(err).NotTo(HaveOccurred())
