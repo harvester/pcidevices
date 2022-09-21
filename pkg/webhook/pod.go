@@ -85,7 +85,7 @@ func (m *podMutator) Create(request *types.Request, newObj runtime.Object) (type
 	if len(device) > 0 {
 		capPatchOptions, err := createCapabilityPatch(pod)
 		if err != nil {
-			logrus.Infof("error creating capability patch for pod %s in ns %s %v", pod.Name, pod.Namespace, err)
+			logrus.Errorf("error creating capability patch for pod %s in ns %s %v", pod.Name, pod.Namespace, err)
 			return nil, fmt.Errorf("error creating capability patch: %v", err)
 		}
 
