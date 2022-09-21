@@ -63,7 +63,7 @@ steps:
       dockerfile: package/Dockerfile
       password:
         from_secret: docker_password
-      repo: "harvester/pcidevices"
+      repo: "rancher/harvester-pcidevices"
       tag: "${DRONE_TAG}"
       username:
         from_secret: docker_username
