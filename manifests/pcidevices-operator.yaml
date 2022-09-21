@@ -11,7 +11,7 @@ rules:
     resources: [ "customresourcedefinitions" ]
     verbs: [ "*" ]
   - apiGroups: [ "" ]
-    resources: [ "nodes" ]
+    resources: [ "nodes", "secrets" ]
     verbs: [ "get", "watch", "list", "update" ]
   - apiGroups: [ "" ]
     resources: [ "configmaps", "events", "secrets"]
@@ -105,7 +105,7 @@ metadata:
   labels:
     app.kubernetes.io/name: pcidevices
     app.kubernetes.io/version: master-head
-  name: pcidevices
+  name: pcidevices-webhook
   namespace: harvester-system
 spec:
   ports:
