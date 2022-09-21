@@ -20,7 +20,7 @@ rules:
     resources: [ "nodes" ]
     verbs: [ "get", "watch", "list", "update" ]
   - apiGroups: [ "" ]
-    resources: [ "configmaps", "events" ]
+    resources: [ "configmaps", "events", "secrets"]
     verbs: [ "get", "watch", "list", "update", "create" ]
   - apiGroups: [ "" ]
     resources: [ "namespaces" ]
@@ -28,6 +28,12 @@ rules:
   - apiGroups: [ "devices.harvesterhci.io" ]
     resources: [ "pcidevices", "pcidevices/status", "pcideviceclaims", "pcideviceclaims/status" ]
     verbs: [ "get", "watch", "list", "update", "create", "delete"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["mutatingwebhookconfigurations"]
+    verbs: [ "get", "watch", "list", "update", "create", "delete" ]
+  - apiGroups: ["apiregistration.k8s.io"]
+    resources: ["apiservices"]
+    verbs: [ "get", "watch", "list", "update", "create", "delete" ]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

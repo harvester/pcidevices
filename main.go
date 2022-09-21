@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/harvester/pcidevices/pkg/webhook"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
@@ -23,6 +25,7 @@ import (
 	"github.com/harvester/pcidevices/pkg/controller/pcideviceclaim"
 	"github.com/harvester/pcidevices/pkg/crd"
 	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
+	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 )
 
 const (
@@ -41,6 +44,7 @@ var (
 func init() {
 	utilruntime.Must(AddToScheme(Scheme))
 	utilruntime.Must(schemes.AddToScheme(Scheme))
+	utilruntime.Must(apiregistrationv1.AddToScheme(Scheme))
 }
 
 func main() {
@@ -124,6 +128,11 @@ func run(kubeConfig string) error {
 
 	registerControllers(ctx)
 	startAllControllers(ctx)
+
+	w := webhook.New(ctx, cfg)
+	if err := w.ListenAndServe(); err != nil {
+		logrus.Fatalf("Error starting webook: %v", err)
+	}
 	<-ctx.Done()
 
 	return nil

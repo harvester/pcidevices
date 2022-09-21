@@ -1,6 +1,6 @@
 PCI Devices Controller
 ========
-[![Go Report Card](https://goreportcard.com/badge/github.com/harvester/pcidevices)](https://goreportcard.com/report/github.com/harvester/pcidevices)
+[![Build Status](https://drone-publish.rancher.io/api/badges/harvester/pcidevices/status.svg)](https://drone-publish.rancher.io/harvester/pcidevices) [![Go Report Card](https://goreportcard.com/badge/github.com/harvester/pcidevices)](https://goreportcard.com/report/github.com/harvester/pcidevices) 
 
 PCI Devices Controller is a **Kubernetes controller** that:
 
@@ -57,11 +57,11 @@ status:
   address: "00:1f.6"
   vendorId: "8086"
   deviceId: "0d4c"
+  classId: "0200"
   nodeName: "titan"
+  resourceName: "intel.com/ETHERNET_CONNECTION_11_I219LM"
   description: "Ethernet controller: Intel Corporation Ethernet Connection (11) I219-LM"
   kernelDriverInUse: "e1000e"
-  kernelModules:
-  - "e1000e"
 ```
 
 

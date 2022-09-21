@@ -7,8 +7,8 @@ import (
 
 	v1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
+	"github.com/jaypipes/ghw"
 	"github.com/sirupsen/logrus"
-	"github.com/u-root/u-root/pkg/pci"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -28,16 +28,13 @@ func Register(
 	handler := &Handler{
 		client: pd,
 	}
-	hostname, err := os.Hostname()
-	if err != nil {
-		return err
-	}
+	nodename := os.Getenv("NODE_NAME")
 	// start goroutine to regularly reconcile the PCI Devices list
 	go func() {
 		ticker := time.NewTicker(reconcilePeriod)
 		for range ticker.C {
 			logrus.Info("Reconciling PCI Devices list")
-			if err := handler.reconcilePCIDevices(hostname); err != nil {
+			if err := handler.reconcilePCIDevices(nodename); err != nil {
 				logrus.Errorf("PCI device reconciliation error: %v", err)
 			}
 		}
@@ -47,19 +44,14 @@ func Register(
 
 func (h Handler) reconcilePCIDevices(hostname string) error {
 	// List all PCI Devices on host
-	busReader, err := pci.NewBusReader()
-	if err != nil {
-		return err
-	}
-	var pcidevices []*pci.PCI
-	pcidevices, err = busReader.Read()
+	pci, err := ghw.PCI()
 	if err != nil {
 		return err
 	}
 
 	var setOfRealPCIAddrs map[string]bool = make(map[string]bool)
-	for _, dev := range pcidevices {
-		setOfRealPCIAddrs[dev.Addr] = true
+	for _, dev := range pci.Devices {
+		setOfRealPCIAddrs[dev.Address] = true
 		name := v1beta1.PCIDeviceNameForHostname(dev, hostname)
 		// Check if device is stored
 		_, err := h.client.Get(name, metav1.GetOptions{})

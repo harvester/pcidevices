@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/harvester/pcidevices/pkg/lspci"
-	"github.com/sirupsen/logrus"
-	"github.com/u-root/u-root/pkg/pci"
+	"regexp"
+
+	"github.com/jaypipes/ghw/pkg/pci"
+	"github.com/jaypipes/ghw/pkg/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -26,70 +27,127 @@ type PCIDevice struct {
 
 // PCIDeviceStatus defines the observed state of PCIDevice
 type PCIDeviceStatus struct {
-	Address           string   `json:"address"`
-	VendorId          int      `json:"vendorId"`
-	DeviceId          int      `json:"deviceId"`
-	NodeName          string   `json:"nodeName"`
-	Description       string   `json:"description"`
-	KernelDriverInUse string   `json:"kernelDriverInUse,omitempty"`
-	KernelModules     []string `json:"kernelModules"`
+	Address           string `json:"address"`
+	VendorId          string `json:"vendorId"`
+	DeviceId          string `json:"deviceId"`
+	ClassId           string `json:"classId"`
+	NodeName          string `json:"nodeName"`
+	ResourceName      string `json:"resourceName"`
+	Description       string `json:"description"`
+	KernelDriverInUse string `json:"kernelDriverInUse,omitempty"`
 }
 
-func (status *PCIDeviceStatus) Update(dev *pci.PCI, hostname string) {
-	lspciOutput, err := lspci.GetLspciOuptut(dev.Addr)
-	if err != nil {
-		logrus.Error(err)
+func description(dev *pci.Device) string {
+	var vendorName string
+	if dev.Vendor.Name != util.UNKNOWN {
+		vendorName = dev.Vendor.Name
+	} else {
+		vendorName = fmt.Sprintf("Vendor %s", dev.Vendor.ID)
 	}
-	driver, err := lspci.ExtractCurrentPCIDriver(lspciOutput)
-	if err != nil {
-		logrus.Error(err)
-		// Continue and update the object even if driver is not found
+	var deviceName string
+	if dev.Product.Name != util.UNKNOWN {
+		deviceName = dev.Product.Name
+	} else {
+		deviceName = fmt.Sprintf("Device %s", dev.Product.ID)
 	}
-	status.Address = dev.Addr
-	status.VendorId = int(dev.Vendor)
-	status.DeviceId = int(dev.Device)
-	status.Description = dev.DeviceName
-	status.KernelDriverInUse = driver
-	status.NodeName = hostname
+	var className string
+	if dev.Subclass.Name != util.UNKNOWN {
+		className = dev.Subclass.Name
+	} else if dev.Class.Name != util.UNKNOWN {
+		className = dev.Class.Name
+	} else {
+		className = fmt.Sprintf("Class %s%s", dev.Class.ID, dev.Subclass.ID)
+	}
+	return fmt.Sprintf("%s: %s %s", className, vendorName, deviceName)
+}
 
-	modules, err := lspci.ExtractKernelModules(lspciOutput)
+func strip(s string) string {
+	// Make a Regex to say we only want
+	reg, err := regexp.Compile("[^a-zA-Z0-9]+")
 	if err != nil {
-		logrus.Error(err)
-		// Continue and update the object even if modules are not found
+		fmt.Printf("%v", err)
 	}
-	status.KernelModules = modules
+	processedString := reg.ReplaceAllString(s, "")
+	return processedString
+}
+
+func extractVendorNameFromBrackets(vendorName string) string {
+	// Make a Regex to say we only want
+	reg, err := regexp.Compile(`\[([^\]]+)\]`)
+	if err != nil {
+		fmt.Printf("%v", err)
+	}
+	matches := reg.FindStringSubmatch(vendorName)
+	preSlash := strings.Split(matches[1], "/")[0]
+	return strip(preSlash)
+}
+
+func resourceName(dev *pci.Device) string {
+	var vendorBase string
+	// if vendor name has a '[name]', then use that
+	if strings.Contains(dev.Vendor.Name, "[") {
+		vendorBase = extractVendorNameFromBrackets(dev.Vendor.Name)
+	} else {
+		vendorBase = strip(strings.Split(dev.Vendor.Name, " ")[0])
+	}
+	vendorCleaned := strings.ToLower(
+		strings.ReplaceAll(vendorBase, " ", ""),
+	) + ".com"
+	if dev.Product.Name != util.UNKNOWN {
+		productCleaned := strings.TrimSpace(dev.Product.Name)
+		productCleaned = strings.ToUpper(productCleaned)
+		productCleaned = strings.Replace(productCleaned, "/", "_", -1)
+		productCleaned = strings.Replace(productCleaned, ".", "_", -1)
+		reg, _ := regexp.Compile("\\s+")
+		productCleaned = reg.ReplaceAllString(productCleaned, "_") // Replace all spaces with underscore
+		reg, _ = regexp.Compile("[^a-zA-Z0-9_.]+")
+		productCleaned = reg.ReplaceAllString(productCleaned, "") // Removes any char other than alphanumeric and underscore
+		return fmt.Sprintf("%s/%s", vendorCleaned, productCleaned)
+	}
+	// If the pcidb doesn't have the deviceId, just show the deviceId
+	return fmt.Sprintf("%s/%s", vendorCleaned, dev.Product.ID)
+}
+
+func (status *PCIDeviceStatus) Update(dev *pci.Device, hostname string) {
+	status.Address = dev.Address
+	status.VendorId = dev.Vendor.ID
+	status.DeviceId = dev.Product.ID
+	status.ClassId = fmt.Sprintf("%s%s", dev.Class.ID, dev.Subclass.ID)
+	// Generate the ResourceName field, this is used by KubeVirt to schedule the VM to the node
+	status.ResourceName = resourceName(dev)
+	status.Description = description(dev)
+
+	status.KernelDriverInUse = dev.Driver
+	status.NodeName = hostname
 }
 
 type PCIDeviceSpec struct {
 }
 
-func PCIDeviceNameForHostname(dev *pci.PCI, hostname string) string {
-	vendorName := strings.ToLower(
-		strings.Split(dev.VendorName, " ")[0],
-	)
-	addrDNSsafe := strings.ReplaceAll(strings.ReplaceAll(dev.Addr, ":", ""), ".", "")
+func PCIDeviceNameForHostname(dev *pci.Device, hostname string) string {
+	addrDNSsafe := strings.ReplaceAll(strings.ReplaceAll(dev.Address, ":", ""), ".", "")
 	return fmt.Sprintf(
-		"%s-%s-%x-%x-%s",
+		"%s-%s",
 		hostname,
-		vendorName,
-		dev.Vendor,
-		dev.Device,
 		addrDNSsafe,
 	)
 }
 
-func NewPCIDeviceForHostname(dev *pci.PCI, hostname string) PCIDevice {
+func NewPCIDeviceForHostname(dev *pci.Device, hostname string) PCIDevice {
 	name := PCIDeviceNameForHostname(dev, hostname)
 	pciDevice := PCIDevice{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
 		Status: PCIDeviceStatus{
-			Address:     dev.Addr,
-			VendorId:    int(dev.Vendor), // upcasting a uint16 to an int is safe
-			DeviceId:    int(dev.Device),
-			NodeName:    hostname,
-			Description: dev.DeviceName,
+			Address:           dev.Address,
+			VendorId:          dev.Vendor.ID,
+			DeviceId:          dev.Product.ID,
+			ClassId:           fmt.Sprintf("%s%s", dev.Class.ID, dev.Subclass.ID),
+			NodeName:          hostname,
+			ResourceName:      resourceName(dev),
+			Description:       description(dev),
+			KernelDriverInUse: dev.Driver,
 		},
 	}
 	return pciDevice

@@ -6,8 +6,8 @@ status:
   address: "00:1f.6"
   vendorId: "8086"
   deviceId: "0d4c"
+  classId: "0200"
   nodeName: "titan"
+  resourceName: "intel.com/ETHERNET_CONNECTION_11_I219LM"
   description: "Ethernet controller: Intel Corporation Ethernet Connection (11) I219-LM"
   kernelDriverInUse: "vfio-pci"
-  kernelModules:
-  - "e1000e"
