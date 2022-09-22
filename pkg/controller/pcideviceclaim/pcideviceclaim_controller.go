@@ -100,7 +100,7 @@ func unbindPCIDeviceFromVfioPCIDriver(addr string) error {
 	return nil
 }
 
-func (h Handler) reconcilePCIDeviceClaims(hostname string) error {
+func (h Handler) reconcilePCIDeviceClaims(nodename string) error {
 	// Get all PCI Device Claims
 	var pdcNames map[string]string = make(map[string]string)
 	pdcs, err := h.pdcClient.List(metav1.ListOptions{})
@@ -133,7 +133,7 @@ func (h Handler) reconcilePCIDeviceClaims(hostname string) error {
 		// Check if PCI Device is already enabled for passthrough, but has no pre-existing PDC,
 		// if so, unbind the device (to force the user to make a proper PDC)
 		_, found := pdcNames[nodeAddr]
-		if !found && pd.Status.KernelDriverInUse == "vfio-pci" && hostname == pd.Status.NodeName {
+		if !found && pd.Status.KernelDriverInUse == "vfio-pci" && nodename == pd.Status.NodeName {
 			logrus.Infof("PCI Device %s is bound to vfio-pci but has no Claim, attempting to unbind", pd.Status.Address)
 			err = unbindPCIDeviceFromVfioPCIDriver(pd.Status.Address)
 			if err != nil {
@@ -141,12 +141,20 @@ func (h Handler) reconcilePCIDeviceClaims(hostname string) error {
 			}
 		}
 		// After reboot, the PCIDeviceClaim will be there but the PCIDevice won't be bound to vfio-pci
-		if found && pd.Status.KernelDriverInUse != "vfio-pci" && hostname == pd.Status.NodeName {
+		if pd.Status.KernelDriverInUse != "vfio-pci" && nodename == pd.Status.NodeName {
 			// Set PassthroughEnabled to false
 			for _, pdc := range pdcs.Items {
 				if pdc.Spec.Address == pd.Status.Address {
 					logrus.Infof("Passthrough disabled for device %s", pd.Name)
 					pdc.Status.PassthroughEnabled = false
+					err = unbindPCIDeviceFromDriver(pd.Status.Address, pd.Status.KernelDriverInUse)
+					if err != nil {
+						logrus.Errorf("Error unbinding device after reboot: %s", err)
+					}
+					err = addNewIdToVfioPCIDriver(pd.Status.VendorId, pd.Status.DeviceId)
+					if err != nil {
+						logrus.Errorf("Error rebinding device after reboot: %s", err)
+					}
 				}
 			}
 		}
@@ -159,7 +167,7 @@ func (h Handler) reconcilePCIDeviceClaims(hostname string) error {
 
 	// Get those PCI Device Claims for this node
 	for _, pdc := range pdcs.Items {
-		if pdc.Spec.NodeName == hostname {
+		if pdc.Spec.NodeName == nodename {
 			if !pdc.Status.PassthroughEnabled {
 				logrus.Infof("Attempting to enable passthrough")
 				// Get PCIDevice for the PCIDeviceClaim
