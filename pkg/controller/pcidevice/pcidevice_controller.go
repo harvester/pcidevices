@@ -42,7 +42,7 @@ func Register(
 	return nil
 }
 
-func (h Handler) reconcilePCIDevices(hostname string) error {
+func (h Handler) reconcilePCIDevices(nodename string) error {
 	// List all PCI Devices on host
 	pci, err := ghw.PCI()
 	if err != nil {
@@ -52,7 +52,7 @@ func (h Handler) reconcilePCIDevices(hostname string) error {
 	var setOfRealPCIAddrs map[string]bool = make(map[string]bool)
 	for _, dev := range pci.Devices {
 		setOfRealPCIAddrs[dev.Address] = true
-		name := v1beta1.PCIDeviceNameForHostname(dev, hostname)
+		name := v1beta1.PCIDeviceNameForHostname(dev, nodename)
 		// Check if device is stored
 		_, err := h.client.Get(name, metav1.GetOptions{})
 
@@ -60,8 +60,9 @@ func (h Handler) reconcilePCIDevices(hostname string) error {
 			logrus.Errorf("Failed to get %s: %s\n", name, err)
 
 			// Create the PCIDevice CR if it doesn't exist
-			var pdToCreate v1beta1.PCIDevice = v1beta1.NewPCIDeviceForHostname(dev, hostname)
+			var pdToCreate v1beta1.PCIDevice = v1beta1.NewPCIDeviceForHostname(dev, nodename)
 			logrus.Infof("Creating PCI Device: %s\n", err)
+			pdToCreate.Labels["nodename"] = nodename // label
 			_, err := h.client.Create(&pdToCreate)
 			if err != nil {
 				logrus.Errorf("Failed to create PCI Device: %s\n", err)
@@ -72,31 +73,16 @@ func (h Handler) reconcilePCIDevices(hostname string) error {
 		if err != nil {
 			logrus.Errorf("Failed to get %s: %s\n", name, err)
 		}
-		devCR.Status.Update(dev, hostname) // update the in-memory CR with the current PCI info
-		_, err = h.client.Update(devCR)
+		devCopy := devCR.DeepCopy()
+		devCopy.Status.Update(dev, nodename) // update the in-memory CR with the current PCI info
+		_, err = h.client.Update(devCopy)
 		if err != nil {
-			logrus.Errorf("Failed to update %v: %s\n", devCR.Status.Address, err)
+			logrus.Errorf("Failed to update %v: %s\n", devCopy.Status.Address, err)
 		}
-		_, err = h.client.UpdateStatus(devCR)
+		_, err = h.client.UpdateStatus(devCopy)
 		if err != nil {
 			logrus.Errorf("(Resource exists) Failed to update status sub-resource: %s\n", err)
 		}
 	}
-	//pciDeviceCRs, err := h.client.List(metav1.ListOptions{})
-	//if err != nil {
-	//	logrus.Errorf("Failed to list PCI Device CRs")
-	//}
-	// TODO: Properly handle PCI device unplug. Since this is uncommon, not prioritizing this now
-	//for _, devCR := range pciDeviceCRs.Items {
-	//	val, found := setOfRealPCIAddrs[devCR.Status.Address]
-	//	if !found || !val {
-	//		logrus.Infof("Deleting PCI Device: %s", devCR.Name)
-	//		err = h.client.Delete(devCR.Name, &metav1.DeleteOptions{})
-	//		if err != nil {
-	//			logrus.Errorf("Failed deleting PCI Device %s: %s", devCR.Name, err)
-	//		}
-	//	}
-	//}
-
 	return nil
 }
