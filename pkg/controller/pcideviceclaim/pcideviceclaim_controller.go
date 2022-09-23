@@ -2,6 +2,7 @@ package pcideviceclaim
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -63,11 +64,9 @@ func loadVfioDrivers() {
 	}
 }
 
-// Enabling passthrough for a PCI Device requires two steps:
-// 1. Bind the device to the vfio-pci driver in the host
-// 2. Permit the device in KubeVirt's Config in the cluster
-func enablePassthrough(vendorId string, deviceId string, resourceName string) error {
-	// 1. Bind the device to the vfio-pci driver in the host
+func bindDeviceToVFIOPCIDriver(pd *v1beta1.PCIDevice) error {
+	vendorId := pd.Status.VendorId
+	deviceId := pd.Status.VendorId
 	var id string = fmt.Sprintf("%s %s", vendorId, deviceId)
 
 	file, err := os.OpenFile("/sys/bus/pci/drivers/vfio-pci/new_id", os.O_WRONLY, 0400)
@@ -76,52 +75,30 @@ func enablePassthrough(vendorId string, deviceId string, resourceName string) er
 	}
 	_, err = file.WriteString(id)
 	if err != nil {
+		file.Close()
 		return err
 	}
 	file.Close()
+	return nil
+}
 
-	// 2. Permit the device in KubeVirt's Config in the cluster
-	clientConfig := kubecli.DefaultClientConfig(&pflag.FlagSet{})
-	virtClient, err := kubecli.GetKubevirtClientFromClientConfig(clientConfig)
+// Enabling passthrough for a PCI Device requires two steps:
+// 1. Bind the device to the vfio-pci driver in the host
+// 2. Permit the device in KubeVirt's Config in the cluster
+func enablePassthrough(pd *v1beta1.PCIDevice) error {
+	err := bindDeviceToVFIOPCIDriver(pd)
 	if err != nil {
-		logrus.Fatalf("cannot obtain KubeVirt client: %v\n", err)
+		return err
 	}
-	ns := "harvester-system"
-	cr := "kubevirt"
-	kubevirt, err := virtClient.KubeVirt(ns).Get(cr, &v1.GetOptions{})
+	err = addHostDeviceToKubeVirtAllowList(pd)
 	if err != nil {
-		logrus.Fatalf("cannot obtain KubeVirt CR: %v\n", err)
-	}
-	if kubevirt.Spec.Configuration.PermittedHostDevices == nil {
-		kubevirt.Spec.Configuration.PermittedHostDevices = &kubevirtv1.PermittedHostDevices{
-			PciHostDevices: []kubevirtv1.PciHostDevice{},
-		}
-	}
-	permittedPCIDevices := kubevirt.Spec.Configuration.PermittedHostDevices.PciHostDevices
-	// check if device is currently permitted
-	var devPermitted bool = false
-	for _, permittedPCIDev := range permittedPCIDevices {
-		if permittedPCIDev.ResourceName == resourceName {
-			devPermitted = true
-		}
-	}
-	if !devPermitted {
-		devToPermit := kubevirtv1.PciHostDevice{
-			PCIVendorSelector:        fmt.Sprintf("%s:%s", vendorId, deviceId),
-			ResourceName:             resourceName,
-			ExternalResourceProvider: false,
-		}
-		kubevirt.Spec.Configuration.PermittedHostDevices.PciHostDevices = append(permittedPCIDevices, devToPermit)
-		_, err := virtClient.KubeVirt(ns).Update(kubevirt)
-		if err != nil {
-			logrus.Fatalf("Failed to update kubevirt CR: %s", err)
-		}
+		return err
 	}
 
 	return nil
 }
 
-func unbindPCIDeviceFromDriver(addr string, driver string) error {
+func unbindDeviceFromDriver(addr string, driver string) error {
 	path := fmt.Sprintf("/sys/bus/pci/drivers/%s/unbind", driver)
 	file, err := os.OpenFile(path, os.O_WRONLY, 0400)
 	if err != nil {
@@ -148,14 +125,53 @@ func unbindPCIDeviceFromVfioPCIDriver(addr string) error {
 	return nil
 }
 
-func addHostDeviceToKubeVirtAllowList(pd *v1beta1.PCIDevice) {
-	// Get KubeVirt CR
-	// Get PermittedHostDevices
-	// If pd is not in PermittedHostDevices,
-	// then add it and update the CR
+func addHostDeviceToKubeVirtAllowList(pd *v1beta1.PCIDevice) error {
+	clientConfig := kubecli.DefaultClientConfig(&pflag.FlagSet{})
+	virtClient, err := kubecli.GetKubevirtClientFromClientConfig(clientConfig)
+	if err != nil {
+		msg := fmt.Sprintf("cannot obtain KubeVirt client: %v\n", err)
+		return errors.New(msg)
+	}
+	ns := "harvester-system"
+	cr := "kubevirt"
+	kubevirt, err := virtClient.KubeVirt(ns).Get(cr, &v1.GetOptions{})
+	if err != nil {
+		msg := fmt.Sprintf("cannot obtain KubeVirt CR: %v\n", err)
+		return errors.New(msg)
+	}
+	if kubevirt.Spec.Configuration.PermittedHostDevices == nil {
+		kubevirt.Spec.Configuration.PermittedHostDevices = &kubevirtv1.PermittedHostDevices{
+			PciHostDevices: []kubevirtv1.PciHostDevice{},
+		}
+	}
+	permittedPCIDevices := kubevirt.Spec.Configuration.PermittedHostDevices.PciHostDevices
+	resourceName := pd.Status.ResourceName
+	// check if device is currently permitted
+	var devPermitted bool = false
+	for _, permittedPCIDev := range permittedPCIDevices {
+		if permittedPCIDev.ResourceName == resourceName {
+			devPermitted = true
+		}
+	}
+	vendorId := pd.Status.DeviceId
+	deviceId := pd.Status.DeviceId
+	if !devPermitted {
+		devToPermit := kubevirtv1.PciHostDevice{
+			PCIVendorSelector:        fmt.Sprintf("%s:%s", vendorId, deviceId),
+			ResourceName:             resourceName,
+			ExternalResourceProvider: false,
+		}
+		kubevirt.Spec.Configuration.PermittedHostDevices.PciHostDevices = append(permittedPCIDevices, devToPermit)
+		_, err := virtClient.KubeVirt(ns).Update(kubevirt)
+		if err != nil {
+			msg := fmt.Sprintf("Failed to update kubevirt CR: %s", err)
+			return errors.New(msg)
+		}
+	}
+	return nil
 }
 
-func (h Handler) reconcilePCIDeviceClaims(hostname string) error {
+func (h Handler) reconcilePCIDeviceClaims(nodename string) error {
 	// Get all PCI Device Claims
 	var pdcNames map[string]string = make(map[string]string)
 	pdcs, err := h.pdcClient.List(metav1.ListOptions{})
@@ -249,13 +265,13 @@ func (h Handler) reconcilePCIDeviceClaims(hostname string) error {
 				} else {
 					// Only unbind from driver is a driver is currently in use
 					if strings.TrimSpace(pd.Status.KernelDriverInUse) != "" {
-						err = unbindPCIDeviceFromDriver(pd.Status.Address, pd.Status.KernelDriverInUse)
+						err = unbindDeviceFromDriver(pd.Status.Address, pd.Status.KernelDriverInUse)
 						if err != nil {
 							pdc.Status.PassthroughEnabled = false
 							return err
 						}
 					}
-					err = enablePassthrough(pd.Status.VendorId, pd.Status.DeviceId, pd.Status.ResourceName)
+					err = enablePassthrough(pd)
 					if err != nil {
 						pdc.Status.PassthroughEnabled = false
 						return err
