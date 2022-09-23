@@ -205,10 +205,6 @@ func (h Handler) reconcilePCIDeviceClaims(nodename string) error {
 					}
 					pdc.Status.PassthroughEnabled = true
 				}
-				_, err = h.pdcClient.Update(&pdc)
-				if err != nil {
-					return err
-				}
 				_, err = h.pdcClient.UpdateStatus(&pdc)
 				if err != nil {
 					return err
