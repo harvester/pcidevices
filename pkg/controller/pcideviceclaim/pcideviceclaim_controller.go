@@ -29,12 +29,12 @@ type Handler struct {
 func Register(
 	ctx context.Context,
 	pdcClient v1beta1gen.PCIDeviceClaimController,
-	pd v1beta1gen.PCIDeviceController,
+	pdClient v1beta1gen.PCIDeviceController,
 ) error {
 	logrus.Info("Registering PCI Device Claims controller")
 	handler := &Handler{
 		pdcClient: pdcClient,
-		pdClient:  pd,
+		pdClient:  pdClient,
 	}
 	nodename := os.Getenv("NODE_NAME")
 	// start goroutine to regularly reconcile the PCI Device Claims' status with their spec
@@ -154,6 +154,8 @@ func (h Handler) reconcilePCIDeviceClaims(nodename string) error {
 					err = addNewIdToVfioPCIDriver(pd.Status.VendorId, pd.Status.DeviceId)
 					if err != nil {
 						logrus.Errorf("Error rebinding device after reboot: %s", err)
+					} else {
+						pdc.Status.PassthroughEnabled = true
 					}
 				}
 			}
@@ -168,10 +170,18 @@ func (h Handler) reconcilePCIDeviceClaims(nodename string) error {
 	// Get those PCI Device Claims for this node
 	for _, pdc := range pdcs.Items {
 		if pdc.Spec.NodeName == nodename {
+			if pdc.DeletionTimestamp != nil {
+				logrus.Infof("Attempting to unbind PCI device %s from vfio-pci", pdc.Spec.Address)
+				err = unbindPCIDeviceFromVfioPCIDriver(pdc.Spec.Address)
+				if err != nil {
+					return err
+				}
+			}
 			if !pdc.Status.PassthroughEnabled {
 				logrus.Infof("Attempting to enable passthrough")
 				// Get PCIDevice for the PCIDeviceClaim
 				name := pdNames[pdc.Spec.NodeAddr()]
+
 				pd, err := h.pdClient.Get(name, metav1.GetOptions{})
 				if err != nil {
 					return err
@@ -200,13 +210,6 @@ func (h Handler) reconcilePCIDeviceClaims(nodename string) error {
 					return err
 				}
 				_, err = h.pdcClient.UpdateStatus(&pdc)
-				if err != nil {
-					return err
-				}
-			}
-			if pdc.DeletionTimestamp != nil {
-				logrus.Infof("Attempting to unbind PCI device %s from vfio-pci", pdc.Spec.Address)
-				err = unbindPCIDeviceFromVfioPCIDriver(pdc.Spec.Address)
 				if err != nil {
 					return err
 				}
