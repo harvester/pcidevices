@@ -286,7 +286,6 @@ func (h Handler) attemptToEnablePassthrough(pdc *v1beta1.PCIDeviceClaim) {
 	logrus.Infof("Attempting to enable passthrough")
 	// Get PCIDevice for the PCIDeviceClaim
 	name := pdc.OwnerReferences[0].Name
-
 	pd, err := h.pdClient.Get(name, metav1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("Error getting claim's device: %s", err)
@@ -296,7 +295,6 @@ func (h Handler) attemptToEnablePassthrough(pdc *v1beta1.PCIDeviceClaim) {
 	pdcCopy.Status.KernelDriverToUnbind = pd.Status.KernelDriverInUse
 	if pd.Status.KernelDriverInUse == "vfio-pci" {
 		pdcCopy.Status.PassthroughEnabled = true
-		// Add this device to the KubeVirt CR
 		addHostDeviceToKubeVirtAllowList(pd)
 	} else {
 		// Only unbind from driver is a driver is currently in use
@@ -304,19 +302,19 @@ func (h Handler) attemptToEnablePassthrough(pdc *v1beta1.PCIDeviceClaim) {
 			err = unbindDeviceFromDriver(pd.Status.Address, pd.Status.KernelDriverInUse)
 			if err != nil {
 				pdcCopy.Status.PassthroughEnabled = false
-				logrus.Errorf("Error getting claim's device: %s", err)
-				return
+				logrus.Errorf("Error unbinding %s from driver %s: %s", pd.Status.Address, pd.Status.KernelDriverInUse, err)
 			}
 		}
+		// Enable PCI Passthrough by binding the device to the vfio-pci driver
 		err = enablePassthrough(pd)
 		if err != nil {
 			pdcCopy.Status.PassthroughEnabled = false
+		} else {
+			pdcCopy.Status.PassthroughEnabled = true
 		}
-		pdcCopy.Status.PassthroughEnabled = true
 	}
 	_, err = h.pdcClient.UpdateStatus(pdcCopy)
 	if err != nil {
 		logrus.Errorf("Error updating status for %s: %s", pdc.Name, err)
 	}
-
 }
