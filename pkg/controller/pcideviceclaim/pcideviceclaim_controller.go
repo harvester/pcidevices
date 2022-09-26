@@ -202,7 +202,7 @@ func (h Handler) rebindAfterReboot(nodename string) {
 		logrus.Errorf("Error getting claims: %s", err)
 		return
 	}
-	go h.unbindOrphanedPCIDevices(pdcs, nodename)
+	h.unbindOrphanedPCIDevices(pdcs, nodename)
 	for _, pdc := range pdcs.Items {
 		if pdc.Spec.NodeName != nodename {
 			continue
@@ -264,10 +264,12 @@ func (h Handler) reconcilePCIDeviceClaims(nodename string) error {
 			continue
 		}
 		if pdc.DeletionTimestamp != nil {
-			go cleanupDeletedClaim(&pdc)
+			// 2022-09-26: 3:48PM PDT Removed the go because only one PDC was being created
+			cleanupDeletedClaim(&pdc)
 		}
 		if !pdc.Status.PassthroughEnabled {
-			go h.attemptToEnablePassthrough(&pdc)
+			// 2022-09-26: 3:48PM PDT Removed the go because only one PDC was being created
+			h.attemptToEnablePassthrough(&pdc)
 		}
 	}
 
@@ -283,13 +285,17 @@ func cleanupDeletedClaim(pdc *v1beta1.PCIDeviceClaim) {
 }
 
 func (h Handler) attemptToEnablePassthrough(pdc *v1beta1.PCIDeviceClaim) {
-	logrus.Infof("Attempting to enable passthrough")
+	logrus.Infof("Attempting to enable passthrough for %s", pdc.Name)
 	// Get PCIDevice for the PCIDeviceClaim
 	name := pdc.OwnerReferences[0].Name
 	pd, err := h.pdClient.Get(name, metav1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("Error getting claim's device: %s", err)
 		return
+	}
+	pdc, err = h.pdcClient.Get(pdc.Name, metav1.GetOptions{})
+	if err != nil {
+		logrus.Errorf("Error getting latest version of PCIDeviceClaim: %s", pdc.Name)
 	}
 	pdcCopy := pdc.DeepCopy()
 	pdcCopy.Status.KernelDriverToUnbind = pd.Status.KernelDriverInUse
