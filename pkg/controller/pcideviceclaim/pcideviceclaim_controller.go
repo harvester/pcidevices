@@ -59,6 +59,19 @@ func Register(
 	return nil
 }
 
+// When a PCIDeviceClaim is removed, we need to unbind the device from the vfio-pci driver
+func OnRemove(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
+	// Get PCIDevice for the PCIDeviceClaim
+	logrus.Infof("Removing %s, unbinding the device from vfio-pci", name)
+	err := unbindDeviceFromDriver(pdc.Spec.Address, vfioPCIDriver)
+	if err != nil {
+		logrus.Infof("unbinding device %s failed: %s", name, err)
+		return pdc, err
+	}
+
+	return pdc, nil
+}
+
 func loadVfioDrivers() {
 	for _, driver := range []string{"vfio-pci", "vfio_iommu_type1"} {
 		if err := kmodule.Probe(driver, ""); err != nil {

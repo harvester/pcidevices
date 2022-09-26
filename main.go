@@ -122,6 +122,7 @@ func run(kubeConfig string) error {
 		if err = pcideviceclaim.Register(ctx, pdcCtl, pdCtl); err != nil {
 			logrus.Fatalf("failed to register PCI Device Claims Controller")
 		}
+		pdcCtl.OnRemove(ctx, "PCIDeviceClaim-OnRemove", pcideviceclaim.OnRemove)
 	}
 
 	startAllControllers := func(ctx context.Context) {
