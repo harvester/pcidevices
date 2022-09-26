@@ -62,7 +62,7 @@ func (h Handler) reconcilePCIDevices(nodename string) error {
 			// Create the PCIDevice CR if it doesn't exist
 			var pdToCreate v1beta1.PCIDevice = v1beta1.NewPCIDeviceForHostname(dev, nodename)
 			logrus.Infof("Creating PCI Device: %s\n", err)
-			pdToCreate.Labels["nodename"] = nodename // label
+			pdToCreate.Labels = map[string]string{"nodename": nodename} // label
 			_, err := h.client.Create(&pdToCreate)
 			if err != nil {
 				logrus.Errorf("Failed to create PCI Device: %s\n", err)
@@ -77,11 +77,11 @@ func (h Handler) reconcilePCIDevices(nodename string) error {
 		devCopy.Status.Update(dev, nodename) // update the in-memory CR with the current PCI info
 		_, err = h.client.Update(devCopy)
 		if err != nil {
-			logrus.Errorf("Failed to update %v: %s\n", devCopy.Status.Address, err)
+			logrus.Errorf("[PCIDeviceController] Failed to update resource: %s\n", err)
 		}
 		_, err = h.client.UpdateStatus(devCopy)
 		if err != nil {
-			logrus.Errorf("(Resource exists) Failed to update status sub-resource: %s\n", err)
+			logrus.Errorf("[PCIDeviceController] Failed to update status sub-resource: %s\n", err)
 		}
 	}
 	return nil

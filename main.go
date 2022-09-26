@@ -13,7 +13,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
 
-	//kubevirtv1 "kubevirt.io/api/core/v1"
 	"kubevirt.io/client-go/kubecli"
 
 	"github.com/rancher/lasso/pkg/controller"
@@ -35,7 +34,7 @@ import (
 
 const (
 	VERSION        = "v0.0.3"
-	controllerName = "harvester-pcideviceclaims-controller"
+	controllerName = "pcidevices-controller"
 )
 
 var (
@@ -157,7 +156,9 @@ func enableKubeVirtFeatureGateHostDevices() {
 	kubevirt, err := virtClient.KubeVirt(ns).Get(cr, &v1.GetOptions{})
 	if err != nil {
 		logrus.Fatalf("cannot obtain KubeVirt CR: %v\n", err)
+		return
 	}
+	kubevirtCopy := kubevirt.DeepCopy()
 	featureGates := kubevirt.Spec.Configuration.DeveloperConfiguration.FeatureGates
 	// check for HostDevices
 	var hostDevicesEnabled bool = false
@@ -168,11 +169,11 @@ func enableKubeVirtFeatureGateHostDevices() {
 	}
 	if !hostDevicesEnabled {
 		logrus.Infof("Feature gate 'HostDevices' not enabled, enabling it")
-		kubevirt.Spec.Configuration.DeveloperConfiguration.FeatureGates =
+		kubevirtCopy.Spec.Configuration.DeveloperConfiguration.FeatureGates =
 			append(featureGates, "HostDevices")
 
 		logrus.Info("Updating the KubeVirt CR")
-		_, err := virtClient.KubeVirt(ns).Update(kubevirt)
+		_, err := virtClient.KubeVirt(ns).Update(kubevirtCopy)
 		if err != nil {
 			logrus.Errorf("Error updating KubeVirt CR: %s", err)
 		}
