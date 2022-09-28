@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	reconcilePeriod = time.Second * 20
+	reconcilePeriod = time.Minute * 1
 	vfioPCIDriver   = "vfio-pci"
 )
 
@@ -43,9 +43,15 @@ func Register(
 		pdcClient: pdcClient,
 		pdClient:  pdClient,
 	}
+	pdcClient.OnRemove(ctx, "PCIDeviceClaim-OnRemove", handler.OnRemove)
+	pdcClient.OnChange(ctx, "PCIDeviceClaim-OnChange", handler.OnChange)
 	nodename := os.Getenv("NODE_NAME")
 	handler.rebindAfterReboot(nodename)
-	handler.unbindOrphanedPCIDevices(nodename)
+	// TODO fix stale PCIDevice CRs causing the Pod to crash
+	//err := handler.unbindOrphanedPCIDevices(nodename)
+	//if err != nil {
+	//	return err
+	//}
 
 	// start goroutine to regularly reconcile the PCI Device Claims' status with their spec
 	go func() {
@@ -60,8 +66,29 @@ func Register(
 	return nil
 }
 
+func (h Handler) OnChange(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
+	if pdc != nil && pdc.Spec.NodeName != os.Getenv("NODE_NAME") {
+		return pdc, nil
+	}
+	_, err := h.pdcClient.Get(name, v1.GetOptions{})
+	if err != nil {
+		return pdc, err
+	} else {
+		// Equivalent to OnCreate, since the PCIDeviceClaim doesn't exist yet
+		err := h.attemptToEnablePassthrough(pdc)
+		if err != nil {
+			return pdc, err
+		}
+	}
+
+	return pdc, nil
+}
+
 // When a PCIDeviceClaim is removed, we need to unbind the device from the vfio-pci driver
-func OnRemove(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
+func (h Handler) OnRemove(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
+	if pdc.Spec.NodeName != os.Getenv("NODE_NAME") {
+		return pdc, nil
+	}
 	// Get PCIDevice for the PCIDeviceClaim
 	logrus.Infof("Removing %s, unbinding the device from vfio-pci", name)
 	err := unbindDeviceFromDriver(pdc.Spec.Address, vfioPCIDriver)
@@ -78,6 +105,7 @@ func OnRemove(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim
 
 func loadVfioDrivers() {
 	for _, driver := range []string{"vfio-pci", "vfio_iommu_type1"} {
+		logrus.Infof("Loading driver %s", driver)
 		if err := kmodule.Probe(driver, ""); err != nil {
 			logrus.Error(err)
 		}
@@ -86,15 +114,18 @@ func loadVfioDrivers() {
 
 func bindDeviceToVFIOPCIDriver(pd *v1beta1.PCIDevice) error {
 	vendorId := pd.Status.VendorId
-	deviceId := pd.Status.VendorId
+	deviceId := pd.Status.DeviceId
 	var id string = fmt.Sprintf("%s %s", vendorId, deviceId)
+	logrus.Infof("Binding device %s [%s] to vfio-pci", pd.Name, id)
 
 	file, err := os.OpenFile("/sys/bus/pci/drivers/vfio-pci/new_id", os.O_WRONLY, 0400)
 	if err != nil {
+		logrus.Errorf("Error opening new_id file: %s", err)
 		return err
 	}
 	_, err = file.WriteString(id)
 	if err != nil {
+		logrus.Errorf("Error writing to new_id file: %s", err)
 		file.Close()
 		return err
 	}
@@ -162,11 +193,12 @@ func addHostDeviceToKubeVirtAllowList(pd *v1beta1.PCIDevice) error {
 	for _, permittedPCIDev := range permittedPCIDevices {
 		if permittedPCIDev.ResourceName == resourceName {
 			devPermitted = true
+			break
 		}
 	}
-	vendorId := pd.Status.DeviceId
-	deviceId := pd.Status.DeviceId
 	if !devPermitted {
+		vendorId := pd.Status.VendorId
+		deviceId := pd.Status.DeviceId
 		devToPermit := kubevirtv1.PciHostDevice{
 			PCIVendorSelector:        fmt.Sprintf("%s:%s", vendorId, deviceId),
 			ResourceName:             resourceName,
@@ -194,14 +226,16 @@ func pciDeviceIsClaimed(pd *v1beta1.PCIDevice, pdcs *v1beta1.PCIDeviceClaimList)
 // A PCI Device is considered orphaned if it is bound to vfio-pci,
 // but has no PCIDeviceClaim. The assumption is that this controller
 // will manage all PCI passthrough, and consider orphaned devices invalid
-func (h Handler) unbindOrphanedPCIDevices(nodename string) {
+func (h Handler) unbindOrphanedPCIDevices(nodename string) error {
 	pdcs, err := h.pdcClient.List(metav1.ListOptions{})
 	if err != nil {
 		logrus.Errorf("Error listing PCI Device Claims: %s", err)
+		return err
 	}
 	pds, err := h.pdClient.List(metav1.ListOptions{})
 	if err != nil {
 		logrus.Errorf("Error listing PCI Devices: %s", err)
+		return err
 	}
 
 	for _, pd := range pds.Items {
@@ -212,9 +246,11 @@ func (h Handler) unbindOrphanedPCIDevices(nodename string) {
 			err := unbindDeviceFromDriver(pd.Status.Address, vfioPCIDriver)
 			if err != nil {
 				logrus.Errorf("Error unbinding device from vfio-pci: %s", err)
+				return err
 			}
 		}
 	}
+	return nil
 }
 
 // After reboot, the PCIDeviceClaim will be there but the PCIDevice won't be bound to vfio-pci
@@ -288,31 +324,33 @@ func (h Handler) reconcilePCIDeviceClaims(nodename string) error {
 		}
 		if !pdc.Status.PassthroughEnabled {
 			// 2022-09-26: 3:48PM PDT Removed the go because only one PDC was being created
-			h.attemptToEnablePassthrough(&pdc)
+			err := h.attemptToEnablePassthrough(&pdc)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	return nil
 }
 
-func (h Handler) attemptToEnablePassthrough(pdc *v1beta1.PCIDeviceClaim) {
+func (h Handler) attemptToEnablePassthrough(pdc *v1beta1.PCIDeviceClaim) error {
 	logrus.Infof("Attempting to enable passthrough for %s", pdc.Name)
 	// Get PCIDevice for the PCIDeviceClaim
 	name := pdc.OwnerReferences[0].Name
 	pd, err := h.pdClient.Get(name, metav1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("Error getting claim's device: %s", err)
-		return
-	}
-	pdc, err = h.pdcClient.Get(pdc.Name, metav1.GetOptions{})
-	if err != nil {
-		logrus.Errorf("Error getting latest version of PCIDeviceClaim: %s", pdc.Name)
+		return err
 	}
 	pdcCopy := pdc.DeepCopy()
 	pdcCopy.Status.KernelDriverToUnbind = pd.Status.KernelDriverInUse
-	if pd.Status.KernelDriverInUse == "vfio-pci" {
+	if pd.Status.KernelDriverInUse == vfioPCIDriver {
 		pdcCopy.Status.PassthroughEnabled = true
-		addHostDeviceToKubeVirtAllowList(pd)
+		err = addHostDeviceToKubeVirtAllowList(pd)
+		if err != nil {
+			return err
+		}
 	} else {
 		// Only unbind from driver is a driver is currently in use
 		if strings.TrimSpace(pd.Status.KernelDriverInUse) != "" {
@@ -334,4 +372,5 @@ func (h Handler) attemptToEnablePassthrough(pdc *v1beta1.PCIDeviceClaim) {
 	if err != nil {
 		logrus.Errorf("Error updating status for %s: %s", pdc.Name, err)
 	}
+	return nil
 }
