@@ -157,6 +157,7 @@ func unbindDeviceFromDriver(addr string, driver string) error {
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 	_, err = file.WriteString(addr)
 	if err != nil {
 		return err
