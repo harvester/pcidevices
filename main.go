@@ -122,7 +122,6 @@ func run(kubeConfig string) error {
 		if err = pcideviceclaim.Register(ctx, pdcCtl, pdCtl); err != nil {
 			logrus.Fatalf("failed to register PCI Device Claims Controller")
 		}
-		pdcCtl.OnRemove(ctx, "PCIDeviceClaim-OnRemove", pcideviceclaim.OnRemove)
 	}
 
 	startAllControllers := func(ctx context.Context) {
@@ -131,7 +130,10 @@ func run(kubeConfig string) error {
 		}
 	}
 
-	enableKubeVirtFeatureGateHostDevices()
+	err = enableKubeVirtFeatureGateHostDevices()
+	if err != nil {
+		return err
+	}
 	registerControllers(ctx)
 	startAllControllers(ctx)
 
@@ -144,20 +146,21 @@ func run(kubeConfig string) error {
 	return nil
 }
 
-func enableKubeVirtFeatureGateHostDevices() {
+func enableKubeVirtFeatureGateHostDevices() error {
 	// set up kubevirtClient for PCIDeviceClaims controller
 	clientConfig := kubecli.DefaultClientConfig(&pflag.FlagSet{})
 	var virtClient kubecli.KubevirtClient
 	virtClient, err := kubecli.GetKubevirtClientFromClientConfig(clientConfig)
 	if err != nil {
 		logrus.Fatalf("cannot obtain KubeVirt client: %v\n", err)
+		return err
 	}
 	ns := "harvester-system"
 	cr := "kubevirt"
 	kubevirt, err := virtClient.KubeVirt(ns).Get(cr, &v1.GetOptions{})
 	if err != nil {
-		logrus.Fatalf("cannot obtain KubeVirt CR: %v\n", err)
-		return
+		logrus.Errorf("cannot obtain KubeVirt CR: %v\n", err)
+		return err
 	}
 	kubevirtCopy := kubevirt.DeepCopy()
 	featureGates := kubevirt.Spec.Configuration.DeveloperConfiguration.FeatureGates
@@ -179,4 +182,5 @@ func enableKubeVirtFeatureGateHostDevices() {
 			logrus.Errorf("Error updating KubeVirt CR: %s", err)
 		}
 	}
+	return nil
 }

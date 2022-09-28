@@ -72,6 +72,7 @@ func (h Handler) reconcilePCIDevices(nodename string) error {
 		devCR, err := h.client.Get(name, metav1.GetOptions{})
 		if err != nil {
 			logrus.Errorf("Failed to get %s: %s\n", name, err)
+			return err
 		}
 		devCopy := devCR.DeepCopy()
 		devCopy.Status.Update(dev, nodename) // update the in-memory CR with the current PCI info
