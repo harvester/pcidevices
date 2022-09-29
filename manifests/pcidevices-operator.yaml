@@ -74,7 +74,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-          image: tlehman/pcidevices:dev-kubevirt
+          image: rancher/harvester-pcidevices:master-head
           imagePullPolicy: Always
           name: agent
           resources:
