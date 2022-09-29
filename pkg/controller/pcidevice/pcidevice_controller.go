@@ -56,6 +56,7 @@ func (h Handler) reconcilePCIDevices(nodename string) error {
 		// Check if device is stored
 		_, err := h.client.Get(name, metav1.GetOptions{})
 
+		// TODO use k8s.io/apimachinery/apierrors IsNotFound
 		if err != nil {
 			logrus.Errorf("Failed to get %s: %s\n", name, err)
 

@@ -146,6 +146,7 @@ func run(kubeConfig string) error {
 	return nil
 }
 
+// TODO Remove after https://github.com/harvester/harvester/pull/2853 is merged
 func enableKubeVirtFeatureGateHostDevices() error {
 	// set up kubevirtClient for PCIDeviceClaims controller
 	clientConfig := kubecli.DefaultClientConfig(&pflag.FlagSet{})
@@ -180,6 +181,7 @@ func enableKubeVirtFeatureGateHostDevices() error {
 		_, err := virtClient.KubeVirt(ns).Update(kubevirtCopy)
 		if err != nil {
 			logrus.Errorf("Error updating KubeVirt CR: %s", err)
+			return err
 		}
 	}
 	return nil
