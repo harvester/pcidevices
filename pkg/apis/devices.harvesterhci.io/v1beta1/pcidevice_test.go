@@ -175,3 +175,29 @@ func TestDescriptionForVendorDevice(t *testing.T) {
 		})
 	}
 }
+
+func Test_extractPCIAddressFromRealpathOutput(t *testing.T) {
+	type args struct {
+		realpathOutput string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "PCI Address case 1",
+			args: args{
+				realpathOutput: "/sys/devices/pci0000:00/0000:00:1c.5/0000:06:00.0/net/enp6s0",
+			},
+			want: "0000:06:00.0",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := extractPCIAddressFromRealpathOutput(tt.args.realpathOutput); got != tt.want {
+				t.Errorf("extractPCIAddressFromRealpathOutput() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

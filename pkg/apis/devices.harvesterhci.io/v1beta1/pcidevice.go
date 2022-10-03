@@ -2,8 +2,10 @@ package v1beta1
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
+	"os/exec"
 	"regexp"
 
 	"github.com/jaypipes/ghw/pkg/pci"
@@ -35,6 +37,32 @@ type PCIDeviceStatus struct {
 	ResourceName      string `json:"resourceName"`
 	Description       string `json:"description"`
 	KernelDriverInUse string `json:"kernelDriverInUse,omitempty"`
+}
+
+// Harvester requires a management interface that cannot be claimed
+// for PCI passthrough. This function fetches the management interface
+// and then checks if the PCI address matches
+func (p *PCIDevice) isManagementInterface() bool {
+	iface := "enp6s0" // TODO fetch the mgmt iface
+	command := fmt.Sprintf("realpath /sys/class/net/%s", iface)
+	output, err := exec.Command(command).Output()
+	if err != nil {
+		os.Exit(1)
+	}
+	mgmtAddress := extractPCIAddressFromRealpathOutput(string(output))
+	return mgmtAddress == p.Status.Address
+}
+
+// Extracts the PCI address from the 'realpath $iface' output.
+// Example:
+//    # realpath /sys/class/net/enp6s0
+//    /sys/devices/pci0000:00/0000:00:1c.5/0000:06:00.0/net/enp6s0
+
+//    extractPCIAddressFromRealpathOutput("/sys/devices/pci0000:00/0000:00:1c.5/0000:06:00.0/net/enp6s0")
+//        outputs: "0000:06:00.0"
+func extractPCIAddressFromRealpathOutput(realpathOutput string) string {
+	s := strings.Split(realpathOutput, "/")
+	return s[len(s)-3]
 }
 
 func description(dev *pci.Device) string {
