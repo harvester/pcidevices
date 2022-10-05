@@ -43,7 +43,7 @@ func Register(
 	clientConfig := kubecli.DefaultClientConfig(&pflag.FlagSet{})
 	virtClient, err := kubecli.GetKubevirtClientFromClientConfig(clientConfig)
 	if err != nil {
-		msg := fmt.Sprintf("cannot obtain KubeVirt client: %v\n", err)
+		msg := fmt.Sprintf("cannot obtain KubeVirt client: %v", err)
 		return errors.New(msg)
 	}
 	handler := &Handler{
@@ -189,7 +189,7 @@ func (h Handler) removeHostDeviceFromKubeVirt(pd *v1beta1.PCIDevice) error {
 	cr := "kubevirt"
 	kv, err := h.virtClient.KubeVirt(ns).Get(cr, &v1.GetOptions{})
 	if err != nil {
-		msg := fmt.Sprintf("cannot obtain KubeVirt CR: %v\n", err)
+		msg := fmt.Sprintf("cannot obtain KubeVirt CR: %v", err)
 		return errors.New(msg)
 	}
 	kvCopy := kv.DeepCopy()
@@ -225,7 +225,7 @@ func (h Handler) addHostDeviceToKubeVirt(pd *v1beta1.PCIDevice) error {
 	cr := "kubevirt"
 	kv, err := h.virtClient.KubeVirt(ns).Get(cr, &v1.GetOptions{})
 	if err != nil {
-		msg := fmt.Sprintf("cannot obtain KubeVirt CR: %v\n", err)
+		msg := fmt.Sprintf("cannot obtain KubeVirt CR: %v", err)
 		return errors.New(msg)
 	}
 	kvCopy := kv.DeepCopy()
@@ -426,6 +426,7 @@ func (h Handler) attemptToEnablePassthrough(pdc *v1beta1.PCIDeviceClaim) error {
 	_, err = h.pdcClient.UpdateStatus(pdcCopy)
 	if err != nil {
 		logrus.Errorf("Error updating status for %s: %s", pdc.Name, err)
+		return err
 	}
 	return nil
 }
@@ -467,6 +468,7 @@ func (h Handler) attemptToDisablePassthrough(pdc *v1beta1.PCIDeviceClaim) error 
 	_, err = h.pdcClient.UpdateStatus(pdcCopy)
 	if err != nil {
 		logrus.Errorf("Error updating status for %s: %s", pdc.Name, err)
+		return err
 	}
 	return nil
 }
