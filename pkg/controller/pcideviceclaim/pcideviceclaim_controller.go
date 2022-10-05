@@ -55,11 +55,10 @@ func Register(
 	pdcClient.OnChange(ctx, "PCIDeviceClaimOnChange", handler.OnChange)
 	nodename := os.Getenv("NODE_NAME")
 	handler.rebindAfterReboot(nodename)
-	// TODO fix stale PCIDevice CRs causing the Pod to crash
-	//err := handler.unbindOrphanedPCIDevices(nodename)
-	//if err != nil {
-	//	return err
-	//}
+	err = handler.unbindOrphanedPCIDevices(nodename)
+	if err != nil {
+		return err
+	}
 	// Load VFIO drivers when controller starts instead of repeatedly in the reconcile loop
 	loadVfioDrivers()
 
@@ -457,6 +456,25 @@ func (h Handler) attemptToDisablePassthrough(pdc *v1beta1.PCIDeviceClaim) error 
 	if err != nil {
 		logrus.Errorf("Error updating status for %s: %s", pdc.Name, err)
 		return err
+	}
+	return nil
+}
+
+func (h Handler) unbindOrphanedPCIDevices(nodename string) error {
+	pdcs, err := h.pdcClient.List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	pds, err := h.pdClient.List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	orphanedPCIDevices, err := getOrphanedPCIDevices(nodename, pdcs, pds)
+	if err != nil {
+		return err
+	}
+	for _, pd := range orphanedPCIDevices.Items {
+		unbindDeviceFromDriver(pd.Status.Address, vfioPCIDriver)
 	}
 	return nil
 }
