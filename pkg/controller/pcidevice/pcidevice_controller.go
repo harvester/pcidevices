@@ -61,7 +61,6 @@ func (h Handler) reconcilePCIDevices(nodename string) error {
 		var devCR *v1beta1.PCIDevice
 		devCR, err = h.client.Get(name, metav1.GetOptions{})
 
-		// TODO use k8s.io/apimachinery/apierrors IsNotFound
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				logrus.Infof("[PCIDeviceController] Device %s does not exist", name)

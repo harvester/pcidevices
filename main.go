@@ -106,6 +106,7 @@ func run(kubeConfig string) error {
 	if err != nil {
 		return err
 	}
+
 	registerControllers := func(ctx context.Context) {
 		pdCtl := pdfactory.Devices().V1beta1().PCIDevice()
 		logrus.Info("Starting PCI Devices controller")
