@@ -169,7 +169,14 @@ func (h Handler) disablePassthrough(pd *v1beta1.PCIDevice) error {
 // This function unbinds the device with PCI Address addr from the given driver
 // NOTE: this function assumes that addr is on THIS NODE, only call for PCI addrs on this node
 func unbindDeviceFromDriver(addr string, driver string) error {
-	path := fmt.Sprintf("/sys/bus/pci/drivers/%s/unbind", driver)
+	driverPath := fmt.Sprintf("/sys/bus/pci/drivers/%s", driver)
+	// Check if device at addr is already bound to driver
+	_, err := os.Stat(fmt.Sprintf("%s/%s", driverPath, addr))
+	if err != nil {
+		logrus.Errorf("Device at address %s is not bound to driver %s", addr, driver)
+		return nil
+	}
+	path := fmt.Sprintf("%s/unbind", driverPath)
 	file, err := os.OpenFile(path, os.O_WRONLY, 0400)
 	if err != nil {
 		return err
@@ -407,12 +414,6 @@ func (h Handler) attemptToEnablePassthrough(pdc *v1beta1.PCIDeviceClaim) error {
 			err = unbindDeviceFromDriver(pd.Status.Address, pd.Status.KernelDriverInUse)
 			if err != nil {
 				pdcCopy.Status.PassthroughEnabled = false
-				logrus.Errorf(
-					"Error unbinding %s from driver %s: %s",
-					pd.Status.Address,
-					pd.Status.KernelDriverInUse,
-					err,
-				)
 			}
 		}
 		// Enable PCI Passthrough by binding the device to the vfio-pci driver
@@ -454,7 +455,6 @@ func (h Handler) attemptToDisablePassthrough(pdc *v1beta1.PCIDeviceClaim) error 
 			err = unbindDeviceFromDriver(pd.Status.Address, vfioPCIDriver)
 			if err != nil {
 				pdcCopy.Status.PassthroughEnabled = true
-				logrus.Errorf("Error unbinding %s from driver %s: %s", pd.Name, pd.Status.Address, vfioPCIDriver)
 			}
 		}
 		// Enable PCI Passthrough by binding the device to the vfio-pci driver
