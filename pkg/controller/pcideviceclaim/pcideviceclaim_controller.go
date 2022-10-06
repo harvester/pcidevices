@@ -240,7 +240,7 @@ func (h Handler) addHostDeviceToKubeVirt(pd *v1beta1.PCIDevice) error {
 			PciHostDevices: []kubevirtv1.PciHostDevice{},
 		}
 	}
-	permittedPCIDevices := kv.Spec.Configuration.PermittedHostDevices.PciHostDevices
+	permittedPCIDevices := kvCopy.Spec.Configuration.PermittedHostDevices.PciHostDevices
 	resourceName := pd.Status.ResourceName
 	// check if device is currently permitted
 	var devPermitted bool = false
