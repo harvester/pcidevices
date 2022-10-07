@@ -13,6 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/u-root/u-root/pkg/kmodule"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
@@ -79,13 +80,23 @@ func (h Handler) OnChange(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PC
 	if pdc != nil && pdc.Spec.NodeName != os.Getenv("NODE_NAME") {
 		return pdc, nil
 	}
+	if pdc == nil {
+		return nil, nil
+	}
 	_, err := h.pdcClient.Get(name, v1.GetOptions{})
 	if err != nil {
-		return pdc, err
-	}
-	// Equivalent to OnCreate, since the PCIDeviceClaim doesn't exist yet
-	err = h.attemptToEnablePassthrough(pdc)
-	if err != nil {
+		if apierrors.IsNotFound(err) {
+			logrus.Infof("OnCreate(%s, %s)", name, pdc.Name)
+			pdc, err = h.pdcClient.Create(pdc)
+			if err != nil {
+				return pdc, err
+			}
+			err = h.attemptToEnablePassthrough(pdc)
+			if err != nil {
+				return pdc, err
+			}
+			return pdc, nil
+		}
 		return pdc, err
 	}
 
@@ -97,6 +108,10 @@ func (h Handler) OnRemove(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PC
 	if pdc.Spec.NodeName != os.Getenv("NODE_NAME") {
 		return pdc, nil
 	}
+	if pdc == nil {
+		return nil, nil
+	}
+	logrus.Infof("OnRemove(%s, %s)", name, pdc.Name)
 	if pdc == nil {
 		return nil, nil
 	}
@@ -208,8 +223,9 @@ func (h Handler) removeHostDeviceFromKubeVirt(pd *v1beta1.PCIDevice) error {
 		}
 	}
 	if indexToRemove == -1 {
-		msg := fmt.Sprintf("Cannot delete %s, it is not in the list of permitted devices", pd.Name)
-		return errors.New(msg)
+		msg := fmt.Sprintf("PCIDevice %s is not in the list of permitted devices", pd.Name)
+		logrus.Infof(msg)
+		return nil // returning err would cause a requeuing, instead we log error and return nil
 	}
 	// To delete the element, just move the last one to the indexToRemove and shrink the slice by 1
 	s := kvCopy.Spec.Configuration.PermittedHostDevices.PciHostDevices
@@ -436,7 +452,6 @@ func (h Handler) attemptToDisablePassthrough(pdc *v1beta1.PCIDeviceClaim) error 
 		if err != nil {
 			return err
 		}
-	} else {
 		// Only unbind from driver is a driver is currently bound to vfio
 		if strings.TrimSpace(pd.Status.KernelDriverInUse) == vfioPCIDriver {
 			err = unbindDeviceFromDriver(pd.Status.Address, vfioPCIDriver)
