@@ -169,13 +169,17 @@ func (h Handler) enablePassthrough(pd *v1beta1.PCIDevice) error {
 }
 
 func (h Handler) disablePassthrough(pd *v1beta1.PCIDevice) error {
-	err := unbindDeviceFromDriver(pd.Status.Address, vfioPCIDriver)
-	if err != nil {
-		return err
+	errDriver := unbindDeviceFromDriver(pd.Status.Address, vfioPCIDriver)
+	errKubeVirt := h.removeHostDeviceFromKubeVirt(pd)
+	if errDriver != nil && errKubeVirt == nil {
+		return errDriver
 	}
-	err = h.removeHostDeviceFromKubeVirt(pd)
-	if err != nil {
-		return err
+	if errDriver == nil && errKubeVirt != nil {
+		return errKubeVirt
+	}
+	if errDriver != nil && errKubeVirt != nil {
+		msg := fmt.Sprintf("failed unbinding driver and also kubevirt: (%s, %s)", errDriver, errKubeVirt)
+		return errors.New(msg)
 	}
 	return nil
 }
