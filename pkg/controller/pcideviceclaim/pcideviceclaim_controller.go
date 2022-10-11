@@ -13,7 +13,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/u-root/u-root/pkg/kmodule"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
@@ -23,6 +22,8 @@ import (
 const (
 	reconcilePeriod = time.Minute * 1
 	vfioPCIDriver   = "vfio-pci"
+	DefaultNS       = "harvester-system"
+	KubevirtCR      = "kubevirt"
 )
 
 type Controller struct {
@@ -33,6 +34,7 @@ type Handler struct {
 	pdcClient  v1beta1gen.PCIDeviceClaimClient
 	pdClient   v1beta1gen.PCIDeviceClient
 	virtClient kubecli.KubevirtClient
+	nodeName   string
 }
 
 func Register(
@@ -47,80 +49,36 @@ func Register(
 		msg := fmt.Sprintf("cannot obtain KubeVirt client: %v", err)
 		return errors.New(msg)
 	}
+	nodename := os.Getenv("NODE_NAME")
 	handler := &Handler{
 		pdcClient:  pdcClient,
 		pdClient:   pdClient,
 		virtClient: virtClient,
+		nodeName:   nodename,
 	}
+
 	pdcClient.OnRemove(ctx, "PCIDeviceClaimOnRemove", handler.OnRemove)
-	pdcClient.OnChange(ctx, "PCIDeviceClaimOnChange", handler.OnChange)
-	nodename := os.Getenv("NODE_NAME")
-	handler.rebindAfterReboot(nodename)
-	err = handler.unbindOrphanedPCIDevices(nodename)
+	pdcClient.OnChange(ctx, "PCIDeviceClaimReconcile", handler.reconcilePCIDeviceClaims)
+	handler.rebindAfterReboot()
+	err = handler.unbindOrphanedPCIDevices()
 	if err != nil {
 		return err
 	}
 	// Load VFIO drivers when controller starts instead of repeatedly in the reconcile loop
 	loadVfioDrivers()
-
-	// start goroutine to regularly reconcile the PCI Device Claims' status with their spec
-	go func() {
-		ticker := time.NewTicker(reconcilePeriod)
-		for range ticker.C {
-			logrus.Info("Reconciling PCI Device Claims list")
-			if err := handler.reconcilePCIDeviceClaims(nodename); err != nil {
-				logrus.Errorf("PCI Device Claim reconciliation error: %v", err)
-			}
-		}
-	}()
 	return nil
-}
-
-func (h Handler) OnChange(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
-	if pdc != nil && pdc.Spec.NodeName != os.Getenv("NODE_NAME") {
-		return pdc, nil
-	}
-	if pdc == nil {
-		return nil, nil
-	}
-	_, err := h.pdcClient.Get(name, v1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			logrus.Infof("OnCreate(%s, %s)", name, pdc.Name)
-			pdc, err = h.pdcClient.Create(pdc)
-			if err != nil {
-				return pdc, err
-			}
-			err = h.attemptToEnablePassthrough(pdc)
-			if err != nil {
-				return pdc, err
-			}
-			return pdc, nil
-		}
-		return pdc, err
-	}
-
-	return pdc, nil
 }
 
 // When a PCIDeviceClaim is removed, we need to unbind the device from the vfio-pci driver
 func (h Handler) OnRemove(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
-	if pdc.Spec.NodeName != os.Getenv("NODE_NAME") {
+	if pdc == nil || pdc.DeletionTimestamp == nil || pdc.Spec.NodeName != h.nodeName {
 		return pdc, nil
-	}
-	if pdc == nil {
-		return nil, nil
 	}
 	logrus.Infof("OnRemove(%s, %s)", name, pdc.Name)
 	if pdc == nil {
 		return nil, nil
 	}
-	err := h.attemptToDisablePassthrough(pdc)
-	if err != nil {
-		return pdc, err
-	}
-
-	return pdc, nil
+	return h.attemptToDisablePassthrough(pdc)
 }
 
 func loadVfioDrivers() {
@@ -210,9 +168,7 @@ func unbindDeviceFromDriver(addr string, driver string) error {
 
 func (h Handler) removeHostDeviceFromKubeVirt(pd *v1beta1.PCIDevice) error {
 	logrus.Infof("Removing %s from KubeVirt list of permitted devices", pd.Name)
-	ns := "harvester-system"
-	cr := "kubevirt"
-	kv, err := h.virtClient.KubeVirt(ns).Get(cr, &v1.GetOptions{})
+	kv, err := h.virtClient.KubeVirt(DefaultNS).Get(KubevirtCR, &v1.GetOptions{})
 	if err != nil {
 		msg := fmt.Sprintf("cannot obtain KubeVirt CR: %v", err)
 		return errors.New(msg)
@@ -236,8 +192,7 @@ func (h Handler) removeHostDeviceFromKubeVirt(pd *v1beta1.PCIDevice) error {
 	s[indexToRemove] = s[len(s)-1]
 	s = s[:len(s)-1]
 	kvCopy.Spec.Configuration.PermittedHostDevices.PciHostDevices = s
-	h.virtClient.KubeVirt(ns).Update(kvCopy)
-	_, err = h.virtClient.KubeVirt(ns).Update(kvCopy)
+	_, err = h.virtClient.KubeVirt(DefaultNS).Update(kvCopy)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to update kubevirt CR: %s", err)
 		return errors.New(msg)
@@ -247,9 +202,7 @@ func (h Handler) removeHostDeviceFromKubeVirt(pd *v1beta1.PCIDevice) error {
 
 func (h Handler) addHostDeviceToKubeVirt(pd *v1beta1.PCIDevice) error {
 	logrus.Infof("Adding %s to KubeVirt list of permitted devices", pd.Name)
-	ns := "harvester-system"
-	cr := "kubevirt"
-	kv, err := h.virtClient.KubeVirt(ns).Get(cr, &v1.GetOptions{})
+	kv, err := h.virtClient.KubeVirt(DefaultNS).Get(KubevirtCR, &v1.GetOptions{})
 	if err != nil {
 		msg := fmt.Sprintf("cannot obtain KubeVirt CR: %v", err)
 		return errors.New(msg)
@@ -279,7 +232,7 @@ func (h Handler) addHostDeviceToKubeVirt(pd *v1beta1.PCIDevice) error {
 			ExternalResourceProvider: false,
 		}
 		kvCopy.Spec.Configuration.PermittedHostDevices.PciHostDevices = append(permittedPCIDevices, devToPermit)
-		_, err := h.virtClient.KubeVirt(ns).Update(kvCopy)
+		_, err := h.virtClient.KubeVirt(DefaultNS).Update(kvCopy)
 		if err != nil {
 			msg := fmt.Sprintf("Failed to update kubevirt CR: %s", err)
 			return errors.New(msg)
@@ -320,15 +273,15 @@ func getOrphanedPCIDevices(
 }
 
 // After reboot, the PCIDeviceClaim will be there but the PCIDevice won't be bound to vfio-pci
-func (h Handler) rebindAfterReboot(nodename string) {
-	logrus.Infof("Rebinding after reboot on node: %s", nodename)
+func (h Handler) rebindAfterReboot() {
+	logrus.Infof("Rebinding after reboot on node: %s", h.nodeName)
 	pdcs, err := h.pdcClient.List(metav1.ListOptions{})
 	if err != nil {
 		logrus.Errorf("Error getting claims: %s", err)
 		return
 	}
 	for _, pdc := range pdcs.Items {
-		if pdc.Spec.NodeName != nodename {
+		if pdc.Spec.NodeName != h.nodeName {
 			continue
 		}
 		// Get PCIDevice for the PCIDeviceClaim
@@ -371,41 +324,32 @@ func (h Handler) rebindAfterReboot(nodename string) {
 	}
 }
 
-func (h Handler) reconcilePCIDeviceClaims(nodename string) error {
-	// Get all PCI Device Claims on this node
-	pdcs, err := h.pdcClient.List(metav1.ListOptions{})
-	if err != nil {
-		return err
+func (h Handler) reconcilePCIDeviceClaims(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
+
+	if pdc == nil || pdc.DeletionTimestamp != nil {
+		return pdc, nil
 	}
 
-	for _, pdc := range pdcs.Items {
-		// TODO change UI to label each PDC to allow for the LabelSelector instead of testing all PDCs
-		if pdc.Spec.NodeName != nodename {
-			continue
-		}
-		if !pdc.Status.PassthroughEnabled {
-			err := h.attemptToEnablePassthrough(&pdc)
-			if err != nil {
-				return err
-			}
-		}
+	if pdc.Spec.NodeName == h.nodeName && !pdc.Status.PassthroughEnabled {
+		newPdc, err := h.attemptToEnablePassthrough(pdc)
+		return newPdc, err
 	}
 
-	return nil
+	return pdc, nil
 }
 
-func (h Handler) attemptToEnablePassthrough(pdc *v1beta1.PCIDeviceClaim) error {
+func (h Handler) attemptToEnablePassthrough(pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
 	logrus.Infof("Attempting to enable passthrough for %s", pdc.Name)
 	// Get PCIDevice for the PCIDeviceClaim
 	if pdc.OwnerReferences == nil {
 		msg := fmt.Sprintf("Cannot find PCIDevice that owns %s", pdc.Name)
-		return errors.New(msg)
+		return pdc, errors.New(msg)
 	}
 	name := pdc.OwnerReferences[0].Name
 	pd, err := h.pdClient.Get(name, metav1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("Error getting claim's device: %s", err)
-		return err
+		return pdc, err
 	}
 	pdcCopy := pdc.DeepCopy()
 	pdcCopy.Status.KernelDriverToUnbind = pd.Status.KernelDriverInUse
@@ -413,7 +357,7 @@ func (h Handler) attemptToEnablePassthrough(pdc *v1beta1.PCIDeviceClaim) error {
 		pdcCopy.Status.PassthroughEnabled = true
 		err = h.addHostDeviceToKubeVirt(pd)
 		if err != nil {
-			return err
+			return pdc, err
 		}
 	} else {
 		// Only unbind from driver is a driver is currently in use
@@ -431,22 +375,22 @@ func (h Handler) attemptToEnablePassthrough(pdc *v1beta1.PCIDeviceClaim) error {
 			pdcCopy.Status.PassthroughEnabled = true
 		}
 	}
-	_, err = h.pdcClient.UpdateStatus(pdcCopy)
+	newPdc, err := h.pdcClient.UpdateStatus(pdcCopy)
 	if err != nil {
 		logrus.Errorf("Error updating status for %s: %s", pdc.Name, err)
-		return err
+		return pdc, err
 	}
-	return nil
+	return newPdc, nil
 }
 
-func (h Handler) attemptToDisablePassthrough(pdc *v1beta1.PCIDeviceClaim) error {
+func (h Handler) attemptToDisablePassthrough(pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
 	logrus.Infof("Attempting to disable passthrough for %s", pdc.Name)
 	// Get PCIDevice for the PCIDeviceClaim
 	name := pdc.OwnerReferences[0].Name
 	pd, err := h.pdClient.Get(name, metav1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("Error getting claim's device: %s", err)
-		return err
+		return pdc, err
 	}
 	pdcCopy := pdc.DeepCopy()
 	pdcCopy.Status.KernelDriverToUnbind = pd.Status.KernelDriverInUse
@@ -454,7 +398,7 @@ func (h Handler) attemptToDisablePassthrough(pdc *v1beta1.PCIDeviceClaim) error 
 		pdcCopy.Status.PassthroughEnabled = true
 		err = h.removeHostDeviceFromKubeVirt(pd)
 		if err != nil {
-			return err
+			return pdc, err
 		}
 		// Only unbind from driver is a driver is currently bound to vfio
 		if strings.TrimSpace(pd.Status.KernelDriverInUse) == vfioPCIDriver {
@@ -471,15 +415,15 @@ func (h Handler) attemptToDisablePassthrough(pdc *v1beta1.PCIDeviceClaim) error 
 			pdcCopy.Status.PassthroughEnabled = false
 		}
 	}
-	_, err = h.pdcClient.UpdateStatus(pdcCopy)
+	newPdc, err := h.pdcClient.UpdateStatus(pdcCopy)
 	if err != nil {
 		logrus.Errorf("Error updating status for %s: %s", pdc.Name, err)
-		return err
+		return pdc, err
 	}
-	return nil
+	return newPdc, nil
 }
 
-func (h Handler) unbindOrphanedPCIDevices(nodename string) error {
+func (h Handler) unbindOrphanedPCIDevices() error {
 	pdcs, err := h.pdcClient.List(metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -488,7 +432,7 @@ func (h Handler) unbindOrphanedPCIDevices(nodename string) error {
 	if err != nil {
 		return err
 	}
-	orphanedPCIDevices, err := getOrphanedPCIDevices(nodename, pdcs, pds)
+	orphanedPCIDevices, err := getOrphanedPCIDevices(h.nodeName, pdcs, pds)
 	if err != nil {
 		return err
 	}
