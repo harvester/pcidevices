@@ -59,7 +59,10 @@ func Register(
 
 	pdcClient.OnRemove(ctx, "PCIDeviceClaimOnRemove", handler.OnRemove)
 	pdcClient.OnChange(ctx, "PCIDeviceClaimReconcile", handler.reconcilePCIDeviceClaims)
-	handler.rebindAfterReboot()
+	err = handler.rebindAfterReboot()
+	if err != nil {
+		return err
+	}
 	err = handler.unbindOrphanedPCIDevices()
 	if err != nil {
 		return err
@@ -74,7 +77,6 @@ func (h Handler) OnRemove(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PC
 	if pdc == nil || pdc.DeletionTimestamp == nil || pdc.Spec.NodeName != h.nodeName {
 		return pdc, nil
 	}
-	logrus.Infof("OnRemove(%s, %s)", name, pdc.Name)
 	if pdc == nil {
 		return nil, nil
 	}
@@ -162,7 +164,6 @@ func unbindDeviceFromDriver(addr string, driver string) error {
 	if err != nil {
 		return err
 	}
-	file.Close()
 	return nil
 }
 
@@ -273,13 +274,14 @@ func getOrphanedPCIDevices(
 }
 
 // After reboot, the PCIDeviceClaim will be there but the PCIDevice won't be bound to vfio-pci
-func (h Handler) rebindAfterReboot() {
+func (h Handler) rebindAfterReboot() error {
 	logrus.Infof("Rebinding after reboot on node: %s", h.nodeName)
 	pdcs, err := h.pdcClient.List(metav1.ListOptions{})
 	if err != nil {
 		logrus.Errorf("Error getting claims: %s", err)
-		return
+		return err
 	}
+	var errUpdateStatus error = nil
 	for _, pdc := range pdcs.Items {
 		if pdc.Spec.NodeName != h.nodeName {
 			continue
@@ -314,14 +316,17 @@ func (h Handler) rebindAfterReboot() {
 		if err != nil {
 			logrus.Errorf("Error rebinding device after reboot: %s", err)
 			pdcCopy.Status.PassthroughEnabled = false
+
 		} else {
 			pdcCopy.Status.PassthroughEnabled = true
 		}
 		_, err = h.pdcClient.UpdateStatus(pdcCopy)
 		if err != nil {
 			logrus.Errorf("Failed to update PCIDeviceClaim status for %s: %s", pdc.Name, err)
+			errUpdateStatus = err
 		}
 	}
+	return errUpdateStatus
 }
 
 func (h Handler) reconcilePCIDeviceClaims(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
