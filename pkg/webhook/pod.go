@@ -3,6 +3,7 @@ package webhook
 import (
 	"fmt"
 
+	kubevirtctl "github.com/harvester/harvester/pkg/generated/controllers/kubevirt.io/v1"
 	"github.com/harvester/harvester/pkg/webhook/types"
 	"github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 	"github.com/sirupsen/logrus"
@@ -23,9 +24,10 @@ var matchingLabels = []labels.Set{
 	},
 }
 
-func NewPodMutator(cache v1beta1.PCIDeviceClaimCache) types.Mutator {
+func NewPodMutator(deviceCache v1beta1.PCIDeviceCache, kubevirtCache kubevirtctl.VirtualMachineCache) types.Mutator {
 	return &podMutator{
-		claimCache: cache,
+		deviceCache:   deviceCache,
+		kubevirtCache: kubevirtCache,
 	}
 }
 
@@ -33,7 +35,8 @@ func NewPodMutator(cache v1beta1.PCIDeviceClaimCache) types.Mutator {
 // external services. It includes harvester apiserver and longhorn backing-image-data-source pods.
 type podMutator struct {
 	types.DefaultMutator
-	claimCache v1beta1.PCIDeviceClaimCache
+	deviceCache   v1beta1.PCIDeviceCache
+	kubevirtCache kubevirtctl.VirtualMachineCache
 }
 
 func newResource(ops []admissionregv1.OperationType) types.Resource {
@@ -76,13 +79,38 @@ func (m *podMutator) Create(request *types.Request, newObj runtime.Object) (type
 		return nil, nil
 	}
 
-	device, err := m.claimCache.GetByIndex(PCIClaimByVM, vmName)
+	// indexer users vmName + Namespace to uniquely index vm's
+	vm, err := m.kubevirtCache.GetByIndex(VMByName, fmt.Sprintf("%s-%s", vmName, pod.Namespace))
 	if err != nil {
-		logrus.Errorf("error looking up deviceclaim by vmName: %v", err)
-		return nil, fmt.Errorf("error looking up deviceclaim by vmName: %v", err)
+		logrus.Errorf("error looking up kubevirt vm %s in namespace %s: %v", vmName, pod.Namespace, err)
+		return nil, fmt.Errorf("error lookup up vm: %v", err)
 	}
 
-	if len(device) > 0 {
+	if len(vm) != 1 {
+		return nil, fmt.Errorf("expected to find exactly 1 vm but found %d", len(vm))
+	}
+
+	var found bool
+
+	if len(vm[0].Spec.Template.Spec.Domain.Devices.HostDevices) == 0 {
+		logrus.Infof("vm %s in ns %s has no device attachments, skipping", vm[0].Name, vm[0].Namespace)
+		return nil, nil
+	}
+
+	for _, v := range vm[0].Spec.Template.Spec.Domain.Devices.HostDevices {
+		hostDevices, err := m.deviceCache.GetByIndex(PCIDeviceByResourceName, v.DeviceName)
+		if err != nil {
+			logrus.Errorf("error listing pcidevices by deviceName for vm %s in ns %s: %v", vm[0].Name, vm[0].Namespace, err)
+			return nil, fmt.Errorf("error listing pcidevices by deviceName: %v", err)
+		}
+
+		if len(hostDevices) > 0 {
+			found = true
+			break
+		}
+	}
+
+	if found {
 		capPatchOptions, err := createCapabilityPatch(pod)
 		if err != nil {
 			logrus.Errorf("error creating capability patch for pod %s in ns %s %v", pod.Name, pod.Namespace, err)
@@ -91,7 +119,7 @@ func (m *podMutator) Create(request *types.Request, newObj runtime.Object) (type
 
 		patchOps = append(patchOps, capPatchOptions...)
 	} else {
-		logrus.Infof("no deviceclaim found by owner vm: %s, nothing to do", vmName)
+		logrus.Infof("no device found in vm: %s, for matching pcidevices", vmName)
 	}
 
 	logrus.Debugf("patch generated %v, for pod %s in ns %s", patchOps, pod.Name, pod.Namespace)

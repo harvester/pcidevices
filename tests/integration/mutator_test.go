@@ -13,11 +13,12 @@ import (
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 )
 
 var _ = Describe("validate mutator by sending a mock pod request needing mutation", func() {
 
-	vmName := "testVM"
+	vmName := "test-vm"
 
 	claim := &v1beta1.PCIDeviceClaim{
 		ObjectMeta: metav1.ObjectMeta{
@@ -29,6 +30,56 @@ var _ = Describe("validate mutator by sending a mock pod request needing mutatio
 			NodeName: "localhost",
 			UserName: "root",
 		},
+	}
+
+	vm := &kubevirtv1.VirtualMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      vmName,
+			Namespace: "default",
+		},
+		Spec: kubevirtv1.VirtualMachineSpec{
+			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Domain: kubevirtv1.DomainSpec{
+						Devices: kubevirtv1.Devices{
+							HostDevices: []kubevirtv1.HostDevice{
+								{
+									Name:       "dev1",
+									DeviceName: "pcidevice-0000",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	device := &v1beta1.PCIDevice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "node1-dev1",
+			Namespace: "default",
+		},
+		Spec: v1beta1.PCIDeviceSpec{},
+		Status: v1beta1.PCIDeviceStatus{
+			Address:      "00000",
+			VendorId:     "ab",
+			DeviceId:     "1f3c",
+			ClassId:      "0C05",
+			NodeName:     "node1",
+			ResourceName: "pcidevice-0000",
+			Description:  "fake device",
+		},
+	}
+
+	deviceStatus := v1beta1.PCIDeviceStatus{
+		Address:      "00000",
+		VendorId:     "ab",
+		DeviceId:     "1f3c",
+		ClassId:      "0C05",
+		NodeName:     "node1",
+		ResourceName: "pcidevice-0000",
+		Description:  "fake device",
 	}
 
 	p := &corev1.Pod{
@@ -65,28 +116,28 @@ var _ = Describe("validate mutator by sending a mock pod request needing mutatio
 		Eventually(func() error {
 			return k8sClient.Create(ctx, claim)
 		}).ShouldNot(HaveOccurred())
+		// create a pcidevice
+		Eventually(func() error {
+			return k8sClient.Create(ctx, device)
+		}).ShouldNot(HaveOccurred())
+		// create a vm
+		Eventually(func() error {
+			return k8sClient.Create(ctx, vm)
+		}).ShouldNot(HaveOccurred())
 	})
 
 	It("run pcideviceclaim mutation tests", func() {
-		By("set owner on pcideviceclaim to mimic a VM creation", func() {
+		By("fetch pcidevice", func() {
 			Eventually(func() error {
-				claimObj := &v1beta1.PCIDeviceClaim{}
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: claim.Name, Namespace: claim.Namespace}, claimObj); err != nil {
-					return fmt.Errorf("error fetching claim obj: %v", err)
+				d := &v1beta1.PCIDevice{}
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: device.Name, Namespace: device.Namespace}, d)
+				if err != nil {
+					return err
 				}
-
-				owners := []metav1.OwnerReference{
-					{
-						Name:       vmName,
-						Kind:       "VirtualMachine",
-						APIVersion: "kubevirt.io/v1",
-						UID:        types.UID(uuid.New().String()),
-					},
-				}
-				claimObj.SetOwnerReferences(owners)
-				return k8sClient.Update(ctx, claimObj)
-			}, "30s", "5s").ShouldNot(HaveOccurred())
-
+				GinkgoWriter.Println(d.Status)
+				d.Status = deviceStatus
+				return k8sClient.Status().Update(ctx, d)
+			}).ShouldNot(HaveOccurred())
 		})
 
 		By("simulate webhook call via a fake pod", func() {
@@ -116,13 +167,22 @@ var _ = Describe("validate mutator by sending a mock pod request needing mutatio
 	AfterEach(func() {
 		Eventually(func() error {
 			return k8sClient.Delete(ctx, claim)
-		})
+		}).ShouldNot(HaveOccurred())
+		// create a pcidevice
+		Eventually(func() error {
+			return k8sClient.Delete(ctx, device)
+		}).ShouldNot(HaveOccurred())
+		// create a vm
+		Eventually(func() error {
+			return k8sClient.Delete(ctx, vm)
+		}).ShouldNot(HaveOccurred())
+
 	})
 })
 
 var _ = Describe("validate mutator by sending a mock pod request not needing mutation", func() {
 
-	vmName := "testVM"
+	vmName := "test-vm"
 
 	claim := &v1beta1.PCIDeviceClaim{
 		ObjectMeta: metav1.ObjectMeta{
@@ -133,6 +193,46 @@ var _ = Describe("validate mutator by sending a mock pod request not needing mut
 			Address:  "000-0000",
 			NodeName: "localhost",
 			UserName: "root",
+		},
+	}
+
+	vm := &kubevirtv1.VirtualMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      vmName,
+			Namespace: "default",
+		},
+		Spec: kubevirtv1.VirtualMachineSpec{
+			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Domain: kubevirtv1.DomainSpec{
+						Devices: kubevirtv1.Devices{
+							HostDevices: []kubevirtv1.HostDevice{
+								{
+									Name:       "dev1",
+									DeviceName: "pcidevice-0000",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	device := &v1beta1.PCIDevice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "node1-dev1",
+			Namespace: "default",
+		},
+		Spec: v1beta1.PCIDeviceSpec{},
+		Status: v1beta1.PCIDeviceStatus{
+			Address:      "00000",
+			VendorId:     "ab",
+			DeviceId:     "1f3c",
+			ClassId:      "0C05",
+			NodeName:     "node1",
+			ResourceName: "pcidevice-0000",
+			Description:  "fake device",
 		},
 	}
 
@@ -168,6 +268,14 @@ var _ = Describe("validate mutator by sending a mock pod request not needing mut
 		// create a pci device claim
 		Eventually(func() error {
 			return k8sClient.Create(ctx, claim)
+		}).ShouldNot(HaveOccurred())
+		// create a pcidevice
+		Eventually(func() error {
+			return k8sClient.Create(ctx, device)
+		}).ShouldNot(HaveOccurred())
+		// create a vm
+		Eventually(func() error {
+			return k8sClient.Create(ctx, vm)
 		}).ShouldNot(HaveOccurred())
 	})
 
@@ -220,6 +328,14 @@ var _ = Describe("validate mutator by sending a mock pod request not needing mut
 	AfterEach(func() {
 		Eventually(func() error {
 			return k8sClient.Delete(ctx, claim)
-		})
+		}).ShouldNot(HaveOccurred())
+		// create a pcidevice
+		Eventually(func() error {
+			return k8sClient.Delete(ctx, device)
+		}).ShouldNot(HaveOccurred())
+		// create a vm
+		Eventually(func() error {
+			return k8sClient.Delete(ctx, vm)
+		}).ShouldNot(HaveOccurred())
 	})
 })
