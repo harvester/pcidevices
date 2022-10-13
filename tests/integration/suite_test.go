@@ -3,11 +3,13 @@ package integration
 import (
 	"context"
 	"path/filepath"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"testing"
 	"time"
 
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/crd"
 	"github.com/harvester/pcidevices/pkg/webhook"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -16,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	log "sigs.k8s.io/controller-runtime/pkg/log"
@@ -52,7 +55,9 @@ var _ = BeforeSuite(func() {
 	ctx, cancel = context.WithCancel(context.TODO())
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "manifests", "crds")},
+		CRDInstallOptions: envtest.CRDInstallOptions{
+			Paths: []string{filepath.Join("..", "manifests")},
+		},
 		ErrorIfCRDPathMissing: true,
 	}
 
@@ -67,6 +72,12 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 
 	err = corev1.AddToScheme(scheme)
+	Expect(err).NotTo(HaveOccurred())
+
+	err = kubevirtv1.AddToScheme(scheme)
+	Expect(err).NotTo(HaveOccurred())
+
+	err = crd.Create(ctx, cfg)
 	Expect(err).NotTo(HaveOccurred())
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme})

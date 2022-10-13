@@ -1,17 +1,19 @@
 package webhook
 
 import (
+	"net/http"
+	"reflect"
+
 	"github.com/harvester/harvester/pkg/webhook/types"
 	"github.com/rancher/wrangler/pkg/webhook"
 	"github.com/sirupsen/logrus"
-	"net/http"
-	"reflect"
 )
 
 func Mutation(clients *Clients) (http.Handler, []types.Resource, error) {
 	var resources []types.Resource
 	mutators := []types.Mutator{
-		NewPodMutator(clients.PCIFactory.Devices().V1beta1().PCIDeviceClaim().Cache()),
+		NewPodMutator(clients.PCIFactory.Devices().V1beta1().PCIDevice().Cache(),
+			clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()),
 	}
 
 	router := webhook.NewRouter()

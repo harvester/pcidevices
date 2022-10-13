@@ -26,6 +26,7 @@ import (
 	"github.com/harvester/pcidevices/pkg/crd"
 	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 )
 
 const (
@@ -45,6 +46,7 @@ func init() {
 	utilruntime.Must(AddToScheme(Scheme))
 	utilruntime.Must(schemes.AddToScheme(Scheme))
 	utilruntime.Must(apiregistrationv1.AddToScheme(Scheme))
+	utilruntime.Must(kubevirtv1.AddToScheme(Scheme))
 }
 
 func main() {

@@ -1,18 +1,23 @@
 package webhook
 
 import (
-	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
+	"fmt"
 	"strings"
+
+	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 )
 
 const (
-	PCIClaimByVM = "harvesterhci.io/pciclaim-by-vnname"
+	VMByName                = "harvesterhci.io/vm-by-name"
+	PCIDeviceByResourceName = "harvesterhcio.io/pcidevice-by-resource-name"
 )
 
 func RegisterIndexers(clients *Clients) {
-	pciCache := clients.PCIFactory.Devices().V1beta1().PCIDeviceClaim().Cache()
-	pciCache.AddIndexer(PCIClaimByVM, pciClaimByVMName)
-
+	vmCache := clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()
+	vmCache.AddIndexer(VMByName, vmByName)
+	deviceCache := clients.PCIFactory.Devices().V1beta1().PCIDevice().Cache()
+	deviceCache.AddIndexer(PCIDeviceByResourceName, pciDeviceByResourceName)
 }
 
 func pciClaimByVMName(obj *v1beta1.PCIDeviceClaim) ([]string, error) {
@@ -26,4 +31,12 @@ func pciClaimByVMName(obj *v1beta1.PCIDeviceClaim) ([]string, error) {
 	}
 
 	return []string{}, nil
+}
+
+func vmByName(obj *kubevirtv1.VirtualMachine) ([]string, error) {
+	return []string{fmt.Sprintf("%s-%s", obj.Name, obj.Namespace)}, nil
+}
+
+func pciDeviceByResourceName(obj *v1beta1.PCIDevice) ([]string, error) {
+	return []string{obj.Status.ResourceName}, nil
 }
