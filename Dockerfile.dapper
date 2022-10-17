@@ -1,9 +1,10 @@
-FROM golang:1.18.5-alpine3.16
+FROM registry.suse.com/bci/bci-base:15.3
+RUN zypper -n install pciutils
 
 ARG DAPPER_HOST_ARCH
 ENV ARCH $DAPPER_HOST_ARCH
 
-RUN apk -U add bash git gcc musl-dev docker vim less file curl wget ca-certificates pciutils
+RUN zypper -n install bash git gcc docker vim less file curl wget ca-certificates pciutils go
 RUN go install golang.org/x/lint/golint@latest
 RUN go install golang.org/x/tools/cmd/goimports@latest
 RUN export K8S_VERSION=1.24.2 && \
