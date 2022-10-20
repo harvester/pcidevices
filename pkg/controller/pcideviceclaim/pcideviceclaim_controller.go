@@ -233,11 +233,12 @@ func (h Handler) addHostDeviceToKubeVirt(pd *v1beta1.PCIDevice) error {
 			ExternalResourceProvider: false,
 		}
 		kvCopy.Spec.Configuration.PermittedHostDevices.PciHostDevices = append(permittedPCIDevices, devToPermit)
-		_, err := h.virtClient.KubeVirt(DefaultNS).Update(kvCopy)
-		if err != nil {
-			msg := fmt.Sprintf("Failed to update kubevirt CR: %s", err)
-			return errors.New(msg)
-		}
+	}
+	// update KubeVirt CR anyway to trigger a nodes.status.allocatable update
+	_, err = h.virtClient.KubeVirt(DefaultNS).Update(kvCopy)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to update kubevirt CR: %s", err)
+		return errors.New(msg)
 	}
 	return nil
 }
