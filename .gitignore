@@ -2,3 +2,4 @@
 pcidevices
 bin/
 dist/
+.idea
