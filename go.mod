@@ -118,12 +118,15 @@ require (
 )
 
 replace (
+	github.com/emicklei/go-restful => github.com/emicklei/go-restful v2.16.0+incompatible
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.5.5
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20191219222812-2987a591a72c
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20200521150516-05eb9880269c
 	github.com/rancher/rancher/pkg/apis => github.com/rancher/rancher/pkg/apis v0.0.0-20211208233239-77392a65423d
 	github.com/rancher/rancher/pkg/client => github.com/rancher/rancher/pkg/client v0.0.0-20211208233239-77392a65423d
-	github.com/u-root/u-root => github.com/u-root/u-root v0.9.0
+	github.com/u-root/u-root => github.com/u-root/u-root v0.10.0
+	golang.org/x/net => golang.org/x/net v0.0.0-20220906165146-f3363e06e74c
+	golang.org/x/text => golang.org/x/text v0.3.8
 	k8s.io/api => k8s.io/api v0.23.7
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.23.7
 	k8s.io/apimachinery => k8s.io/apimachinery v0.23.7
