@@ -22,11 +22,13 @@ require (
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/kube-aggregator v0.24.0
 	kubevirt.io/client-go v0.54.0
+	kubevirt.io/kubevirt v0.54.0
 	sigs.k8s.io/controller-runtime v0.12.0
 )
 
 require (
-	github.com/coreos/prometheus-operator v0.38.0 // indirect
+	github.com/coreos/prometheus-operator v0.38.1-0.20200424145508-7e176fda06cc // indirect
+	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-kit/kit v0.9.0 // indirect
 	github.com/go-logfmt/logfmt v0.5.0 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
@@ -38,7 +40,9 @@ require (
 	github.com/klauspost/pgzip v1.2.4 // indirect
 	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.2.0 // indirect
 	github.com/openshift/api v0.0.0 // indirect
-	github.com/openshift/client-go v0.0.0-20210112165513-ebc401615f47 // indirect
+	github.com/openshift/client-go v0.0.0 // indirect
+	google.golang.org/genproto v0.0.0-20220502173005-c8bf987b8c21 // indirect
+	google.golang.org/grpc v1.47.0 // indirect
 	howett.net/plist v1.0.0 // indirect
 )
 
