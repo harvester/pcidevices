@@ -45,6 +45,8 @@ spec:
                 type: string
               deviceId:
                 type: string
+              iommuGroup:
+                type: string
               kernelDriverInUse:
                 type: string
               nodeName:
@@ -58,6 +60,7 @@ spec:
             - classId
             - description
             - deviceId
+            - iommuGroup
             - nodeName
             - resourceName
             - vendorId

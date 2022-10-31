@@ -9,7 +9,10 @@ import (
 	"github.com/jaypipes/ghw/pkg/pci"
 	"github.com/jaypipes/ghw/pkg/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	device_manager "kubevirt.io/kubevirt/pkg/virt-handler/device-manager"
 )
+
+const pciBasePath = "/sys/bus/pci/devices/"
 
 // +genclient
 // +genclient:nonNamespaced
@@ -31,6 +34,7 @@ type PCIDeviceStatus struct {
 	VendorId          string `json:"vendorId"`
 	DeviceId          string `json:"deviceId"`
 	ClassId           string `json:"classId"`
+	IOMMUGroup        string `json:"iommuGroup"`
 	NodeName          string `json:"nodeName"`
 	ResourceName      string `json:"resourceName"`
 	Description       string `json:"description"`
@@ -116,7 +120,9 @@ func (status *PCIDeviceStatus) Update(dev *pci.Device, hostname string) {
 	// Generate the ResourceName field, this is used by KubeVirt to schedule the VM to the node
 	status.ResourceName = resourceName(dev)
 	status.Description = description(dev)
-
+	if iommuGroup, err := device_manager.Handler.GetDeviceIOMMUGroup(pciBasePath, dev.Address); err == nil {
+		status.IOMMUGroup = iommuGroup
+	}
 	status.KernelDriverInUse = dev.Driver
 	status.NodeName = hostname
 }
