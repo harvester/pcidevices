@@ -47,6 +47,9 @@ func init() {
 	utilruntime.Must(schemes.AddToScheme(Scheme))
 	utilruntime.Must(apiregistrationv1.AddToScheme(Scheme))
 	utilruntime.Must(kubevirtv1.AddToScheme(Scheme))
+	if debug := os.Getenv("DEBUG_LOGGING"); debug == "true" {
+		logrus.SetLevel(logrus.DebugLevel)
+	}
 }
 
 func main() {
