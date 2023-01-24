@@ -6,11 +6,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/harvester/pcidevices/pkg/util/nichelper"
-	"golang.org/x/sync/errgroup"
-
 	v1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/util/nichelper"
 	"github.com/jaypipes/ghw"
 	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -38,33 +36,27 @@ func Register(
 		client: pd,
 	}
 
-	eg, _ := errgroup.WithContext(ctx)
 	nodename := os.Getenv("NODE_NAME")
 	// start goroutine to regularly reconcile the PCI Devices list
-	eg.Go(func() error {
-		ticker := time.NewTicker(reconcilePeriod)
-		for range ticker.C {
-			logrus.Info("Reconciling PCI Devices list")
-			pci, err := ghw.PCI()
-			if err != nil {
-				return fmt.Errorf("error listing pcidevices: %v", err)
-			}
-			skipAddresses, err := nichelper.IdentifyManagementNIC()
-			if err != nil {
-				return fmt.Errorf("error querying management nic pci addresses: %v", err)
-			}
-			handler.pci = pci
-			handler.skipAddresses = skipAddresses
-			if err := handler.reconcilePCIDevices(nodename); err != nil {
-				logrus.Errorf("PCI device reconciliation error: %v", err)
-				return err
-			}
+	ticker := time.NewTicker(reconcilePeriod)
+	for range ticker.C {
+		logrus.Info("Reconciling PCI Devices list")
+		pci, err := ghw.PCI()
+		if err != nil {
+			return fmt.Errorf("error listing pcidevices: %v", err)
 		}
-		return nil
-	})
-
-	err := eg.Wait()
-	return err
+		skipAddresses, err := nichelper.IdentifyManagementNIC()
+		if err != nil {
+			return fmt.Errorf("error querying management nic pci addresses: %v", err)
+		}
+		handler.pci = pci
+		handler.skipAddresses = skipAddresses
+		if err := handler.reconcilePCIDevices(nodename); err != nil {
+			logrus.Errorf("PCI device reconciliation error: %v", err)
+			return err
+		}
+	}
+	return nil
 }
 
 func (h Handler) reconcilePCIDevices(nodename string) error {

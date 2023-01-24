@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/harvester/pcidevices/pkg/controller/pcidevice"
+
+	"golang.org/x/sync/errgroup"
+
 	"github.com/harvester/pcidevices/pkg/webhook"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -21,7 +25,6 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
-	"github.com/harvester/pcidevices/pkg/controller/pcidevice"
 	"github.com/harvester/pcidevices/pkg/controller/pcideviceclaim"
 	"github.com/harvester/pcidevices/pkg/crd"
 	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
@@ -108,19 +111,10 @@ func run(kubeConfig string) error {
 	if err != nil {
 		return fmt.Errorf("error building pcideviceclaim controllers: %s", err.Error())
 	}
-	if err != nil {
-		return err
-	}
 
+	pdCtl := pdfactory.Devices().V1beta1().PCIDevice()
+	pdcCtl := pdcfactory.Devices().V1beta1().PCIDeviceClaim()
 	registerControllers := func(ctx context.Context) {
-		pdCtl := pdfactory.Devices().V1beta1().PCIDevice()
-		logrus.Info("Starting PCI Devices controller")
-		if err := pcidevice.Register(ctx, pdCtl); err != nil {
-			logrus.Fatalf("failed to register PCI Devices Controller")
-		}
-
-		pdcCtl := pdcfactory.Devices().V1beta1().PCIDeviceClaim()
-		logrus.Info("Starting PCI Device Claims Controller")
 		if err = pcideviceclaim.Register(ctx, pdcCtl, pdCtl); err != nil {
 			logrus.Fatalf("failed to register PCI Device Claims Controller")
 		}
@@ -135,11 +129,26 @@ func run(kubeConfig string) error {
 	registerControllers(ctx)
 	startAllControllers(ctx)
 
-	w := webhook.New(ctx, cfg)
-	if err := w.ListenAndServe(); err != nil {
-		logrus.Fatalf("Error starting webook: %v", err)
-	}
-	<-ctx.Done()
+	eg, egctx := errgroup.WithContext(ctx)
+	w := webhook.New(egctx, cfg)
+
+	eg.Go(func() error {
+		err := w.ListenAndServe()
+		if err != nil {
+			logrus.Errorf("Error starting webook: %v", err)
+		}
+		return err
+	})
+
+	eg.Go(func() error {
+		err := pcidevice.Register(egctx, pdCtl)
+		if err != nil {
+			logrus.Errorf("Error starting pcidevices ")
+		}
+		return err
+	})
+
+	eg.Wait()
 
 	return nil
 }
