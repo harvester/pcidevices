@@ -90,6 +90,8 @@ spec:
               name: modules
             - mountPath: /sys
               name: sys
+            - mountPath: /var/lib/kubelet/device-plugins
+              name: device-plugins
       priorityClassName: system-node-critical
       serviceAccountName: pcidevices
       volumes:
@@ -97,6 +99,10 @@ spec:
             path: /lib/modules
             type: Directory
           name: modules
+        - hostPath:
+            path: /var/lib/kubelet/device-plugins
+            type: Directory
+          name: device-plugins
         - hostPath:
             path: /sys
             type: Directory
