@@ -1,5 +1,8 @@
 TARGETS := $(shell ls scripts)
 
+tags:
+	gotags -R pkg > TAGS
+
 .dapper:
 	@echo Downloading dapper
 	@curl -sL https://releases.rancher.com/dapper/latest/dapper-`uname -s`-`uname -m` > .dapper.tmp

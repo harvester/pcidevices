@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/harvester/pcidevices/pkg/iommu"
+
 	v1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/util/nichelper"
@@ -60,7 +62,12 @@ func Register(
 }
 
 func (h Handler) reconcilePCIDevices(nodename string) error {
-	// List all PCI Devices on host
+	// Build up the IOMMU group map
+	iommuGroupPaths, err := iommu.GroupPaths()
+	if err != nil {
+		return err
+	}
+	iommuGroupMap := iommu.GroupMapForPCIDevices(iommuGroupPaths)
 
 	commonLabels := map[string]string{"nodename": nodename} // label
 	var setOfRealPCIAddrs map[string]bool = make(map[string]bool)
@@ -69,9 +76,7 @@ func (h Handler) reconcilePCIDevices(nodename string) error {
 			setOfRealPCIAddrs[dev.Address] = true
 			name := v1beta1.PCIDeviceNameForHostname(dev, nodename)
 			// Check if device is stored
-			var err error
-			var devCR *v1beta1.PCIDevice
-			devCR, err = h.client.Get(name, metav1.GetOptions{})
+			devCR, err := h.client.Get(name, metav1.GetOptions{})
 
 			if err != nil {
 				if apierrors.IsNotFound(err) {
@@ -95,13 +100,14 @@ func (h Handler) reconcilePCIDevices(nodename string) error {
 
 			devCopy := devCR.DeepCopy()
 			// Update only modifies the status, no need to update the main object
-			devCopy.Status.Update(dev, nodename) // update the in-memory CR with the current PCI info
+			devCopy.Status.Update(dev, nodename, iommuGroupMap) // update the in-memory CR with the current PCI info
 			_, err = h.client.UpdateStatus(devCopy)
 			if err != nil {
 				logrus.Errorf("[PCIDeviceController] Failed to update status sub-resource: %v", err)
 				return err
 			}
 		}
+
 	}
 
 	// remove non-existent devices

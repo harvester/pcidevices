@@ -14,6 +14,9 @@ This operator introduces these CRDs:
 - PCIDevice
 - PCIDeviceClaim
 
+It also introduces a custom PCIDevicePlugin. The way the deviceplugin works is by storing all 
+PCIDevices with the same resourceName. Then when one is claimed, the deviceplugin marks that device state as "healthy".
+
 ## PCIDevice
 
 This custom resource represents PCI Devices on the host. 
@@ -131,7 +134,7 @@ This only detects the presence or absence of device, not the number of them.
 Another reason not to use these simple labels is that we want to be able to allow our customers to set custom RBAC rules that restrict who can use which device in the cluster. We can do that with a custom `PCIDevice` CRD, but it's not clear how to do that with node labels.
 
 ## License
-Copyright (c) 2022 [Rancher Labs, Inc.](http://rancher.com)
+Copyright (c) 2023 [Rancher Labs, Inc.](http://rancher.com)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
