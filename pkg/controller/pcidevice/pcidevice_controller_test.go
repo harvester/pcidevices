@@ -39,4 +39,5 @@ func Test_reconcilePCIDevices(t *testing.T) {
 	assert.NotNil(gpuDevice, "expected to find a GPU device")
 	_, err = client.DevicesV1beta1().PCIDevices().Get(context.TODO(), "TEST_NODE-000004001", metav1.GetOptions{})
 	assert.True(apierrors.IsNotFound(err), "expected to not find the pci address for 000004001")
+	t.Log(gpuDevice.Status)
 }

@@ -84,11 +84,10 @@ func (dp *PCIDevicePlugin) AddDevice(pd *v1beta1.PCIDevice, pdc *v1beta1.PCIDevi
 
 // This function adds the PCIDevice to the device plugin, or creates the device plugin if it doesn't exist
 func (dp *PCIDevicePlugin) RemoveDevice(pd *v1beta1.PCIDevice, pdc *v1beta1.PCIDeviceClaim) error {
-	var err error
 	resourceName := pd.Status.ResourceName
 	if dp != nil {
 		logrus.Infof("Removing %s from device plugin", resourceName)
 		dp.MarkPCIDeviceAsUnhealthy(pdc.Spec.Address)
 	}
-	return err
+	return nil
 }

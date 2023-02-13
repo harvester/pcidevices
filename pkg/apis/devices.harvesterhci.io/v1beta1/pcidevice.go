@@ -2,14 +2,17 @@ package v1beta1
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
-
-	"regexp"
 
 	"github.com/jaypipes/ghw/pkg/pci"
 	"github.com/jaypipes/ghw/pkg/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	PciDeviceDriver = "harvesterhci.io/pcideviceDriver"
 )
 
 // +genclient
@@ -143,6 +146,9 @@ func NewPCIDeviceForHostname(dev *pci.Device, hostname string) PCIDevice {
 	pciDevice := PCIDevice{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
+			Annotations: map[string]string{
+				PciDeviceDriver: dev.Driver,
+			},
 		},
 		Status: PCIDeviceStatus{
 			Address:           dev.Address,
