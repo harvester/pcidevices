@@ -75,6 +75,8 @@ func Register(
 	if err != nil {
 		return err
 	}
+	// Load VFIO drivers when controller starts instead of repeatedly in the reconcile loop
+	loadVfioDrivers()
 	return nil
 }
 
@@ -167,7 +169,7 @@ func (h Handler) enablePassthrough(pd *v1beta1.PCIDevice) error {
 }
 
 // disablePassthrough will unbind and bind device to the original driver
-func (h Handler) disablePassthrough(pd *v1beta1.PCIDevice) error {
+func (h *Handler) disablePassthrough(pd *v1beta1.PCIDevice) error {
 	err := unbindDeviceFromDriver(pd.Status.Address, vfioPCIDriver)
 	if err != nil {
 		return fmt.Errorf("failed unbinding driver: (%s)", err)
@@ -201,9 +203,9 @@ func unbindDeviceFromDriver(addr string, driver string) error {
 	return err
 }
 
-func (h Handler) pciDeviceIsClaimed(pd *v1beta1.PCIDevice, pdcs *v1beta1.PCIDeviceClaimList) bool {
+func pciDeviceIsClaimed(pd *v1beta1.PCIDevice, pdcs *v1beta1.PCIDeviceClaimList, nodeName string) bool {
 	for _, pdc := range pdcs.Items {
-		if pd.Status.NodeName != h.nodeName {
+		if pd.Status.NodeName != nodeName {
 			continue
 		}
 		if pdc.OwnerReferences == nil {
@@ -219,23 +221,21 @@ func (h Handler) pciDeviceIsClaimed(pd *v1beta1.PCIDevice, pdcs *v1beta1.PCIDevi
 // A PCI Device is considered orphaned if it is bound to vfio-pci,
 // but has no PCIDeviceClaim. The assumption is that this controller
 // will manage all PCI passthrough, and consider orphaned devices invalid
-func (h Handler) getOrphanedPCIDevices(
+func getOrphanedPCIDevices(
 	pdcs *v1beta1.PCIDeviceClaimList,
-	pds *v1beta1.PCIDeviceList,
-) (*v1beta1.PCIDeviceList, error) {
+	pds *v1beta1.PCIDeviceList, nodeName string) (*v1beta1.PCIDeviceList, error) {
 	pdsOrphaned := v1beta1.PCIDeviceList{}
 	for _, pd := range pds.Items {
 		isVfioPci := pd.Status.KernelDriverInUse == "vfio-pci"
-		isOnThisNode := h.nodeName == pd.Status.NodeName
-		if isVfioPci && isOnThisNode && !h.pciDeviceIsClaimed(&pd, pdcs) {
+		isOnThisNode := nodeName == pd.Status.NodeName
+		if isVfioPci && isOnThisNode && pciDeviceIsClaimed(&pd, pdcs, nodeName) {
 			pdsOrphaned.Items = append(pdsOrphaned.Items, *pd.DeepCopy())
 		}
 	}
 	return &pdsOrphaned, nil
 }
 
-// After reboot, the PCIDeviceClaim will be there but the PCIDevice won't be bound to vfio-pci
-func (h Handler) reconcilePCIDeviceClaims(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
+func (h *Handler) reconcilePCIDeviceClaims(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
 
 	if pdc == nil || pdc.DeletionTimestamp != nil || (pdc.Spec.NodeName != h.nodeName) {
 		return pdc, nil
@@ -257,6 +257,12 @@ func (h Handler) reconcilePCIDeviceClaims(name string, pdc *v1beta1.PCIDeviceCla
 
 	if err := h.permitHostDeviceInKubeVirt(pd); err != nil {
 		return pdc, fmt.Errorf("error updating kubevirt CR: %v", err)
+	}
+
+	// Enable PCI Passthrough on the device by binding it to vfio-pci driver
+	err = h.attemptToEnablePassthrough(pd, pdc)
+	if err != nil {
+		return pdc, err
 	}
 
 	if dp == nil {
@@ -406,7 +412,7 @@ func (h *Handler) unbindOrphanedPCIDevices() error {
 	if err != nil {
 		return err
 	}
-	orphanedPCIDevices, err := h.getOrphanedPCIDevices(pdcs, pds)
+	orphanedPCIDevices, err := getOrphanedPCIDevices(pdcs, pds, h.nodeName)
 	if err != nil {
 		return err
 	}
