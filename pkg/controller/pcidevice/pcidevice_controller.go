@@ -61,7 +61,7 @@ func Register(
 	return nil
 }
 
-func (h Handler) reconcilePCIDevices(nodename string) error {
+func (h *Handler) reconcilePCIDevices(nodename string) error {
 	// Build up the IOMMU group map
 	iommuGroupPaths, err := iommu.GroupPaths()
 	if err != nil {
@@ -99,6 +99,13 @@ func (h Handler) reconcilePCIDevices(nodename string) error {
 			}
 
 			devCopy := devCR.DeepCopy()
+
+			// during reboot if the device driver has changed back from vfio, then update the CRD
+			// to correct driver in use. This will ensure that the original driver is correctly updated on device
+			// the PCIDeviceClaim checks for driver to identify if a rebind is needed on reboot
+			if devCopy.Status.KernelDriverInUse != dev.Driver {
+				devCopy.Status.KernelDriverInUse = dev.Driver
+			}
 			// Update only modifies the status, no need to update the main object
 			devCopy.Status.Update(dev, nodename, iommuGroupMap) // update the in-memory CR with the current PCI info
 			_, err = h.client.UpdateStatus(devCopy)

@@ -11,6 +11,7 @@ import (
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/deviceplugins"
 	v1beta1gen "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
+	"github.com/rancher/wrangler/pkg/relatedresource"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/u-root/u-root/pkg/kmodule"
@@ -18,8 +19,11 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"kubevirt.io/client-go/kubecli"
 )
+
+const pdcFinalizer = "harvesterhci.io/pcidevicecleanup"
 
 const (
 	reconcilePeriod = time.Minute * 20
@@ -62,10 +66,11 @@ func Register(
 		devicePlugins: make(map[string]*deviceplugins.PCIDevicePlugin),
 	}
 
-	loadVfioDrivers()
-
 	pdcClient.OnRemove(ctx, "PCIDeviceClaimOnRemove", handler.OnRemove)
 	pdcClient.OnChange(ctx, "PCIDeviceClaimReconcile", handler.reconcilePCIDeviceClaims)
+	// Watch to check for updates to pcidevices. This can happen on reboot as devices are set to reflect the correct
+	// driver in use by said device. This helps ensure that associated claim is reconcilled to trigger a rebind if needed
+	relatedresource.WatchClusterScoped(ctx, "PCIDeviceToClaimReconcile", handler.OnDeviceChange, pdcClient, pdClient)
 	err = handler.unbindOrphanedPCIDevices()
 	if err != nil {
 		return err
@@ -74,7 +79,7 @@ func Register(
 }
 
 // When a PCIDeviceClaim is removed, we need to unbind the device from the vfio-pci driver
-func (h Handler) OnRemove(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
+func (h *Handler) OnRemove(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
 	if pdc == nil || pdc.DeletionTimestamp == nil || pdc.Spec.NodeName != h.nodeName {
 		return pdc, nil
 	}
@@ -86,15 +91,8 @@ func (h Handler) OnRemove(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PC
 		return pdc, err
 	}
 
-	// Get PCIDevice for the PCIDeviceClaim
-	pd, err = h.getPCIDeviceForClaim(pdc)
-	if err != nil {
-		logrus.Errorf("Error getting claim's device: %s", err)
-		return pdc, err
-	}
-
 	// Disable PCI Passthrough by unbinding from the vfio-pci device driver
-	err = h.attemptToDisablePassthrough(pd, pdc)
+	err = h.disablePassthrough(pd)
 	if err != nil {
 		return pdc, err
 	}
@@ -105,6 +103,7 @@ func (h Handler) OnRemove(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PC
 		resourceName,
 		h.devicePlugins,
 	)
+
 	if dp != nil {
 		err = dp.RemoveDevice(pd, pdc)
 		if err != nil {
@@ -161,19 +160,20 @@ func (h Handler) enablePassthrough(pd *v1beta1.PCIDevice) error {
 	if err != nil {
 		return err
 	}
-	return nil
+	pdCopy := pd.DeepCopy()
+	pdCopy.Status.KernelDriverInUse = vfioPCIDriver
+	_, err = h.pdClient.UpdateStatus(pdCopy)
+	return err
 }
 
+// disablePassthrough will unbind and bind device to the original driver
 func (h Handler) disablePassthrough(pd *v1beta1.PCIDevice) error {
-	errDriver := unbindDeviceFromDriver(pd.Status.Address, vfioPCIDriver)
-	if errDriver != nil {
-		return errDriver
+	err := unbindDeviceFromDriver(pd.Status.Address, vfioPCIDriver)
+	if err != nil {
+		return fmt.Errorf("failed unbinding driver: (%s)", err)
 	}
-	if errDriver != nil {
-		msg := fmt.Sprintf("failed unbinding driver: (%s)", errDriver)
-		return errors.New(msg)
-	}
-	return nil
+
+	return h.bindDeviceToOriginalDriver(pd)
 }
 
 // This function unbinds the device with PCI Address addr from the given driver
@@ -183,8 +183,13 @@ func unbindDeviceFromDriver(addr string, driver string) error {
 	// Check if device at addr is already bound to driver
 	_, err := os.Stat(fmt.Sprintf("%s/%s", driverPath, addr))
 	if err != nil {
+		if os.IsNotExist(err) {
+			// file not found, likely device has already been unbound
+			// ignore device
+			return nil
+		}
 		logrus.Errorf("Device at address %s is not bound to driver %s", addr, driver)
-		return nil
+		return err
 	}
 	path := fmt.Sprintf("%s/unbind", driverPath)
 	file, err := os.OpenFile(path, os.O_WRONLY, 0400)
@@ -193,10 +198,7 @@ func unbindDeviceFromDriver(addr string, driver string) error {
 	}
 	defer file.Close()
 	_, err = file.WriteString(addr)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (h Handler) pciDeviceIsClaimed(pd *v1beta1.PCIDevice, pdcs *v1beta1.PCIDeviceClaimList) bool {
@@ -239,6 +241,7 @@ func (h Handler) reconcilePCIDeviceClaims(name string, pdc *v1beta1.PCIDeviceCla
 		return pdc, nil
 	}
 
+	pdcCopy := pdc.DeepCopy()
 	// Get the PCIDevice object for the PCIDeviceClaim
 	pd, err := h.getPCIDeviceForClaim(pdc)
 	if pd == nil {
@@ -256,21 +259,9 @@ func (h Handler) reconcilePCIDeviceClaims(name string, pdc *v1beta1.PCIDeviceCla
 		return pdc, fmt.Errorf("error updating kubevirt CR: %v", err)
 	}
 
-	// If passthrough is already enabled and there's a deviceplugin, then we can return
-	if pdc.Status.PassthroughEnabled && (dp != nil) {
-		return pdc, nil
-	} else {
-		// Post reboot, the PDC will say enabled, but then the dp won't be there
-
-	}
-
-	// Enable PCI Passthrough on the device by binding it to vfio-pci driver
-	newPdc, err := h.attemptToEnablePassthrough(pd, pdc)
-
-	// If the DevicePlugin can't be found, then create it
 	if dp == nil {
 		pds := []*v1beta1.PCIDevice{pd}
-		dp, err = h.createDevicePlugin(pds, newPdc)
+		dp, err = h.createDevicePlugin(pds, pdc)
 		if err != nil {
 			return nil, err
 		}
@@ -278,10 +269,17 @@ func (h Handler) reconcilePCIDeviceClaims(name string, pdc *v1beta1.PCIDeviceCla
 		// Add the Device to the DevicePlugin
 		dp.AddDevice(pd, pdc)
 	}
-	return newPdc, err
+
+	if !pdcCopy.Status.PassthroughEnabled {
+		pdcCopy.Status.PassthroughEnabled = true
+		pdcCopy.Status.KernelDriverToUnbind = pd.Status.KernelDriverInUse
+		return h.pdcClient.UpdateStatus(pdcCopy)
+	}
+
+	return pdc, nil
 }
 
-func (h Handler) createDevicePlugin(
+func (h *Handler) createDevicePlugin(
 	pds []*v1beta1.PCIDevice,
 	pdc *v1beta1.PCIDeviceClaim,
 ) (*deviceplugins.PCIDevicePlugin, error) {
@@ -299,7 +297,7 @@ func (h Handler) createDevicePlugin(
 	return dp, nil
 }
 
-func (h Handler) permitHostDeviceInKubeVirt(pd *v1beta1.PCIDevice) error {
+func (h *Handler) permitHostDeviceInKubeVirt(pd *v1beta1.PCIDevice) error {
 	logrus.Infof("Adding %s to KubeVirt list of permitted devices", pd.Name)
 	kv, err := h.virtClient.KubeVirt(DefaultNS).Get(KubevirtCR, &v1.GetOptions{})
 	if err != nil {
@@ -340,7 +338,7 @@ func (h Handler) permitHostDeviceInKubeVirt(pd *v1beta1.PCIDevice) error {
 	return nil
 }
 
-func (h Handler) getPCIDeviceForClaim(pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDevice, error) {
+func (h *Handler) getPCIDeviceForClaim(pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDevice, error) {
 	// Get PCIDevice for the PCIDeviceClaim
 	if pdc.OwnerReferences == nil {
 		msg := fmt.Sprintf("Cannot find PCIDevice that owns %s", pdc.Name)
@@ -355,7 +353,7 @@ func (h Handler) getPCIDeviceForClaim(pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCI
 	return pd, nil
 }
 
-func (h Handler) startDevicePlugin(
+func (h *Handler) startDevicePlugin(
 	dp *deviceplugins.PCIDevicePlugin,
 ) error {
 	if dp.Started() {
@@ -375,9 +373,7 @@ func (h Handler) startDevicePlugin(
 	return nil
 }
 
-func (h Handler) attemptToEnablePassthrough(pd *v1beta1.PCIDevice, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
-	pdcCopy := pdc.DeepCopy()
-	pdcCopy.Status.KernelDriverToUnbind = pd.Status.KernelDriverInUse
+func (h *Handler) attemptToEnablePassthrough(pd *v1beta1.PCIDevice, pdc *v1beta1.PCIDeviceClaim) error {
 	vfioDriverEnabled := pd.Status.KernelDriverInUse == vfioPCIDriver // it is possible that device was enabled however pcideviceclaim status updated failed
 
 	if !vfioDriverEnabled {
@@ -386,57 +382,22 @@ func (h Handler) attemptToEnablePassthrough(pd *v1beta1.PCIDevice, pdc *v1beta1.
 		if strings.TrimSpace(pd.Status.KernelDriverInUse) != "" {
 			err := unbindDeviceFromDriver(pd.Status.Address, pd.Status.KernelDriverInUse)
 			if err != nil {
-				pdcCopy.Status.PassthroughEnabled = false
+				return err
 			}
 		}
 		// Enable PCI Passthrough by binding the device to the vfio-pci driver
 		err := h.enablePassthrough(pd)
 		if err != nil {
-			return pdc, err
+			return err
 		}
 	}
 
-	if !pdcCopy.Status.PassthroughEnabled {
-		pdcCopy.Status.PassthroughEnabled = true
-		return h.pdcClient.UpdateStatus(pdcCopy)
-	}
-
-	return pdc, nil
-
-}
-
-func (h Handler) attemptToDisablePassthrough(pd *v1beta1.PCIDevice, pdc *v1beta1.PCIDeviceClaim) error {
-	logrus.Infof("Attempting to disable passthrough for %s", pdc.Name)
-	pdcCopy := pdc.DeepCopy()
-	pdcCopy.Status.KernelDriverToUnbind = pd.Status.KernelDriverInUse
-	if pd.Status.KernelDriverInUse == vfioPCIDriver {
-		pdcCopy.Status.PassthroughEnabled = true
-		// Only unbind from driver is a driver is currently bound to vfio
-		if strings.TrimSpace(pd.Status.KernelDriverInUse) == vfioPCIDriver {
-			err := unbindDeviceFromDriver(pd.Status.Address, vfioPCIDriver)
-			if err != nil {
-				return err
-			}
-		}
-		// Disable PCI Passthrough by binding the device to the vfio-pci driver
-		err := h.disablePassthrough(pd)
-		if err != nil {
-			pdcCopy.Status.PassthroughEnabled = true
-		} else {
-			pdcCopy.Status.PassthroughEnabled = false
-		}
-	}
-	_, err := h.pdcClient.UpdateStatus(pdcCopy)
-	if err != nil {
-		logrus.Errorf("Error updating status for %s: %s", pdc.Name, err)
-		return err
-	}
+	pdc.Status.PassthroughEnabled = true
 	return nil
+
 }
 
-// This function unbinds an unclaimed device, this is because the only supported
-// to get PCI Passthrough in Harvester is through this controller.
-func (h Handler) unbindOrphanedPCIDevices() error {
+func (h *Handler) unbindOrphanedPCIDevices() error {
 	pdcs, err := h.pdcClient.List(metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -453,4 +414,62 @@ func (h Handler) unbindOrphanedPCIDevices() error {
 		unbindDeviceFromDriver(pd.Status.Address, vfioPCIDriver)
 	}
 	return nil
+}
+
+// OnDeviceChange will watch the PCIDevice objects and trigger a reconcile of related PCIDeviceClaims if the underlying PCIDevice objects has a change.
+// this can happen at reboot when device driver is updated to reflect in use device driver
+func (h *Handler) OnDeviceChange(_ string, _ string, obj runtime.Object) ([]relatedresource.Key, error) {
+	if pd, ok := obj.(*v1beta1.PCIDevice); ok {
+		if pd.Status.NodeName == h.nodeName && pd.Status.KernelDriverInUse != vfioPCIDriver {
+			pdcList, err := h.pdcClient.List(metav1.ListOptions{LabelSelector: fmt.Sprintf("nodename=%s", h.nodeName)})
+			if err != nil {
+				return nil, fmt.Errorf("error listing PCIDeviceClaims during device watch: %v", err)
+			}
+			var rr []relatedresource.Key
+			for _, v := range pdcList.Items {
+				for _, owner := range v.GetOwnerReferences() {
+					if owner.Kind == pd.Kind && owner.APIVersion == pd.APIVersion && owner.Name == pd.Name {
+						rr = append(rr, relatedresource.NewKey(v.Namespace, v.Name))
+					}
+				}
+			}
+			return rr, nil
+		}
+	}
+
+	return nil, nil
+}
+
+func (h *Handler) bindDeviceToOriginalDriver(pd *v1beta1.PCIDevice) error {
+	address := pd.Status.Address
+	orgDriver, ok := pd.Annotations[v1beta1.PciDeviceDriver]
+
+	if !ok {
+		return fmt.Errorf("no annotation %s found for original device driver on pcidevice %s", v1beta1.PciDeviceDriver, pd.Name)
+	}
+
+	if orgDriver == "" {
+		logrus.Debugf("no original driver present on pcidevice: %s", pd.Name)
+		return nil
+	}
+
+	logrus.Debugf("Binding device %s [%s] to %s", pd.Name, address, orgDriver)
+	file, err := os.OpenFile(fmt.Sprintf("/sys/bus/pci/drivers/%s/bind", orgDriver), os.O_WRONLY, 0400)
+	if err != nil {
+		logrus.Errorf("Error opening bind file: %s", err)
+		return err
+	}
+	_, err = file.WriteString(address)
+	if err != nil {
+		logrus.Errorf("Error writing to bind file: %s", err)
+		file.Close()
+		return err
+	}
+	file.Close()
+	pdCopy := pd.DeepCopy()
+
+	// update to reflect the original driver
+	pdCopy.Status.KernelDriverInUse = orgDriver
+	_, err = h.pdClient.UpdateStatus(pdCopy)
+	return err
 }

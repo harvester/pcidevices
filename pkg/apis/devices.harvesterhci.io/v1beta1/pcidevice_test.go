@@ -40,12 +40,16 @@ func TestNewPCIDeviceForName(t *testing.T) {
 						ID:   "00",
 						Name: "Ethernet controller",
 					},
+					Driver: "fake",
 				},
 				hostname: "deepgreen",
 			},
 			want: PCIDevice{
 				ObjectMeta: v1.ObjectMeta{
 					Name: "deepgreen-001f6",
+					Annotations: map[string]string{
+						PciDeviceDriver: "fake",
+					},
 				},
 				Status: PCIDeviceStatus{
 					NodeName:     "deepgreen",
