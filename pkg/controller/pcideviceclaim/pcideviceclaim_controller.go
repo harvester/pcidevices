@@ -228,7 +228,7 @@ func getOrphanedPCIDevices(
 	for _, pd := range pds.Items {
 		isVfioPci := pd.Status.KernelDriverInUse == "vfio-pci"
 		isOnThisNode := nodeName == pd.Status.NodeName
-		if isVfioPci && isOnThisNode && pciDeviceIsClaimed(&pd, pdcs, nodeName) {
+		if isVfioPci && isOnThisNode && !pciDeviceIsClaimed(&pd, pdcs, nodeName) {
 			pdsOrphaned.Items = append(pdsOrphaned.Items, *pd.DeepCopy())
 		}
 	}
