@@ -231,7 +231,7 @@ func (dpi *PCIDevicePlugin) ListAndWatch(_ *pluginapi.Empty, s pluginapi.DeviceP
 				}
 			}
 			s.Send(&pluginapi.ListAndWatchResponse{Devices: dpi.devs})
-			logrus.Debug("Sending ListAndWatchResponse for device with dpi.devs = %v", dpi.devs)
+			logrus.Debugf("Sending ListAndWatchResponse for device with dpi.devs = %v", dpi.devs)
 		case <-dpi.stop:
 			done = true
 		case <-dpi.done:

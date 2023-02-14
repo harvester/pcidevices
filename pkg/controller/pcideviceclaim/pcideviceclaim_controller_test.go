@@ -91,7 +91,7 @@ func TestHandler_getOrphanedPCIDevices(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getOrphanedPCIDevices(tt.args.nodename, tt.args.pdcs, tt.args.pds)
+			got, err := getOrphanedPCIDevices(tt.args.pdcs, tt.args.pds, tt.args.nodename)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Handler.getOrphanedPCIDevices() error = %v, wantErr %v", err, tt.wantErr)
 				return
