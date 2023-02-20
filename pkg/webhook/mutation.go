@@ -14,6 +14,9 @@ func Mutation(clients *Clients) (http.Handler, []types.Resource, error) {
 	mutators := []types.Mutator{
 		NewPodMutator(clients.PCIFactory.Devices().V1beta1().PCIDevice().Cache(),
 			clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()),
+		NewPCIVMMutator(clients.PCIFactory.Devices().V1beta1().PCIDevice().Cache(),
+			clients.PCIFactory.Devices().V1beta1().PCIDeviceClaim().Cache(),
+			clients.PCIFactory.Devices().V1beta1().PCIDeviceClaim()),
 	}
 
 	router := webhook.NewRouter()
