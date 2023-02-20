@@ -11,6 +11,11 @@ RUN export K8S_VERSION=1.24.2 && \
     mkdir /usr/local/kubebuilder && \
     tar -C /usr/local/kubebuilder --strip-components=1 -zvxf envtest-bins.tar.gz
 
+## install golangci
+RUN if [ "${ARCH}" = "amd64" ]; then \
+        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.49.0; \
+    fi
+
 ENV GO111MODULE on
 ENV DAPPER_ENV REPO TAG DRONE_TAG
 ENV DAPPER_SOURCE /go/src/github.com/harvester/pcidevices/
