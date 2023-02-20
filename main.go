@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/harvester/pcidevices/pkg/controller/pcidevice"
+	ctlcore "github.com/rancher/wrangler/pkg/generated/controllers/core"
 
 	"golang.org/x/sync/errgroup"
 
@@ -24,6 +25,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
+	harvesternetworkv1beta1 "github.com/harvester/harvester-network-controller/pkg/apis/network.harvesterhci.io/v1beta1"
+	ctlnetwork "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io"
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/controller/pcideviceclaim"
 	"github.com/harvester/pcidevices/pkg/crd"
@@ -50,6 +53,7 @@ func init() {
 	utilruntime.Must(schemes.AddToScheme(Scheme))
 	utilruntime.Must(apiregistrationv1.AddToScheme(Scheme))
 	utilruntime.Must(kubevirtv1.AddToScheme(Scheme))
+	utilruntime.Must(harvesternetworkv1beta1.AddToScheme(Scheme))
 	if debug := os.Getenv("DEBUG_LOGGING"); debug == "true" {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
@@ -111,7 +115,15 @@ func run(kubeConfig string) error {
 	if err != nil {
 		return fmt.Errorf("error building pcideviceclaim controllers: %s", err.Error())
 	}
+	coreFactory, err := ctlcore.NewFactoryFromConfigWithOptions(cfg, opts)
+	if err != nil {
+		return fmt.Errorf("error building core controllers: %v", err)
+	}
 
+	networkFactory, err := ctlnetwork.NewFactoryFromConfigWithOptions(cfg, opts)
+	if err != nil {
+		return fmt.Errorf("error building network controllers: %v", err)
+	}
 	pdCtl := pdfactory.Devices().V1beta1().PCIDevice()
 	pdcCtl := pdcfactory.Devices().V1beta1().PCIDeviceClaim()
 	registerControllers := func(ctx context.Context) {
@@ -141,14 +153,8 @@ func run(kubeConfig string) error {
 	})
 
 	eg.Go(func() error {
-		err := pcidevice.Register(egctx, pdCtl)
-		if err != nil {
-			logrus.Errorf("Error starting pcidevices ")
-		}
-		return err
+		return pcidevice.Register(egctx, pdCtl, coreFactory, networkFactory)
 	})
 
-	eg.Wait()
-
-	return nil
+	return eg.Wait()
 }
