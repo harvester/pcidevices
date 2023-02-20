@@ -4,8 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 )
 
 func TestHandler_getOrphanedPCIDevices(t *testing.T) {

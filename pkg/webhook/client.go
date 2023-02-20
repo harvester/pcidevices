@@ -2,14 +2,16 @@ package webhook
 
 import (
 	"context"
+
 	ctlharvesterv1 "github.com/harvester/harvester/pkg/generated/controllers/harvesterhci.io"
 	ctlkubevirtv1 "github.com/harvester/harvester/pkg/generated/controllers/kubevirt.io"
-	ctlpcidevices "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
 	"github.com/rancher/wrangler/pkg/clients"
 	ctlcore "github.com/rancher/wrangler/pkg/generated/controllers/core"
 	"github.com/rancher/wrangler/pkg/schemes"
 	v1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/client-go/rest"
+
+	ctlpcidevices "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
 )
 
 type Clients struct {

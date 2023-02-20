@@ -4,12 +4,13 @@ import (
 	"context"
 	"testing"
 
-	"github.com/harvester/pcidevices/pkg/generated/clientset/versioned/fake"
-	"github.com/harvester/pcidevices/pkg/util/fakeclients"
 	"github.com/jaypipes/ghw"
 	"github.com/stretchr/testify/require"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/harvester/pcidevices/pkg/generated/clientset/versioned/fake"
+	"github.com/harvester/pcidevices/pkg/util/fakeclients"
 )
 
 const (
