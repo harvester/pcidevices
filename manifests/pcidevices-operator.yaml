@@ -24,7 +24,7 @@ rules:
     verbs: [ "get", "watch", "list", "update", "create", "delete"]
   - apiGroups: ["admissionregistration.k8s.io"]
     resources: ["mutatingwebhookconfigurations"]
-    verbs: [ "get", "watch", "list", "update", "create", "delete" ]
+    verbs: [ "get", "watch", "list", "update", "create", "delete", "patch" ]
   - apiGroups: ["apiregistration.k8s.io"]
     resources: ["apiservices"]
     verbs: [ "get", "watch", "list", "update", "create", "delete" ]

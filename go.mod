@@ -31,46 +31,25 @@ require (
 )
 
 require (
-	github.com/achanda/go-sysctl v0.0.0-20160222034550-6be7678c45d2 // indirect
-	github.com/blang/semver v3.5.1+incompatible // indirect
-	github.com/containernetworking/cni v0.8.1 // indirect
 	github.com/coreos/prometheus-operator v0.38.1-0.20200424145508-7e176fda06cc // indirect
 	github.com/go-kit/kit v0.9.0 // indirect
 	github.com/go-logfmt/logfmt v0.5.0 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
-	github.com/gobuffalo/flect v0.2.5 // indirect
 	github.com/golang/glog v1.0.0 // indirect
-	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
-	github.com/jinzhu/copier v0.3.5 // indirect
-	github.com/k3s-io/helm-controller v0.11.7 // indirect
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v0.0.0-20200331171230-d50e42f2b669 // indirect
 	github.com/klauspost/compress v1.15.9 // indirect
 	github.com/klauspost/pgzip v1.2.4 // indirect
+	github.com/kr/pretty v0.3.0 // indirect
 	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.2.0 // indirect
-	github.com/kubernetes-csi/external-snapshotter/v2 v2.1.1 // indirect
-	github.com/kubernetes/dashboard v1.10.1 // indirect
-	github.com/longhorn/longhorn-manager v1.3.1 // indirect
 	github.com/openshift/api v0.0.0 // indirect
 	github.com/openshift/client-go v0.0.0 // indirect
-	github.com/rancher/aks-operator v1.0.7 // indirect
-	github.com/rancher/eks-operator v1.1.5 // indirect
-	github.com/rancher/fleet/pkg/apis v0.0.0-20230123175930-d296259590be // indirect
-	github.com/rancher/gke-operator v1.1.4 // indirect
-	github.com/rancher/norman v0.0.0-20220627222520-b74009fac3ff // indirect
-	github.com/rancher/rancher v0.0.0-20211208233239-77392a65423d // indirect
-	github.com/rancher/rancher/pkg/apis v0.0.0 // indirect
-	github.com/rancher/rke v1.3.18 // indirect
-	github.com/rancher/system-upgrade-controller/pkg/apis v0.0.0-20210727200656-10b094e30007 // indirect
+	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
-	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/genproto v0.0.0-20220720214146-176da50484ac // indirect
 	howett.net/plist v1.0.0 // indirect
-	k8s.io/apiserver v0.24.2 // indirect
 	k8s.io/component-base v0.24.2 // indirect
-	sigs.k8s.io/cli-utils v0.27.0 // indirect
-	sigs.k8s.io/cluster-api v1.2.0-beta.0 // indirect
 )
 
 require (
