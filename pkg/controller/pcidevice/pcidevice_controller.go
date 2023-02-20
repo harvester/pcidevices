@@ -6,7 +6,12 @@ import (
 	"os"
 	"time"
 
+	ctlnetwork "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io"
+	ctlnetworkv1beta1 "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/iommu"
+	ctlcore "github.com/rancher/wrangler/pkg/generated/controllers/core"
+	ctlcorev1 "github.com/rancher/wrangler/pkg/generated/controllers/core/v1"
+	"github.com/rancher/wrangler/pkg/start"
 
 	v1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
@@ -25,20 +30,30 @@ const (
 type Handler struct {
 	client        ctl.PCIDeviceClient
 	pci           *ghw.PCIInfo
+	nodeCache     ctlcorev1.NodeCache
+	networkCache  ctlnetworkv1beta1.VlanConfigCache
 	skipAddresses []string
 }
 
 func Register(
 	ctx context.Context,
 	pd ctl.PCIDeviceClient,
-) error {
+	coreFactory *ctlcore.Factory,
+	networkFactory *ctlnetwork.Factory) error {
 	logrus.Info("Registering PCI Devices controller")
 
 	handler := &Handler{
-		client: pd,
+		client:       pd,
+		nodeCache:    coreFactory.Core().V1().Node().Cache(),
+		networkCache: networkFactory.Network().V1beta1().VlanConfig().Cache(),
 	}
 
 	nodename := os.Getenv("NODE_NAME")
+
+	if err := start.All(ctx, 1, coreFactory, networkFactory); err != nil {
+		return fmt.Errorf("error starting factories in pcidevices controller:%v", err)
+	}
+
 	// start goroutine to regularly reconcile the PCI Devices list
 	ticker := time.NewTicker(reconcilePeriod)
 	for range ticker.C {
@@ -47,7 +62,7 @@ func Register(
 		if err != nil {
 			return fmt.Errorf("error listing pcidevices: %v", err)
 		}
-		skipAddresses, err := nichelper.IdentifyManagementNIC()
+		skipAddresses, err := nichelper.IdentifyHarvesterManagedNIC(nodename, handler.nodeCache, handler.networkCache)
 		if err != nil {
 			return fmt.Errorf("error querying management nic pci addresses: %v", err)
 		}
