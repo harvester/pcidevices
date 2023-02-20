@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/harvester/harvester/pkg/webhook/types"
 	"github.com/rancher/dynamiclistener"
 	"github.com/rancher/dynamiclistener/server"
 	"github.com/sirupsen/logrus"
@@ -14,8 +15,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
-
-	"github.com/harvester/harvester/pkg/webhook/types"
 )
 
 var (
@@ -45,7 +44,7 @@ func New(ctx context.Context, restConfig *rest.Config) *AdmissionWebhookServer {
 	}
 }
 
-//ListenAndServe starts the http listener and handlers
+// ListenAndServe starts the http listener and handlers
 func (s *AdmissionWebhookServer) ListenAndServe() error {
 	clients, err := NewClient(s.context, s.restConfig, threadiness)
 	if err != nil {

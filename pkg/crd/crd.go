@@ -6,13 +6,13 @@ import (
 	"os"
 	"path/filepath"
 
-	devices "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
-
 	"github.com/rancher/wrangler/pkg/crd"
 	"github.com/rancher/wrangler/pkg/yaml"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
+
+	devices "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 )
 
 func WriteFile(filename string) error {

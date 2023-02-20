@@ -8,19 +8,19 @@ import (
 
 	ctlnetwork "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io"
 	ctlnetworkv1beta1 "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io/v1beta1"
-	"github.com/harvester/pcidevices/pkg/iommu"
+	"github.com/jaypipes/ghw"
 	ctlcore "github.com/rancher/wrangler/pkg/generated/controllers/core"
 	ctlcorev1 "github.com/rancher/wrangler/pkg/generated/controllers/core/v1"
 	"github.com/rancher/wrangler/pkg/start"
-
-	v1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
-	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
-	"github.com/harvester/pcidevices/pkg/util/nichelper"
-	"github.com/jaypipes/ghw"
 	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+
+	v1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
+	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/iommu"
+	"github.com/harvester/pcidevices/pkg/util/nichelper"
 )
 
 const (

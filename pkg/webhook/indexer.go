@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
+
+	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 )
 
 const (

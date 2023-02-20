@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/harvester/pcidevices/pkg/crd"
-
 	controllergen "github.com/rancher/wrangler/pkg/controller-gen"
 	"github.com/rancher/wrangler/pkg/controller-gen/args"
-
-	// Ensure gvk gets loaded in wrangler/pkg/gvk cache
 	_ "github.com/rancher/wrangler/pkg/generated/controllers/apiextensions.k8s.io/v1"
+
+	"github.com/harvester/pcidevices/pkg/crd"
 )
 
 func main() {

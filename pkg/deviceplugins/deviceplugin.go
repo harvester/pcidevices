@@ -1,9 +1,10 @@
 package deviceplugins
 
 import (
-	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/sirupsen/logrus"
 	pluginapi "kubevirt.io/kubevirt/pkg/virt-handler/device-manager/deviceplugin/v1beta1"
+
+	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 )
 
 func (dp *PCIDevicePlugin) MarkPCIDeviceAsHealthy(resourceName string, pciAddress string) {
