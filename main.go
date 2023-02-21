@@ -5,34 +5,30 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/harvester/pcidevices/pkg/controller/pcidevice"
-	ctlcore "github.com/rancher/wrangler/pkg/generated/controllers/core"
-
-	"golang.org/x/sync/errgroup"
-
-	"github.com/harvester/pcidevices/pkg/webhook"
-
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/rest"
-
+	harvesternetworkv1beta1 "github.com/harvester/harvester-network-controller/pkg/apis/network.harvesterhci.io/v1beta1"
+	ctlnetwork "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io"
 	"github.com/rancher/lasso/pkg/controller"
+	ctlcore "github.com/rancher/wrangler/pkg/generated/controllers/core"
 	"github.com/rancher/wrangler/pkg/generic"
 	"github.com/rancher/wrangler/pkg/kubeconfig"
 	"github.com/rancher/wrangler/pkg/schemes"
 	"github.com/rancher/wrangler/pkg/signals"
 	"github.com/rancher/wrangler/pkg/start"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
+	cli "github.com/urfave/cli/v2"
+	"golang.org/x/sync/errgroup"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/rest"
+	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 
-	harvesternetworkv1beta1 "github.com/harvester/harvester-network-controller/pkg/apis/network.harvesterhci.io/v1beta1"
-	ctlnetwork "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io"
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/controller/pcidevice"
 	"github.com/harvester/pcidevices/pkg/controller/pcideviceclaim"
 	"github.com/harvester/pcidevices/pkg/crd"
 	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
-	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
-	kubevirtv1 "kubevirt.io/api/core/v1"
+	"github.com/harvester/pcidevices/pkg/webhook"
 )
 
 const (

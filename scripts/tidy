@@ -3,7 +3,7 @@ set -e
 
 export PATH=$PATH:/root/go/bin
 cd $(dirname $0)/..
-for i in "./pkg/codegen" "./pkg/controller" "./pkg/crd" "./pkg/deviceplugins" "./pkg/util" "./pkg/webhook"
+for i in "./pkg/codegen" "./pkg/controller" "./pkg/crd" "./pkg/deviceplugins" "./pkg/util" "./pkg/webhook" "main.go"
 do
   echo "formatting $i"
   goimports-reviser -recursive -company-prefixes -rm-unused -set-alias -format $i
