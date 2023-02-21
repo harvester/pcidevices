@@ -89,6 +89,9 @@ func (vm *vmPCIMutator) generatePatch(vmObj *kubevirtv1.VirtualMachine) (types.P
 		// lookup is needed to query iommu group for said device
 		pciDeviceObj, err := vm.deviceCache.Get(v.Name)
 		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return nil, nil // pre 1.1.2 UI changes the device name did not match pcidevice. This avoids breaking
+			}
 			return nil, fmt.Errorf("error looking up pcidevice %s from cache: %v", v.Name, err)
 		}
 		pciDevices, err := vm.deviceCache.GetByIndex(IommuGroupByNode, fmt.Sprintf("%s-%s", pciDeviceObj.Status.NodeName, pciDeviceObj.Status.IOMMUGroup))
