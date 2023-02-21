@@ -28,11 +28,11 @@ const (
 )
 
 type Handler struct {
-	client        ctl.PCIDeviceClient
-	pci           *ghw.PCIInfo
-	nodeCache     ctlcorev1.NodeCache
-	networkCache  ctlnetworkv1beta1.VlanConfigCache
-	skipAddresses []string
+	client          ctl.PCIDeviceClient
+	pci             *ghw.PCIInfo
+	nodeCache       ctlcorev1.NodeCache
+	vlanConfigCache ctlnetworkv1beta1.VlanConfigCache
+	skipAddresses   []string
 }
 
 func Register(
@@ -43,9 +43,9 @@ func Register(
 	logrus.Info("Registering PCI Devices controller")
 
 	handler := &Handler{
-		client:       pd,
-		nodeCache:    coreFactory.Core().V1().Node().Cache(),
-		networkCache: networkFactory.Network().V1beta1().VlanConfig().Cache(),
+		client:          pd,
+		nodeCache:       coreFactory.Core().V1().Node().Cache(),
+		vlanConfigCache: networkFactory.Network().V1beta1().VlanConfig().Cache(),
 	}
 
 	nodename := os.Getenv("NODE_NAME")
@@ -62,7 +62,7 @@ func Register(
 		if err != nil {
 			return fmt.Errorf("error listing pcidevices: %v", err)
 		}
-		skipAddresses, err := nichelper.IdentifyHarvesterManagedNIC(nodename, handler.nodeCache, handler.networkCache)
+		skipAddresses, err := nichelper.IdentifyHarvesterManagedNIC(nodename, handler.nodeCache, handler.vlanConfigCache)
 		if err != nil {
 			return fmt.Errorf("error querying management nic pci addresses: %v", err)
 		}
