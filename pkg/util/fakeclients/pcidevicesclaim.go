@@ -12,53 +12,53 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-type PCIDevicesClaimClient func() v1beta1.PCIDeviceClaimInterface
+type PCIDeviceClaimsClient func() v1beta1.PCIDeviceClaimInterface
 
-func (p PCIDevicesClaimClient) Update(d *pcidevicev1beta1.PCIDeviceClaim) (*pcidevicev1beta1.PCIDeviceClaim, error) {
+func (p PCIDeviceClaimsClient) Update(d *pcidevicev1beta1.PCIDeviceClaim) (*pcidevicev1beta1.PCIDeviceClaim, error) {
 	return p().Update(context.TODO(), d, metav1.UpdateOptions{})
 }
 
-func (p PCIDevicesClaimClient) Get(name string, options metav1.GetOptions) (*pcidevicev1beta1.PCIDeviceClaim, error) {
+func (p PCIDeviceClaimsClient) Get(name string, options metav1.GetOptions) (*pcidevicev1beta1.PCIDeviceClaim, error) {
 	return p().Get(context.TODO(), name, metav1.GetOptions{})
 }
 
-func (p PCIDevicesClaimClient) Create(d *pcidevicev1beta1.PCIDeviceClaim) (*pcidevicev1beta1.PCIDeviceClaim, error) {
+func (p PCIDeviceClaimsClient) Create(d *pcidevicev1beta1.PCIDeviceClaim) (*pcidevicev1beta1.PCIDeviceClaim, error) {
 	return p().Create(context.TODO(), d, metav1.CreateOptions{})
 }
 
-func (p PCIDevicesClaimClient) Delete(name string, options *metav1.DeleteOptions) error {
+func (p PCIDeviceClaimsClient) Delete(name string, options *metav1.DeleteOptions) error {
 	return p().Delete(context.TODO(), name, *options)
 }
 
-func (p PCIDevicesClaimClient) List(opts metav1.ListOptions) (*pcidevicev1beta1.PCIDeviceClaimList, error) {
+func (p PCIDeviceClaimsClient) List(opts metav1.ListOptions) (*pcidevicev1beta1.PCIDeviceClaimList, error) {
 	return p().List(context.TODO(), opts)
 }
 
-func (p PCIDevicesClaimClient) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+func (p PCIDeviceClaimsClient) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 	panic("implement me")
 }
-func (p PCIDevicesClaimClient) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *pcidevicev1beta1.PCIDeviceClaim, err error) {
+func (p PCIDeviceClaimsClient) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *pcidevicev1beta1.PCIDeviceClaim, err error) {
 	panic("implement me")
 }
 
-func (p PCIDevicesClaimClient) UpdateStatus(d *pcidevicev1beta1.PCIDeviceClaim) (*pcidevicev1beta1.PCIDeviceClaim, error) {
+func (p PCIDeviceClaimsClient) UpdateStatus(d *pcidevicev1beta1.PCIDeviceClaim) (*pcidevicev1beta1.PCIDeviceClaim, error) {
 	return p().Update(context.TODO(), d, metav1.UpdateOptions{})
 }
 
-type PCIDevicesClaimCache func() v1beta1.PCIDeviceClaimInterface
+type PCIDeviceClaimsCache func() v1beta1.PCIDeviceClaimInterface
 
-func (p PCIDevicesClaimCache) Get(name string) (*pcidevicev1beta1.PCIDeviceClaim, error) {
+func (p PCIDeviceClaimsCache) Get(name string) (*pcidevicev1beta1.PCIDeviceClaim, error) {
 	return p().Get(context.TODO(), name, metav1.GetOptions{})
 }
 
-func (p PCIDevicesClaimCache) List(selector labels.Selector) ([]*pcidevicev1beta1.PCIDeviceClaim, error) {
+func (p PCIDeviceClaimsCache) List(selector labels.Selector) ([]*pcidevicev1beta1.PCIDeviceClaim, error) {
 	panic("implement me")
 }
 
-func (p PCIDevicesClaimCache) AddIndexer(indexName string, indexer pcidevicesv1beta1ctl.PCIDeviceClaimIndexer) {
+func (p PCIDeviceClaimsCache) AddIndexer(indexName string, indexer pcidevicesv1beta1ctl.PCIDeviceClaimIndexer) {
 	panic("implement me")
 }
 
-func (p PCIDevicesClaimCache) GetByIndex(indexName, key string) ([]*pcidevicev1beta1.PCIDeviceClaim, error) {
+func (p PCIDeviceClaimsCache) GetByIndex(indexName, key string) ([]*pcidevicev1beta1.PCIDeviceClaim, error) {
 	panic("implement me")
 }

@@ -451,7 +451,8 @@ func (h *Handler) bindDeviceToOriginalDriver(pd *v1beta1.PCIDevice) error {
 	orgDriver, ok := pd.Annotations[v1beta1.PciDeviceDriver]
 
 	if !ok {
-		return fmt.Errorf("no annotation %s found for original device driver on pcidevice %s", v1beta1.PciDeviceDriver, pd.Name)
+		logrus.Infof("no annotation %s found for original device driver on pcidevice %s, ignoring bind to original driver", v1beta1.PciDeviceDriver, pd.Name)
+		return nil
 	}
 
 	if orgDriver == "" {
