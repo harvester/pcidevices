@@ -173,8 +173,8 @@ func Test_VMWithNoDevices(t *testing.T) {
 	assert := require.New(t)
 	fakeClient := fake.NewSimpleClientset(node1dev1, node1dev2, node1dev3, node2dev1)
 	pciDeviceCache := fakeclients.PCIDevicesCache(fakeClient.DevicesV1beta1().PCIDevices)
-	pciClaimClient := fakeclients.PCIDevicesClaimClient(fakeClient.DevicesV1beta1().PCIDeviceClaims)
-	pciClaimCache := fakeclients.PCIDevicesClaimCache(fakeClient.DevicesV1beta1().PCIDeviceClaims)
+	pciClaimClient := fakeclients.PCIDeviceClaimsClient(fakeClient.DevicesV1beta1().PCIDeviceClaims)
+	pciClaimCache := fakeclients.PCIDeviceClaimsCache(fakeClient.DevicesV1beta1().PCIDeviceClaims)
 
 	vmPCIMutator := &vmPCIMutator{
 		deviceCache:    pciDeviceCache,
@@ -191,8 +191,8 @@ func Test_VMWithoutIommuDevices(t *testing.T) {
 	assert := require.New(t)
 	fakeClient := fake.NewSimpleClientset(node1dev1, node1dev2, node1dev3, node2dev1)
 	pciDeviceCache := fakeclients.PCIDevicesCache(fakeClient.DevicesV1beta1().PCIDevices)
-	pciClaimClient := fakeclients.PCIDevicesClaimClient(fakeClient.DevicesV1beta1().PCIDeviceClaims)
-	pciClaimCache := fakeclients.PCIDevicesClaimCache(fakeClient.DevicesV1beta1().PCIDeviceClaims)
+	pciClaimClient := fakeclients.PCIDeviceClaimsClient(fakeClient.DevicesV1beta1().PCIDeviceClaims)
+	pciClaimCache := fakeclients.PCIDeviceClaimsCache(fakeClient.DevicesV1beta1().PCIDeviceClaims)
 
 	vmPCIMutator := &vmPCIMutator{
 		deviceCache:    pciDeviceCache,
@@ -209,8 +209,8 @@ func Test_VMWithIommuDevices(t *testing.T) {
 	assert := require.New(t)
 	fakeClient := fake.NewSimpleClientset(node1dev1, node1dev2, node1dev3, node2dev1)
 	pciDeviceCache := fakeclients.PCIDevicesCache(fakeClient.DevicesV1beta1().PCIDevices)
-	pciClaimClient := fakeclients.PCIDevicesClaimClient(fakeClient.DevicesV1beta1().PCIDeviceClaims)
-	pciClaimCache := fakeclients.PCIDevicesClaimCache(fakeClient.DevicesV1beta1().PCIDeviceClaims)
+	pciClaimClient := fakeclients.PCIDeviceClaimsClient(fakeClient.DevicesV1beta1().PCIDeviceClaims)
+	pciClaimCache := fakeclients.PCIDeviceClaimsCache(fakeClient.DevicesV1beta1().PCIDeviceClaims)
 
 	vmPCIMutator := &vmPCIMutator{
 		deviceCache:    pciDeviceCache,
@@ -227,8 +227,8 @@ func Test_VMWithoutValidDeviceName(t *testing.T) {
 	assert := require.New(t)
 	fakeClient := fake.NewSimpleClientset(node1dev1, node1dev2, node1dev3, node2dev1)
 	pciDeviceCache := fakeclients.PCIDevicesCache(fakeClient.DevicesV1beta1().PCIDevices)
-	pciClaimClient := fakeclients.PCIDevicesClaimClient(fakeClient.DevicesV1beta1().PCIDeviceClaims)
-	pciClaimCache := fakeclients.PCIDevicesClaimCache(fakeClient.DevicesV1beta1().PCIDeviceClaims)
+	pciClaimClient := fakeclients.PCIDeviceClaimsClient(fakeClient.DevicesV1beta1().PCIDeviceClaims)
+	pciClaimCache := fakeclients.PCIDeviceClaimsCache(fakeClient.DevicesV1beta1().PCIDeviceClaims)
 
 	vmPCIMutator := &vmPCIMutator{
 		deviceCache:    pciDeviceCache,
