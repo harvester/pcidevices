@@ -4,21 +4,18 @@ import (
 	"fmt"
 
 	ctlnetworkv1beta1 "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io/v1beta1"
-	"github.com/harvester/harvester-network-controller/pkg/utils"
 	"github.com/jaypipes/ghw"
 	ctlcorev1 "github.com/rancher/wrangler/pkg/generated/controllers/core/v1"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"k8s.io/apimachinery/pkg/labels"
-)
-
-var (
-	defaultManagedNics = []string{"mgmt-br", "mgmt-bo"}
+	"k8s.io/apimachinery/pkg/util/json"
 )
 
 const (
-	defaultBRInterface = "mgmt-br"
-	defaultBOInterface = "mgmt-bo"
+	defaultBRInterface     = "mgmt-br"
+	defaultBOInterface     = "mgmt-bo"
+	matchedNodesAnnotation = "network.harvesterhci.io/matched-nodes"
 )
 
 func IdentifyHarvesterManagedNIC(nodeName string, nodeCache ctlcorev1.NodeCache, vlanConfigCache ctlnetworkv1beta1.VlanConfigCache) ([]string, error) {
@@ -90,7 +87,11 @@ func identifyClusterNetworks(nodeName string, nodeCache ctlcorev1.NodeCache, vla
 		return nil, fmt.Errorf("error fetching vlanconfigs: %v", err)
 	}
 	for _, v := range vlanConfigList {
-		ok, err := currentNodeMatchesSelector(nodeName, nodeCache, v.Spec.NodeSelector)
+		managedNodes, found := v.Annotations[matchedNodesAnnotation]
+		if !found { // if annotation not found, ignore as controller keeps checking on regular intervals
+			continue
+		}
+		ok, err := currentNodeMatchesSelector(nodeName, managedNodes)
 		if err != nil {
 			return nil, fmt.Errorf("error evaulating nodes from selector: %v", err)
 		}
@@ -103,22 +104,17 @@ func identifyClusterNetworks(nodeName string, nodeCache ctlcorev1.NodeCache, vla
 
 // currentNodeMatchesSelector will use the label selectors from VlanConfig to identify if node is
 // in the matching the VlanConfig
-func currentNodeMatchesSelector(nodeName string, nodeCache ctlcorev1.NodeCache, vlanConfigLabels map[string]string) (bool, error) {
-	selector, err := utils.NewSelector(vlanConfigLabels)
+func currentNodeMatchesSelector(nodeName string, managedNodes string) (bool, error) {
+	nodeNames := []string{}
+	err := json.Unmarshal([]byte(managedNodes), &nodeNames)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("error unmarshalling matched-nodes: %v", err)
 	}
 
-	nodes, err := nodeCache.List(selector)
-	if err != nil {
-		return false, err
-	}
-
-	for _, v := range nodes {
-		if v.Name == nodeName {
+	for _, v := range nodeNames {
+		if v == nodeName {
 			return true, nil
 		}
 	}
-
 	return false, nil
 }
