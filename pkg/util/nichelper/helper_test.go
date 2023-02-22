@@ -17,6 +17,9 @@ var (
 	vlanConfigAllNodes = &v1beta1.VlanConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "all-nodes",
+			Annotations: map[string]string{
+				"network.harvesterhci.io/matched-nodes": "[\"node1\",\"node2\"]",
+			},
 		},
 		Spec: v1beta1.VlanConfigSpec{
 			ClusterNetwork: "workload",
@@ -29,6 +32,9 @@ var (
 	vlanConfigSpecificNodes = &v1beta1.VlanConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "node2-match",
+			Annotations: map[string]string{
+				"network.harvesterhci.io/matched-nodes": "[\"node2\"]",
+			},
 		},
 		Spec: v1beta1.VlanConfigSpec{
 			ClusterNetwork: "workload",
