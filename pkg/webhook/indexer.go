@@ -11,7 +11,7 @@ import (
 const (
 	VMByName                = "harvesterhci.io/vm-by-name"
 	PCIDeviceByResourceName = "harvesterhcio.io/pcidevice-by-resource-name"
-	IommuGroupByNode        = "harvesterhci.io/iommu-by-node"
+	IommuGroupByNode        = "pcidevice.harvesterhci.io/iommu-by-node"
 )
 
 func RegisterIndexers(clients *Clients) {
