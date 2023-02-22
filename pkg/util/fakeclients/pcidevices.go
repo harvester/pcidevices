@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	IommuGroupByNode = "harvesterhci.io/iommu-by-node"
+	IommuGroupByNode = "pcidevice.harvesterhci.io/iommu-by-node"
 )
 
 type PCIDevicesClient func() v1beta1.PCIDeviceInterface

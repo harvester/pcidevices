@@ -3,13 +3,14 @@ package fakeclients
 import (
 	"context"
 
-	pcidevicev1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
-	"github.com/harvester/pcidevices/pkg/generated/clientset/versioned/typed/devices.harvesterhci.io/v1beta1"
-	pcidevicesv1beta1ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+
+	pcidevicev1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/generated/clientset/versioned/typed/devices.harvesterhci.io/v1beta1"
+	pcidevicesv1beta1ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 )
 
 type PCIDeviceClaimsClient func() v1beta1.PCIDeviceClaimInterface
@@ -37,6 +38,7 @@ func (p PCIDeviceClaimsClient) List(opts metav1.ListOptions) (*pcidevicev1beta1.
 func (p PCIDeviceClaimsClient) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 	panic("implement me")
 }
+
 func (p PCIDeviceClaimsClient) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *pcidevicev1beta1.PCIDeviceClaim, err error) {
 	panic("implement me")
 }
