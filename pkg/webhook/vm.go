@@ -18,7 +18,6 @@ import (
 )
 
 const (
-	defaultWebhookUserName = "pcidevices-webhook-created"
 	defaultHostDevBasePath = "/spec/template/spec/domain/devices/hostDevices/-"
 )
 
@@ -37,6 +36,13 @@ type vmPCIMutator struct {
 	deviceCache    v1beta1.PCIDeviceCache
 	pciClaimCache  v1beta1.PCIDeviceClaimCache
 	pciClaimClient v1beta1.PCIDeviceClaimClient
+}
+
+// pciDeviceWithOwners is used to track the owner of a device along with owner.
+// this is used to create additional pcidevice claims with the same username
+type pciDeviceWithOwners struct {
+	device *devicesv1beta1.PCIDevice
+	owner  string
 }
 
 // Mutator is applied on create/update requests as pcidevices can be added during these two operations
@@ -83,7 +89,7 @@ func (vm *vmPCIMutator) Update(request *types.Request, oldObj runtime.Object, ne
 // generatePatch is a common method used by create and update calls to generate a patch operation for VM
 func (vm *vmPCIMutator) generatePatch(vmObj *kubevirtv1.VirtualMachine) (types.PatchOps, error) {
 	var pciDevicesInVM []string
-	var possiblePCIDeviceRequirement []*devicesv1beta1.PCIDevice
+	var possiblePCIDeviceRequirement []pciDeviceWithOwners
 	for _, v := range vmObj.Spec.Template.Spec.Domain.Devices.HostDevices {
 		// ui sends name to be same as the pcidevice claim name, which in turn matches pcidevice
 		// lookup is needed to query iommu group for said device
@@ -94,13 +100,28 @@ func (vm *vmPCIMutator) generatePatch(vmObj *kubevirtv1.VirtualMachine) (types.P
 			}
 			return nil, fmt.Errorf("error looking up pcidevice %s from cache: %v", v.Name, err)
 		}
+
+		pciDeviceClaimObj, err := vm.pciClaimCache.Get(v.Name)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return nil, nil
+			}
+			return nil, fmt.Errorf("error looking up pcidevice %s from cache: %v", v.Name, err)
+		}
+
 		pciDevices, err := vm.deviceCache.GetByIndex(IommuGroupByNode, fmt.Sprintf("%s-%s", pciDeviceObj.Status.NodeName, pciDeviceObj.Status.IOMMUGroup))
 		if err != nil {
 			logrus.Errorf("error looking up pcidevices for vm %s: %v", v.Name, err)
 			return nil, fmt.Errorf("error lookup up pcidevices: %v", err)
 		}
 		pciDevicesInVM = append(pciDevicesInVM, v.Name)
-		possiblePCIDeviceRequirement = append(possiblePCIDeviceRequirement, pciDevices...)
+		for _, v := range pciDevices {
+			possiblePCIDeviceRequirement = append(possiblePCIDeviceRequirement, pciDeviceWithOwners{
+				device: v,
+				owner:  pciDeviceClaimObj.Spec.UserName,
+			})
+		}
+
 	}
 
 	devicesNeeded := identifyAdditionalPCIDevices(pciDevicesInVM, possiblePCIDeviceRequirement)
@@ -109,7 +130,7 @@ func (vm *vmPCIMutator) generatePatch(vmObj *kubevirtv1.VirtualMachine) (types.P
 	}
 
 	for _, v := range devicesNeeded {
-		if err := vm.findAndCreateClaim(v); err != nil {
+		if err := vm.findAndCreateClaim(v.device, v.owner); err != nil {
 			return nil, fmt.Errorf("error during findAndCreateClaim: %v", err)
 		}
 	}
@@ -121,12 +142,12 @@ func (vm *vmPCIMutator) generatePatch(vmObj *kubevirtv1.VirtualMachine) (types.P
 }
 
 // generate patch for host devices in VM spec
-func generatePatchFromDevices(devicesNeeded []*devicesv1beta1.PCIDevice) (types.PatchOps, error) {
+func generatePatchFromDevices(devicesNeeded []pciDeviceWithOwners) (types.PatchOps, error) {
 	var patchOps types.PatchOps
 	for _, dev := range devicesNeeded {
-		devPatch, err := generateDevicePatch(dev)
+		devPatch, err := generateDevicePatch(dev.device)
 		if err != nil {
-			return nil, fmt.Errorf("error generating patch for device %s: %v", dev.Name, err)
+			return nil, fmt.Errorf("error generating patch for device %s: %v", dev.device.Name, err)
 		}
 		patchOps = append(patchOps, devPatch...)
 	}
@@ -149,11 +170,11 @@ func generateDevicePatch(dev *devicesv1beta1.PCIDevice) (types.PatchOps, error) 
 	return patchOps, nil
 }
 
-func identifyAdditionalPCIDevices(pciDevicesInVM []string, possiblePCIDeviceRequirement []*devicesv1beta1.PCIDevice) []*devicesv1beta1.PCIDevice {
-	var additionalDevicesNeeded []*devicesv1beta1.PCIDevice
+func identifyAdditionalPCIDevices(pciDevicesInVM []string, possiblePCIDeviceRequirement []pciDeviceWithOwners) []pciDeviceWithOwners {
+	var additionalDevicesNeeded []pciDeviceWithOwners
 	for _, currentDevice := range pciDevicesInVM {
 		for _, additionalDev := range possiblePCIDeviceRequirement {
-			if currentDevice == additionalDev.Name {
+			if currentDevice == additionalDev.device.Name {
 				continue
 			}
 			additionalDevicesNeeded = append(additionalDevicesNeeded, additionalDev)
@@ -162,11 +183,11 @@ func identifyAdditionalPCIDevices(pciDevicesInVM []string, possiblePCIDeviceRequ
 	return additionalDevicesNeeded
 }
 
-func (vm *vmPCIMutator) findAndCreateClaim(dev *devicesv1beta1.PCIDevice) error {
+func (vm *vmPCIMutator) findAndCreateClaim(dev *devicesv1beta1.PCIDevice, owner string) error {
 	_, err := vm.pciClaimCache.Get(dev.Name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			newClaim := generatePCIDeviceClaim(dev)
+			newClaim := generatePCIDeviceClaim(dev, owner)
 			_, createErr := vm.pciClaimClient.Create(newClaim)
 			return createErr
 		} else {
@@ -178,7 +199,7 @@ func (vm *vmPCIMutator) findAndCreateClaim(dev *devicesv1beta1.PCIDevice) error 
 	return nil
 }
 
-func generatePCIDeviceClaim(dev *devicesv1beta1.PCIDevice) *devicesv1beta1.PCIDeviceClaim {
+func generatePCIDeviceClaim(dev *devicesv1beta1.PCIDevice, owner string) *devicesv1beta1.PCIDeviceClaim {
 	return &devicesv1beta1.PCIDeviceClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: dev.Name,
@@ -194,7 +215,7 @@ func generatePCIDeviceClaim(dev *devicesv1beta1.PCIDevice) *devicesv1beta1.PCIDe
 		Spec: devicesv1beta1.PCIDeviceClaimSpec{
 			NodeName: dev.Status.NodeName,
 			Address:  dev.Status.Address,
-			UserName: defaultWebhookUserName,
+			UserName: owner,
 		},
 	}
 }

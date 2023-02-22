@@ -30,6 +30,17 @@ var (
 		},
 	}
 
+	node1dev1Claim = &devicesv1beta1.PCIDeviceClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "node1dev1",
+		},
+		Spec: devicesv1beta1.PCIDeviceClaimSpec{
+			UserName: "admin",
+			NodeName: "node1",
+			Address:  "0000:04:10.0",
+		},
+	}
+
 	node1dev2 = &devicesv1beta1.PCIDevice{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "node1dev2",
@@ -171,7 +182,7 @@ var (
 
 func Test_VMWithNoDevices(t *testing.T) {
 	assert := require.New(t)
-	fakeClient := fake.NewSimpleClientset(node1dev1, node1dev2, node1dev3, node2dev1)
+	fakeClient := fake.NewSimpleClientset(node1dev1, node1dev2, node1dev3, node2dev1, node1dev1Claim)
 	pciDeviceCache := fakeclients.PCIDevicesCache(fakeClient.DevicesV1beta1().PCIDevices)
 	pciClaimClient := fakeclients.PCIDeviceClaimsClient(fakeClient.DevicesV1beta1().PCIDeviceClaims)
 	pciClaimCache := fakeclients.PCIDeviceClaimsCache(fakeClient.DevicesV1beta1().PCIDeviceClaims)
@@ -189,7 +200,7 @@ func Test_VMWithNoDevices(t *testing.T) {
 
 func Test_VMWithoutIommuDevices(t *testing.T) {
 	assert := require.New(t)
-	fakeClient := fake.NewSimpleClientset(node1dev1, node1dev2, node1dev3, node2dev1)
+	fakeClient := fake.NewSimpleClientset(node1dev1, node1dev2, node1dev3, node2dev1, node1dev1Claim)
 	pciDeviceCache := fakeclients.PCIDevicesCache(fakeClient.DevicesV1beta1().PCIDevices)
 	pciClaimClient := fakeclients.PCIDeviceClaimsClient(fakeClient.DevicesV1beta1().PCIDeviceClaims)
 	pciClaimCache := fakeclients.PCIDeviceClaimsCache(fakeClient.DevicesV1beta1().PCIDeviceClaims)
@@ -207,7 +218,7 @@ func Test_VMWithoutIommuDevices(t *testing.T) {
 
 func Test_VMWithIommuDevices(t *testing.T) {
 	assert := require.New(t)
-	fakeClient := fake.NewSimpleClientset(node1dev1, node1dev2, node1dev3, node2dev1)
+	fakeClient := fake.NewSimpleClientset(node1dev1, node1dev2, node1dev3, node2dev1, node1dev1Claim)
 	pciDeviceCache := fakeclients.PCIDevicesCache(fakeClient.DevicesV1beta1().PCIDevices)
 	pciClaimClient := fakeclients.PCIDeviceClaimsClient(fakeClient.DevicesV1beta1().PCIDeviceClaims)
 	pciClaimCache := fakeclients.PCIDeviceClaimsCache(fakeClient.DevicesV1beta1().PCIDeviceClaims)
@@ -221,11 +232,14 @@ func Test_VMWithIommuDevices(t *testing.T) {
 	patchOps, err := vmPCIMutator.generatePatch(vmWithIommuDevice)
 	assert.NoError(err, "expect no error while creation of patch")
 	assert.Len(patchOps, 1, "expected patch operation to be generated")
+	newPCIDeviceClaimObj, err := vmPCIMutator.pciClaimCache.Get(node1dev2.Name)
+	assert.NoError(err, "expect no error while looking up claim for node1dev2")
+	assert.Equal(node1dev1Claim.Spec.UserName, newPCIDeviceClaimObj.Spec.UserName, "expected username to be copied")
 }
 
 func Test_VMWithoutValidDeviceName(t *testing.T) {
 	assert := require.New(t)
-	fakeClient := fake.NewSimpleClientset(node1dev1, node1dev2, node1dev3, node2dev1)
+	fakeClient := fake.NewSimpleClientset(node1dev1, node1dev2, node1dev3, node2dev1, node1dev1Claim)
 	pciDeviceCache := fakeclients.PCIDevicesCache(fakeClient.DevicesV1beta1().PCIDevices)
 	pciClaimClient := fakeclients.PCIDeviceClaimsClient(fakeClient.DevicesV1beta1().PCIDeviceClaims)
 	pciClaimCache := fakeclients.PCIDeviceClaimsCache(fakeClient.DevicesV1beta1().PCIDeviceClaims)
