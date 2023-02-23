@@ -7,23 +7,29 @@ import (
 
 	harvesternetworkv1beta1 "github.com/harvester/harvester-network-controller/pkg/apis/network.harvesterhci.io/v1beta1"
 	ctlnetwork "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io"
+	"github.com/rancher/lasso/pkg/cache"
+	"github.com/rancher/lasso/pkg/client"
 	"github.com/rancher/lasso/pkg/controller"
+	"github.com/rancher/wrangler/pkg/generated/controllers/core"
 	ctlcore "github.com/rancher/wrangler/pkg/generated/controllers/core"
 	"github.com/rancher/wrangler/pkg/generic"
 	"github.com/rancher/wrangler/pkg/kubeconfig"
+	"github.com/rancher/wrangler/pkg/leader"
 	"github.com/rancher/wrangler/pkg/schemes"
 	"github.com/rancher/wrangler/pkg/signals"
-	"github.com/rancher/wrangler/pkg/start"
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 	"golang.org/x/sync/errgroup"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/workqueue"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/controller/nodecleanup"
 	"github.com/harvester/pcidevices/pkg/controller/pcidevice"
 	"github.com/harvester/pcidevices/pkg/controller/pcideviceclaim"
 	"github.com/harvester/pcidevices/pkg/crd"
@@ -32,7 +38,7 @@ import (
 )
 
 const (
-	VERSION        = "v0.0.3"
+	VERSION        = "v0.1.0"
 	controllerName = "pcidevices-controller"
 )
 
@@ -96,20 +102,31 @@ func run(kubeConfig string) error {
 	}
 
 	// Register scheme with the shared factory controller
-	factory, err := controller.NewSharedControllerFactoryFromConfig(cfg, Scheme)
+	sharedFactory, err := controller.NewSharedControllerFactoryFromConfig(cfg, Scheme)
 	if err != nil {
 		return err
 	}
 	opts := &generic.FactoryOptions{
-		SharedControllerFactory: factory,
+		SharedControllerFactory: sharedFactory,
 	}
-	pdfactory, err := ctl.NewFactoryFromConfigWithOptions(cfg, opts)
+	factory, err := ctl.NewFactoryFromConfigWithOptions(cfg, opts)
 	if err != nil {
 		return fmt.Errorf("error building pcidevice controllers: %s", err.Error())
 	}
-	pdcfactory, err := ctl.NewFactoryFromConfigWithOptions(cfg, opts)
+
+	workqueue.DefaultControllerRateLimiter()
+	clientFactory, err := client.NewSharedClientFactory(cfg, nil)
 	if err != nil {
-		return fmt.Errorf("error building pcideviceclaim controllers: %s", err.Error())
+		return err
+	}
+
+	cacheFactory := cache.NewSharedCachedFactory(clientFactory, nil)
+	scf := controller.NewSharedControllerFactory(cacheFactory, &controller.SharedControllerFactoryOptions{})
+	corecontrollers, err := core.NewFactoryFromConfigWithOptions(cfg, &core.FactoryOptions{
+		SharedControllerFactory: scf,
+	})
+	if err != nil {
+		return err
 	}
 	coreFactory, err := ctlcore.NewFactoryFromConfigWithOptions(cfg, opts)
 	if err != nil {
@@ -120,22 +137,27 @@ func run(kubeConfig string) error {
 	if err != nil {
 		return fmt.Errorf("error building network controllers: %v", err)
 	}
-	pdCtl := pdfactory.Devices().V1beta1().PCIDevice()
-	pdcCtl := pdcfactory.Devices().V1beta1().PCIDeviceClaim()
+	pdCtl := factory.Devices().V1beta1().PCIDevice()
+	pdcCtl := factory.Devices().V1beta1().PCIDeviceClaim()
+	nodeCtl := corecontrollers.Core().V1().Node()
+	nodeName := os.Getenv("NODE_NAME")
 	registerControllers := func(ctx context.Context) {
-		if err = pcideviceclaim.Register(ctx, pdcCtl, pdCtl); err != nil {
+		if err = pcideviceclaim.Register(ctx, pdcCtl, pdCtl, nodeName); err != nil {
 			logrus.Fatalf("failed to register PCI Device Claims Controller")
 		}
-	}
 
-	startAllControllers := func(ctx context.Context) {
-		if err := start.All(ctx, 2, pdfactory, pdcfactory); err != nil {
-			logrus.Fatalf("Error starting: %s", err.Error())
+		clientSet, err := kubernetes.NewForConfig(cfg)
+		if err != nil {
+			logrus.Fatalf("failed to make new client: %s", err)
 		}
+		go leader.RunOrDie(ctx, "harvester-system", "pcidevices-node-cleanup", clientSet, func(cb context.Context) {
+			if err := nodecleanup.Register(ctx, nodeName, pdcCtl, pdCtl, nodeCtl); err != nil {
+				logrus.Fatalf("failed to register Node Cleanup Controller")
+			}
+		})
 	}
 
 	registerControllers(ctx)
-	startAllControllers(ctx)
 
 	eg, egctx := errgroup.WithContext(ctx)
 	w := webhook.New(egctx, cfg)
