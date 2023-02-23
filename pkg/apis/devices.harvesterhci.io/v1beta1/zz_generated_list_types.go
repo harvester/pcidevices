@@ -26,6 +26,23 @@ import (
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
+// NodeList is a list of Node resources
+type NodeList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+
+	Items []Node `json:"items"`
+}
+
+func NewNode(namespace, name string, obj Node) *Node {
+	obj.APIVersion, obj.Kind = SchemeGroupVersion.WithKind("Node").ToAPIVersionAndKind()
+	obj.Name = name
+	obj.Namespace = namespace
+	return &obj
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
 // PCIDeviceList is a list of PCIDevice resources
 type PCIDeviceList struct {
 	metav1.TypeMeta `json:",inline"`
@@ -53,6 +70,23 @@ type PCIDeviceClaimList struct {
 
 func NewPCIDeviceClaim(namespace, name string, obj PCIDeviceClaim) *PCIDeviceClaim {
 	obj.APIVersion, obj.Kind = SchemeGroupVersion.WithKind("PCIDeviceClaim").ToAPIVersionAndKind()
+	obj.Name = name
+	obj.Namespace = namespace
+	return &obj
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// SRIOVNetworkDeviceList is a list of SRIOVNetworkDevice resources
+type SRIOVNetworkDeviceList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+
+	Items []SRIOVNetworkDevice `json:"items"`
+}
+
+func NewSRIOVNetworkDevice(namespace, name string, obj SRIOVNetworkDevice) *SRIOVNetworkDevice {
+	obj.APIVersion, obj.Kind = SchemeGroupVersion.WithKind("SRIOVNetworkDevice").ToAPIVersionAndKind()
 	obj.Name = name
 	obj.Namespace = namespace
 	return &obj

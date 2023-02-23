@@ -30,8 +30,10 @@ func init() {
 }
 
 type Interface interface {
+	Node() NodeController
 	PCIDevice() PCIDeviceController
 	PCIDeviceClaim() PCIDeviceClaimController
+	SRIOVNetworkDevice() SRIOVNetworkDeviceController
 }
 
 func New(controllerFactory controller.SharedControllerFactory) Interface {
@@ -44,9 +46,15 @@ type version struct {
 	controllerFactory controller.SharedControllerFactory
 }
 
+func (c *version) Node() NodeController {
+	return NewNodeController(schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "Node"}, "nodes", false, c.controllerFactory)
+}
 func (c *version) PCIDevice() PCIDeviceController {
 	return NewPCIDeviceController(schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "PCIDevice"}, "pcidevices", false, c.controllerFactory)
 }
 func (c *version) PCIDeviceClaim() PCIDeviceClaimController {
 	return NewPCIDeviceClaimController(schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "PCIDeviceClaim"}, "pcideviceclaims", false, c.controllerFactory)
+}
+func (c *version) SRIOVNetworkDevice() SRIOVNetworkDeviceController {
+	return NewSRIOVNetworkDeviceController(schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "SRIOVNetworkDevice"}, "sriovnetworkdevices", false, c.controllerFactory)
 }

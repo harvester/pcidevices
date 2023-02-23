@@ -132,8 +132,8 @@ func (status *PCIDeviceStatus) Update(dev *pci.Device, hostname string, iommuGro
 type PCIDeviceSpec struct {
 }
 
-func PCIDeviceNameForHostname(dev *pci.Device, hostname string) string {
-	addrDNSsafe := strings.ReplaceAll(strings.ReplaceAll(dev.Address, ":", ""), ".", "")
+func PCIDeviceNameForHostname(address string, hostname string) string {
+	addrDNSsafe := strings.ReplaceAll(strings.ReplaceAll(address, ":", ""), ".", "")
 	return fmt.Sprintf(
 		"%s-%s",
 		hostname,
@@ -142,7 +142,7 @@ func PCIDeviceNameForHostname(dev *pci.Device, hostname string) string {
 }
 
 func NewPCIDeviceForHostname(dev *pci.Device, hostname string) PCIDevice {
-	name := PCIDeviceNameForHostname(dev, hostname)
+	name := PCIDeviceNameForHostname(dev.Address, hostname)
 	pciDevice := PCIDevice{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,

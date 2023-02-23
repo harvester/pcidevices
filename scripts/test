@@ -4,5 +4,7 @@ set -e
 cd $(dirname $0)/..
 
 echo Running tests
-go test ./pkg/... -cover -tags=test
+export GHW_DISABLE_WARNINGS=true
+umockdev-run -d ./tests/snapshots/all.umockdev -- go test ./pkg/... -cover -tags=test
+
 go test -v ./tests/integration

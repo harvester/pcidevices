@@ -95,6 +95,19 @@ func List() []crd.CRD {
 				WithColumn("Kernel Driver Το Unbind", ".status.kernelDriverToUnbind").
 				WithColumn("Passthrough Enabled", ".status.passthroughEnabled")
 		}),
+		newCRD(&devices.SRIOVNetworkDevice{}, func(c crd.CRD) crd.CRD {
+			c.NonNamespace = true
+			return c.
+				WithColumn("Address", ".spec.address").
+				WithColumn("Node Name", ".spec.nodeName").
+				WithColumn("NumVFs", ".spec.numVFs").
+				WithColumn("VF Addresses", ".status.vfAddresses")
+		}),
+		newCRD(&devices.Node{}, func(c crd.CRD) crd.CRD {
+			c.NonNamespace = true
+			c.Status = false
+			return c
+		}),
 	}
 }
 

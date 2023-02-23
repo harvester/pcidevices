@@ -5,31 +5,19 @@ import (
 	"os"
 
 	harvesternetworkv1beta1 "github.com/harvester/harvester-network-controller/pkg/apis/network.harvesterhci.io/v1beta1"
-	ctlnetwork "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io"
-	"github.com/rancher/lasso/pkg/controller"
-	ctlcore "github.com/rancher/wrangler/pkg/generated/controllers/core"
-	"github.com/rancher/wrangler/pkg/generic"
 	"github.com/rancher/wrangler/pkg/kubeconfig"
 	"github.com/rancher/wrangler/pkg/schemes"
 	"github.com/rancher/wrangler/pkg/signals"
-	"github.com/rancher/wrangler/pkg/start"
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
-	"golang.org/x/sync/errgroup"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/util/workqueue"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
-	"github.com/harvester/pcidevices/pkg/controller/nodecleanup"
-	"github.com/harvester/pcidevices/pkg/controller/pcidevice"
-	"github.com/harvester/pcidevices/pkg/controller/pcideviceclaim"
-	"github.com/harvester/pcidevices/pkg/crd"
-	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
-	"github.com/harvester/pcidevices/pkg/webhook"
+	"github.com/harvester/pcidevices/pkg/controller"
 )
 
 const (
@@ -90,67 +78,5 @@ func run(kubeConfig string) error {
 		return fmt.Errorf("failed to find kubeconfig: %v", err)
 	}
 
-	// Create CRDs
-	err = crd.Create(ctx, cfg)
-	if err != nil {
-		return err
-	}
-
-	// Register scheme with the shared factory controller
-	sharedFactory, err := controller.NewSharedControllerFactoryFromConfig(cfg, Scheme)
-	if err != nil {
-		return err
-	}
-	opts := &generic.FactoryOptions{
-		SharedControllerFactory: sharedFactory,
-	}
-	pciFactory, err := ctl.NewFactoryFromConfigWithOptions(cfg, opts)
-	if err != nil {
-		return fmt.Errorf("error building pcidevice controllers: %s", err.Error())
-	}
-
-	workqueue.DefaultControllerRateLimiter()
-
-	coreFactory, err := ctlcore.NewFactoryFromConfigWithOptions(cfg, opts)
-	if err != nil {
-		return fmt.Errorf("error building core controllers: %v", err)
-	}
-
-	networkFactory, err := ctlnetwork.NewFactoryFromConfigWithOptions(cfg, opts)
-	if err != nil {
-		return fmt.Errorf("error building network controllers: %v", err)
-	}
-	pdCtl := pciFactory.Devices().V1beta1().PCIDevice()
-	pdcCtl := pciFactory.Devices().V1beta1().PCIDeviceClaim()
-	nodeCtl := coreFactory.Core().V1().Node()
-	nodeName := os.Getenv("NODE_NAME")
-
-	if err := pcideviceclaim.Register(ctx, pdcCtl, pdCtl, nodeName); err != nil {
-		return fmt.Errorf("error registering pcidevicesclaim controller: %v", err)
-	}
-
-	if err := nodecleanup.Register(ctx, pdcCtl, pdCtl, nodeCtl); err != nil {
-		logrus.Fatalf("failed to register node cleanup controller: %v", err)
-	}
-
-	eg, egctx := errgroup.WithContext(ctx)
-	w := webhook.New(egctx, cfg)
-
-	eg.Go(func() error {
-		err := w.ListenAndServe()
-		if err != nil {
-			logrus.Errorf("Error starting webook: %v", err)
-		}
-		return err
-	})
-
-	eg.Go(func() error {
-		return pcidevice.Register(egctx, pdCtl, coreFactory, networkFactory)
-	})
-
-	if err := start.All(ctx, 2, coreFactory, networkFactory, pciFactory); err != nil {
-		return fmt.Errorf("error starting factories: %v", err)
-	}
-
-	return eg.Wait()
+	return controller.Setup(ctx, cfg, Scheme)
 }

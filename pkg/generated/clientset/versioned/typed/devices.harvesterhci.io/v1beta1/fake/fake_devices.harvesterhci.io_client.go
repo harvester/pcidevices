@@ -28,12 +28,20 @@ type FakeDevicesV1beta1 struct {
 	*testing.Fake
 }
 
+func (c *FakeDevicesV1beta1) Nodes() v1beta1.NodeInterface {
+	return &FakeNodes{c}
+}
+
 func (c *FakeDevicesV1beta1) PCIDevices() v1beta1.PCIDeviceInterface {
 	return &FakePCIDevices{c}
 }
 
 func (c *FakeDevicesV1beta1) PCIDeviceClaims() v1beta1.PCIDeviceClaimInterface {
 	return &FakePCIDeviceClaims{c}
+}
+
+func (c *FakeDevicesV1beta1) SRIOVNetworkDevices() v1beta1.SRIOVNetworkDeviceInterface {
+	return &FakeSRIOVNetworkDevices{c}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

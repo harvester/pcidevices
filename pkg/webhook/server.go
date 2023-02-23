@@ -23,11 +23,13 @@ var (
 	port     = int32(8443)
 
 	mutationPath        = "/v1/webhook/mutation"
+	validationPath      = "/v1/webhook/validation"
 	failPolicyIgnore    = v1.Ignore
 	sideEffectClassNone = v1.SideEffectClassNone
 	namespace           = "harvester-system"
 	threadiness         = 5
 	MutatorName         = "pcidevices-mutator"
+	ValidatorName       = "pcidevices-validator"
 )
 
 // AdmissionWebhookServer serves the mutating webhook for pcidevices
@@ -58,9 +60,15 @@ func (s *AdmissionWebhookServer) ListenAndServe() error {
 		return err
 	}
 
+	validationHandler, validationResources, err := Validation(clients)
+	if err != nil {
+		return err
+	}
+
 	router := mux.NewRouter()
 	router.Handle(mutationPath, mutationHandler)
-	if err := s.listenAndServe(clients, router, mutationResources); err != nil {
+	router.Handle(validationPath, validationHandler)
+	if err := s.listenAndServe(clients, router, mutationResources, validationResources); err != nil {
 		return err
 	}
 
@@ -70,7 +78,7 @@ func (s *AdmissionWebhookServer) ListenAndServe() error {
 	return nil
 }
 
-func (s *AdmissionWebhookServer) listenAndServe(clients *Clients, handler http.Handler, mutationResources []types.Resource) error {
+func (s *AdmissionWebhookServer) listenAndServe(clients *Clients, handler http.Handler, mutationResources []types.Resource, validationResources []types.Resource) error {
 	apply := clients.Apply.WithDynamicLookup()
 	clients.Core.Secret().OnChange(s.context, "secrets", func(key string, secret *corev1.Secret) (*corev1.Secret, error) {
 		if secret == nil || secret.Name != caName || secret.Namespace != namespace || len(secret.Data[corev1.TLSCertKey]) == 0 {
@@ -79,6 +87,9 @@ func (s *AdmissionWebhookServer) listenAndServe(clients *Clients, handler http.H
 		logrus.Info("Sleeping for 15 seconds then applying webhook config")
 		// Sleep here to make sure server is listening and all caches are primed
 		time.Sleep(15 * time.Second)
+
+		logrus.Debugf("Building validation rules...")
+		validationRules := s.buildRules(validationResources)
 
 		logrus.Debugf("Building mutation rules...")
 		mutationRules := s.buildRules(mutationResources)
@@ -107,7 +118,30 @@ func (s *AdmissionWebhookServer) listenAndServe(clients *Clients, handler http.H
 			},
 		}
 
-		return secret, apply.WithOwner(secret).ApplyObjects(mutatingWebhookConfiguration)
+		validatingWebhookConfiguration := &v1.ValidatingWebhookConfiguration{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: ValidatorName,
+			},
+			Webhooks: []v1.ValidatingWebhook{
+				{
+					Name: "pcidevices.harvesterhci.io",
+					ClientConfig: v1.WebhookClientConfig{
+						Service: &v1.ServiceReference{
+							Namespace: namespace,
+							Name:      "pcidevices-webhook",
+							Path:      &validationPath,
+							Port:      &port,
+						},
+						CABundle: secret.Data[corev1.TLSCertKey],
+					},
+					Rules:                   validationRules,
+					FailurePolicy:           &failPolicyIgnore,
+					SideEffects:             &sideEffectClassNone,
+					AdmissionReviewVersions: []string{"v1", "v1beta1"},
+				},
+			},
+		}
+		return secret, apply.WithOwner(secret).ApplyObjects(mutatingWebhookConfiguration, validatingWebhookConfiguration)
 	})
 
 	tlsName := fmt.Sprintf("pcidevices-webhook.%s.svc", namespace)
