@@ -6,7 +6,7 @@ require (
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/fsnotify/fsnotify v1.5.4
 	github.com/gorilla/mux v1.8.0
-	github.com/harvester/harvester v0.0.2-0.20220916012220-3bcba9d3747f
+	github.com/harvester/harvester v1.1.2
 	github.com/harvester/harvester-network-controller v0.1.7
 	github.com/jaypipes/ghw v0.9.0
 	github.com/jaypipes/pcidb v1.0.0
@@ -20,6 +20,7 @@ require (
 	github.com/u-root/u-root v7.0.0+incompatible
 	github.com/urfave/cli/v2 v2.11.1
 	github.com/vishvananda/netlink v1.2.1-beta.2
+	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74
 	google.golang.org/grpc v1.48.0
 	k8s.io/api v0.25.4
 	k8s.io/apimachinery v0.25.4
@@ -27,29 +28,51 @@ require (
 	k8s.io/kube-aggregator v0.25.4
 	kubevirt.io/client-go v0.54.0
 	kubevirt.io/kubevirt v0.55.1
-	sigs.k8s.io/controller-runtime v0.12.3
+	sigs.k8s.io/controller-runtime v0.13.1
 )
 
 require (
+	emperror.dev/errors v0.8.0 // indirect
+	github.com/banzaicloud/logging-operator/pkg/sdk v0.8.16 // indirect
+	github.com/banzaicloud/operator-tools v0.28.10 // indirect
+	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/coreos/prometheus-operator v0.38.1-0.20200424145508-7e176fda06cc // indirect
-	github.com/go-kit/kit v0.9.0 // indirect
+	github.com/go-kit/kit v0.10.0 // indirect
 	github.com/go-logfmt/logfmt v0.5.0 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
+	github.com/gobuffalo/flect v0.2.5 // indirect
 	github.com/golang/glog v1.0.0 // indirect
+	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
+	github.com/iancoleman/orderedmap v0.2.0 // indirect
+	github.com/jinzhu/copier v0.3.5 // indirect
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v0.0.0-20200331171230-d50e42f2b669 // indirect
 	github.com/klauspost/compress v1.15.9 // indirect
 	github.com/klauspost/pgzip v1.2.4 // indirect
-	github.com/kr/pretty v0.3.0 // indirect
 	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.2.0 // indirect
+	github.com/kubernetes-csi/external-snapshotter/v2 v2.1.3 // indirect
+	github.com/longhorn/longhorn-manager v1.3.1 // indirect
 	github.com/openshift/api v0.0.0 // indirect
 	github.com/openshift/client-go v0.0.0 // indirect
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.62.0 // indirect
+	github.com/rancher/aks-operator v1.0.7 // indirect
+	github.com/rancher/eks-operator v1.1.5 // indirect
+	github.com/rancher/fleet/pkg/apis v0.0.0-20230123175930-d296259590be // indirect
+	github.com/rancher/gke-operator v1.1.4 // indirect
+	github.com/rancher/norman v0.0.0-20221205184727-32ef2e185b99 // indirect
+	github.com/rancher/rancher/pkg/apis v0.0.0 // indirect
+	github.com/rancher/rke v1.3.18 // indirect
+	github.com/rancher/system-upgrade-controller/pkg/apis v0.0.0-20210727200656-10b094e30007 // indirect
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
-	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
+	github.com/spf13/cast v1.5.0 // indirect
+	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/genproto v0.0.0-20220720214146-176da50484ac // indirect
 	howett.net/plist v1.0.0 // indirect
-	k8s.io/component-base v0.24.2 // indirect
+	k8s.io/apiserver v0.25.4 // indirect
+	k8s.io/component-base v0.25.4 // indirect
+	sigs.k8s.io/cli-utils v0.27.0 // indirect
+	sigs.k8s.io/cluster-api v1.2.0-beta.0 // indirect
 )
 
 require (
@@ -75,15 +98,15 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
-	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
+	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/openshift/custom-resource-status v1.1.2 // indirect
-	github.com/pborman/uuid v1.2.0 // indirect
+	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/prometheus/client_golang v1.12.1 // indirect
+	github.com/prometheus/client_golang v1.12.2 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.32.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
@@ -91,14 +114,14 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/ulikunitz/xz v0.5.8 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
-	go.uber.org/atomic v1.7.0 // indirect
+	go.uber.org/atomic v1.8.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
-	go.uber.org/zap v1.19.1 // indirect
+	go.uber.org/zap v1.21.0 // indirect
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
 	golang.org/x/net v0.7.0
 	golang.org/x/oauth2 v0.0.0-20220808172628-8227340efae7 // indirect
-	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
 	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/term v0.5.0 // indirect
 	golang.org/x/text v0.7.0 // indirect
@@ -116,7 +139,7 @@ require (
 	k8s.io/klog/v2 v2.80.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20220803164354-a70c9af30aea // indirect
 	k8s.io/kubernetes v1.25.1
-	k8s.io/utils v0.0.0-20221011040102-427025108f67 // indirect
+	k8s.io/utils v0.0.0-20221108210102-8e77b1f39fe2 // indirect
 	kubevirt.io/api v0.54.0
 	kubevirt.io/containerized-data-importer-api v1.50.0 // indirect
 	kubevirt.io/controller-lifecycle-operator-sdk/api v0.0.0-20220329064328-f3cc58c6ed90 // indirect
@@ -158,6 +181,7 @@ replace (
 	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.23.7
 	k8s.io/kubectl => k8s.io/kubectl v0.23.7
 	k8s.io/kubelet => k8s.io/kubelet v0.23.7
+	k8s.io/kubernetes => k8s.io/kubernetes v1.23.14
 	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.23.7
 	k8s.io/metrics => k8s.io/metrics v0.23.7
 	k8s.io/mount-utils => k8s.io/mount-utils v0.23.7

@@ -50,9 +50,9 @@ func Register(
 	ctx context.Context,
 	pdcClient v1beta1gen.PCIDeviceClaimController,
 	pdClient v1beta1gen.PCIDeviceController,
-	nodeName string,
 ) error {
 	logrus.Info("Registering PCI Device Claims controller")
+	nodeName := os.Getenv(v1beta1.NodeEnvVarName)
 	clientConfig := kubecli.DefaultClientConfig(&pflag.FlagSet{})
 	virtClient, err := kubecli.GetKubevirtClientFromClientConfig(clientConfig)
 	if err != nil {

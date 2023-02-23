@@ -28,13 +28,19 @@ import (
 
 type DevicesV1beta1Interface interface {
 	RESTClient() rest.Interface
+	NodesGetter
 	PCIDevicesGetter
 	PCIDeviceClaimsGetter
+	SRIOVNetworkDevicesGetter
 }
 
 // DevicesV1beta1Client is used to interact with features provided by the devices.harvesterhci.io group.
 type DevicesV1beta1Client struct {
 	restClient rest.Interface
+}
+
+func (c *DevicesV1beta1Client) Nodes() NodeInterface {
+	return newNodes(c)
 }
 
 func (c *DevicesV1beta1Client) PCIDevices() PCIDeviceInterface {
@@ -43,6 +49,10 @@ func (c *DevicesV1beta1Client) PCIDevices() PCIDeviceInterface {
 
 func (c *DevicesV1beta1Client) PCIDeviceClaims() PCIDeviceClaimInterface {
 	return newPCIDeviceClaims(c)
+}
+
+func (c *DevicesV1beta1Client) SRIOVNetworkDevices() SRIOVNetworkDeviceInterface {
+	return newSRIOVNetworkDevices(c)
 }
 
 // NewForConfig creates a new DevicesV1beta1Client for the given config.

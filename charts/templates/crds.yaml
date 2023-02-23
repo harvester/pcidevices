@@ -9,8 +9,6 @@ spec:
     kind: PCIDevice
     plural: pcidevices
     singular: pcidevice
-    shortnames:
-    - pd
   preserveUnknownFields: false
   scope: Cluster
   versions:
@@ -53,6 +51,9 @@ spec:
               deviceId:
                 nullable: true
                 type: string
+              iommuGroup:
+                nullable: true
+                type: string
               kernelDriverInUse:
                 nullable: true
                 type: string
@@ -83,8 +84,6 @@ spec:
     kind: PCIDeviceClaim
     plural: pcideviceclaims
     singular: pcideviceclaim
-    shortnames:
-    - pdc
   preserveUnknownFields: false
   scope: Cluster
   versions:
@@ -133,6 +132,96 @@ spec:
     storage: true
     subresources:
       status: {}
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: sriovnetworkdevices.devices.harvesterhci.io
+spec:
+  group: devices.harvesterhci.io
+  names:
+    kind: SRIOVNetworkDevice
+    plural: sriovnetworkdevices
+    singular: sriovnetworkdevice
+  preserveUnknownFields: false
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.address
+      name: Address
+      type: string
+    - jsonPath: .spec.nodeName
+      name: Node Name
+      type: string
+    - jsonPath: .spec.numVFs
+      name: NumVFs
+      type: string
+    - jsonPath: .status.vfAddresses
+      name: VF Addresses
+      type: string
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              address:
+                nullable: true
+                type: string
+              nodeName:
+                nullable: true
+                type: string
+              numVFs:
+                type: integer
+            type: object
+          status:
+            properties:
+              status:
+                nullable: true
+                type: string
+              vfAddresses:
+                items:
+                  nullable: true
+                  type: string
+                nullable: true
+                type: array
+              vfPCIDevices:
+                items:
+                  nullable: true
+                  type: string
+                nullable: true
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: nodes.devices.harvesterhci.io
+spec:
+  group: devices.harvesterhci.io
+  names:
+    kind: Node
+    plural: nodes
+    singular: node
+  preserveUnknownFields: false
+  scope: Cluster
+  versions:
+  - name: v1beta1
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            type: object
+        type: object
+    served: true
+    storage: true
 {{- else -}}
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
@@ -185,6 +274,9 @@ spec:
               nullable: true
               type: string
             deviceId:
+              nullable: true
+              type: string
+            iommuGroup:
               nullable: true
               type: string
             kernelDriverInUse:
@@ -260,6 +352,98 @@ spec:
               type: string
             passthroughEnabled:
               type: boolean
+          type: object
+      type: object
+  version: v1beta1
+  versions:
+  - name: v1beta1
+    served: true
+    storage: true
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: sriovnetworkdevices.devices.harvesterhci.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.address
+    name: Address
+    type: string
+  - JSONPath: .spec.nodeName
+    name: Node Name
+    type: string
+  - JSONPath: .spec.numVFs
+    name: NumVFs
+    type: string
+  - JSONPath: .status.vfAddresses
+    name: VF Addresses
+    type: string
+  group: devices.harvesterhci.io
+  names:
+    kind: SRIOVNetworkDevice
+    plural: sriovnetworkdevices
+    singular: sriovnetworkdevice
+  preserveUnknownFields: false
+  scope: Cluster
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            address:
+              nullable: true
+              type: string
+            nodeName:
+              nullable: true
+              type: string
+            numVFs:
+              type: integer
+          type: object
+        status:
+          properties:
+            status:
+              nullable: true
+              type: string
+            vfAddresses:
+              items:
+                nullable: true
+                type: string
+              nullable: true
+              type: array
+            vfPCIDevices:
+              items:
+                nullable: true
+                type: string
+              nullable: true
+              type: array
+          type: object
+      type: object
+  version: v1beta1
+  versions:
+  - name: v1beta1
+    served: true
+    storage: true
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: nodes.devices.harvesterhci.io
+spec:
+  group: devices.harvesterhci.io
+  names:
+    kind: Node
+    plural: nodes
+    singular: node
+  preserveUnknownFields: false
+  scope: Cluster
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
           type: object
       type: object
   version: v1beta1

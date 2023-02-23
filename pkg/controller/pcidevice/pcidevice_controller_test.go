@@ -27,12 +27,13 @@ func Test_reconcilePCIDevices(t *testing.T) {
 	assert.NoError(err, "expected no error during snapshot loading")
 
 	h := Handler{
-		client:        fakeclients.PCIDevicesClient(client.DevicesV1beta1().PCIDevices),
-		pci:           pci,
-		skipAddresses: []string{"0000:04:00.1"}, //address of eno5 interface in the snapshot
+		client:                  fakeclients.PCIDevicesClient(client.DevicesV1beta1().PCIDevices),
+		sriovNetworkDeviceCache: fakeclients.SriovDevicesCache(client.DevicesV1beta1().SRIOVNetworkDevices),
+		pci:                     pci,
+		skipAddresses:           []string{"0000:04:00.1"}, //address of eno5 interface in the snapshot
 	}
 
-	err = h.reconcilePCIDevices("TEST_NODE")
+	err = h.ReconcilePCIDevices("TEST_NODE")
 	assert.NoError(err, "expected no error during pcidevice reconcile")
 	// check if GPU device is created. Default Name is TEST_NODE-000008000
 	gpuDevice, err := client.DevicesV1beta1().PCIDevices().Get(context.TODO(), "TEST_NODE-000008000", metav1.GetOptions{})
@@ -50,6 +51,6 @@ func Test_identifyPCIBridgeAddresses(t *testing.T) {
 	}))
 	assert.NoError(err, "expected no error during snapshot loading")
 
-	devs := identifyPCIBridgeDevices(pci)
+	devs := IdentifyPCIBridgeDevices(pci)
 	assert.Len(devs, 26, "expected to find 26 devices from the snapshot")
 }

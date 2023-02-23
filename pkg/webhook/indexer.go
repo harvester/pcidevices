@@ -12,11 +12,13 @@ const (
 	VMByName                = "harvesterhci.io/vm-by-name"
 	PCIDeviceByResourceName = "harvesterhcio.io/pcidevice-by-resource-name"
 	IommuGroupByNode        = "pcidevice.harvesterhci.io/iommu-by-node"
+	VMByPCIDeviceClaim      = "harvesterhci.io/vm-by-pcideviceclaim"
 )
 
 func RegisterIndexers(clients *Clients) {
 	vmCache := clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()
 	vmCache.AddIndexer(VMByName, vmByName)
+	vmCache.AddIndexer(VMByPCIDeviceClaim, vmByPCIDeviceClaim)
 	deviceCache := clients.PCIFactory.Devices().V1beta1().PCIDevice().Cache()
 	deviceCache.AddIndexer(PCIDeviceByResourceName, pciDeviceByResourceName)
 	deviceCache.AddIndexer(IommuGroupByNode, iommuGroupByNodeName)
@@ -34,4 +36,13 @@ func pciDeviceByResourceName(obj *v1beta1.PCIDevice) ([]string, error) {
 // and can be used to easily query all pcidevices with the same nodename + iommu group combination
 func iommuGroupByNodeName(obj *v1beta1.PCIDevice) ([]string, error) {
 	return []string{fmt.Sprintf("%s-%s", obj.Status.NodeName, obj.Status.IOMMUGroup)}, nil
+}
+
+// vmByPCIDeviceClaim indexes VM's by device claim names.
+func vmByPCIDeviceClaim(obj *kubevirtv1.VirtualMachine) ([]string, error) {
+	pciDeviceClaimNames := make([]string, 0, len(obj.Spec.Template.Spec.Domain.Devices.HostDevices))
+	for _, hostDevice := range obj.Spec.Template.Spec.Domain.Devices.HostDevices {
+		pciDeviceClaimNames = append(pciDeviceClaimNames, hostDevice.Name)
+	}
+	return pciDeviceClaimNames, nil
 }

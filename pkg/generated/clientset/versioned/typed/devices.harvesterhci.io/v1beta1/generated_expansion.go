@@ -18,6 +18,10 @@ limitations under the License.
 
 package v1beta1
 
+type NodeExpansion interface{}
+
 type PCIDeviceExpansion interface{}
 
 type PCIDeviceClaimExpansion interface{}
+
+type SRIOVNetworkDeviceExpansion interface{}

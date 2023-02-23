@@ -1,10 +1,14 @@
 package nichelper
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/harvester/harvester-network-controller/pkg/apis/network.harvesterhci.io/v1beta1"
 	fakenetworkclient "github.com/harvester/harvester-network-controller/pkg/generated/clientset/versioned/fake"
+	"github.com/jaypipes/ghw"
+	"github.com/jaypipes/ghw/pkg/option"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -64,7 +68,18 @@ var (
 			},
 		},
 	}
+
+	mockPath string
 )
+
+func TestMain(m *testing.M) {
+	mockPath = os.Getenv("UMOCKDEV_DIR")
+	if mockPath != "" {
+		defaultDevicePath = filepath.Join(mockPath, defaultDevicePath)
+	}
+	exit := m.Run()
+	os.Exit(exit)
+}
 
 func Test_MatchAllNodes(t *testing.T) {
 	assert := require.New(t)
@@ -106,4 +121,42 @@ func Test_MatchSpecificNode(t *testing.T) {
 	nics, err := identifyClusterNetworks("node2", nodeCache, vlanConfigCache)
 	assert.NoError(err, "expected no error during call to identify cluster networks")
 	assert.Len(nics, 1, "expected to find one nic")
+}
+
+func Test_GenerateSriovNics(t *testing.T) {
+	nodeName := "fake"
+	assert := require.New(t)
+
+	nics, err := ghw.Network(&option.Option{
+		Chroot: &mockPath,
+	})
+
+	assert.NoError(err)
+
+	generatedObjs, err := generateSRIOVDeviceObjects(nodeName, nics, nil)
+	assert.NoError(err, "expected no error during generation of sriov device objects")
+	assert.Len(generatedObjs, 2, "expected to find 2 sriov devices")
+
+}
+
+func Test_ConfigureAndVerifyVF(t *testing.T) {
+	assert := require.New(t)
+	pfAddress := "0000:04:00.0"
+
+	err := ConfigureVF(pfAddress, 4)
+	assert.NoError(err, "expected no error during VF configuration")
+	count, err := CurrentVFConfigured(pfAddress)
+	assert.NoError(err, "expected no error during PF lookup")
+	assert.Equal(4, count, "expected to find 4")
+}
+
+func Test_IdentifyManagementNics(t *testing.T) {
+	assert := require.New(t)
+	err := os.Setenv("GHW_CHROOT", mockPath)
+	assert.NoError(err)
+	_, err = IdentifyManagementNics()
+	assert.NoError(err)
+	err = os.Unsetenv("GHW_CHROOT")
+	assert.NoError(err)
+
 }
