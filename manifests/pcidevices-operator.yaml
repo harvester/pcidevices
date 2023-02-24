@@ -31,6 +31,12 @@ rules:
   - apiGroups: ["kubevirt.io"]
     resources: ["kubevirts"]
     verbs: [ "get", "update" ]
+  - apiGroups: ["network.harvesterhci.io"]
+    resources: ["vlanconfigs"]
+    verbs: [ "get", "list", "watch" ]       
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: [ "get", "list", "watch", "create", "update" ]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -70,6 +76,8 @@ spec:
         - args:
             - agent
           env:
+            - name: GHW_DISABLE_WARNINGS
+              value: "1"
             - name: NODE_NAME
               valueFrom:
                 fieldRef:
