@@ -9,10 +9,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/controller/nodecleanup"
 	"github.com/harvester/pcidevices/pkg/crd"
+	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
 	"github.com/harvester/pcidevices/pkg/webhook"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rancher/lasso/pkg/controller"
+	"github.com/rancher/wrangler/pkg/generated/controllers/core"
+	"github.com/rancher/wrangler/pkg/generic"
+	"github.com/rancher/wrangler/pkg/start"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -92,6 +98,27 @@ var _ = BeforeSuite(func() {
 	err = w.ListenAndServe()
 	Expect(err).NotTo(HaveOccurred())
 
+	sharedFactory, err := controller.NewSharedControllerFactoryFromConfig(cfg, scheme)
+	Expect(err).NotTo(HaveOccurred())
+	opts := &generic.FactoryOptions{
+		SharedControllerFactory: sharedFactory,
+	}
+
+	factory, err := ctl.NewFactoryFromConfigWithOptions(cfg, opts)
+	Expect(err).NotTo(HaveOccurred())
+
+	coreFactory, err := core.NewFactoryFromConfigWithOptions(cfg, &core.FactoryOptions{
+		SharedControllerFactory: sharedFactory,
+	})
+
+	Expect(err).NotTo(HaveOccurred())
+	pdCtl := factory.Devices().V1beta1().PCIDevice()
+	pdcCtl := factory.Devices().V1beta1().PCIDeviceClaim()
+	nodeCtl := coreFactory.Core().V1().Node()
+
+	err = nodecleanup.Register(ctx, pdcCtl, pdCtl, nodeCtl)
+	Expect(err).NotTo(HaveOccurred())
+	start.All(ctx, 1, factory, coreFactory)
 	// wait before running tests
 	time.Sleep(30 * time.Second)
 })
