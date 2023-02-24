@@ -12,7 +12,6 @@ import (
 )
 
 type Handler struct {
-	nodeName   string
 	pdcClient  v1beta1.PCIDeviceClaimClient
 	pdClient   v1beta1.PCIDeviceClient
 	nodeClient corecontrollers.NodeController
@@ -29,7 +28,7 @@ func (h *Handler) OnRemove(_ string, node *v1.Node) (*v1.Node, error) {
 		return node, err
 	}
 	for _, pdc := range pdcs.Items {
-		if pdc.Spec.NodeName != h.nodeName {
+		if pdc.Spec.NodeName != node.Name {
 			continue
 		}
 		err = h.pdcClient.Delete(pdc.Name, &metav1.DeleteOptions{})
@@ -58,12 +57,10 @@ func (h *Handler) OnRemove(_ string, node *v1.Node) (*v1.Node, error) {
 
 func Register(
 	ctx context.Context,
-	nodeName string,
 	pdcClient v1beta1.PCIDeviceClaimController,
 	pdClient v1beta1.PCIDeviceController,
 	nodeClient corecontrollers.NodeController) error {
 	handler := &Handler{
-		nodeName:   nodeName,
 		pdcClient:  pdcClient,
 		pdClient:   pdClient,
 		nodeClient: nodeClient,

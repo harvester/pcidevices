@@ -151,7 +151,7 @@ func run(kubeConfig string) error {
 			logrus.Fatalf("failed to make new client: %s", err)
 		}
 		go leader.RunOrDie(ctx, "harvester-system", "pcidevices-node-cleanup", clientSet, func(cb context.Context) {
-			if err := nodecleanup.Register(ctx, nodeName, pdcCtl, pdCtl, nodeCtl); err != nil {
+			if err := nodecleanup.Register(ctx, pdcCtl, pdCtl, nodeCtl); err != nil {
 				logrus.Fatalf("failed to register Node Cleanup Controller")
 			}
 		})
