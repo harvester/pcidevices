@@ -11,7 +11,6 @@ import (
 	"github.com/jaypipes/ghw"
 	ctlcore "github.com/rancher/wrangler/pkg/generated/controllers/core"
 	ctlcorev1 "github.com/rancher/wrangler/pkg/generated/controllers/core/v1"
-	"github.com/rancher/wrangler/pkg/start"
 	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,8 +49,12 @@ func Register(
 
 	nodename := os.Getenv("NODE_NAME")
 
-	if err := start.All(ctx, 1, coreFactory, networkFactory); err != nil {
-		return fmt.Errorf("error starting factories in pcidevices controller:%v", err)
+	if err := coreFactory.Sync(ctx); err != nil {
+		return fmt.Errorf("error waiting for coreFactory to sync")
+	}
+
+	if err := networkFactory.Sync(ctx); err != nil {
+		return fmt.Errorf("error waiting for coreFactory to sync")
 	}
 
 	// start goroutine to regularly reconcile the PCI Devices list
