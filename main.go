@@ -1,28 +1,23 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 
 	harvesternetworkv1beta1 "github.com/harvester/harvester-network-controller/pkg/apis/network.harvesterhci.io/v1beta1"
 	ctlnetwork "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io"
-	"github.com/rancher/lasso/pkg/cache"
-	"github.com/rancher/lasso/pkg/client"
 	"github.com/rancher/lasso/pkg/controller"
-	"github.com/rancher/wrangler/pkg/generated/controllers/core"
 	ctlcore "github.com/rancher/wrangler/pkg/generated/controllers/core"
 	"github.com/rancher/wrangler/pkg/generic"
 	"github.com/rancher/wrangler/pkg/kubeconfig"
-	"github.com/rancher/wrangler/pkg/leader"
 	"github.com/rancher/wrangler/pkg/schemes"
 	"github.com/rancher/wrangler/pkg/signals"
+	"github.com/rancher/wrangler/pkg/start"
 	"github.com/sirupsen/logrus"
 	cli "github.com/urfave/cli/v2"
 	"golang.org/x/sync/errgroup"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/workqueue"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
@@ -109,25 +104,13 @@ func run(kubeConfig string) error {
 	opts := &generic.FactoryOptions{
 		SharedControllerFactory: sharedFactory,
 	}
-	factory, err := ctl.NewFactoryFromConfigWithOptions(cfg, opts)
+	pciFactory, err := ctl.NewFactoryFromConfigWithOptions(cfg, opts)
 	if err != nil {
 		return fmt.Errorf("error building pcidevice controllers: %s", err.Error())
 	}
 
 	workqueue.DefaultControllerRateLimiter()
-	clientFactory, err := client.NewSharedClientFactory(cfg, nil)
-	if err != nil {
-		return err
-	}
 
-	cacheFactory := cache.NewSharedCachedFactory(clientFactory, nil)
-	scf := controller.NewSharedControllerFactory(cacheFactory, &controller.SharedControllerFactoryOptions{})
-	corecontrollers, err := core.NewFactoryFromConfigWithOptions(cfg, &core.FactoryOptions{
-		SharedControllerFactory: scf,
-	})
-	if err != nil {
-		return err
-	}
 	coreFactory, err := ctlcore.NewFactoryFromConfigWithOptions(cfg, opts)
 	if err != nil {
 		return fmt.Errorf("error building core controllers: %v", err)
@@ -137,27 +120,18 @@ func run(kubeConfig string) error {
 	if err != nil {
 		return fmt.Errorf("error building network controllers: %v", err)
 	}
-	pdCtl := factory.Devices().V1beta1().PCIDevice()
-	pdcCtl := factory.Devices().V1beta1().PCIDeviceClaim()
-	nodeCtl := corecontrollers.Core().V1().Node()
+	pdCtl := pciFactory.Devices().V1beta1().PCIDevice()
+	pdcCtl := pciFactory.Devices().V1beta1().PCIDeviceClaim()
+	nodeCtl := coreFactory.Core().V1().Node()
 	nodeName := os.Getenv("NODE_NAME")
-	registerControllers := func(ctx context.Context) {
-		if err = pcideviceclaim.Register(ctx, pdcCtl, pdCtl, nodeName); err != nil {
-			logrus.Fatalf("failed to register PCI Device Claims Controller")
-		}
 
-		clientSet, err := kubernetes.NewForConfig(cfg)
-		if err != nil {
-			logrus.Fatalf("failed to make new client: %s", err)
-		}
-		go leader.RunOrDie(ctx, "harvester-system", "pcidevices-node-cleanup", clientSet, func(cb context.Context) {
-			if err := nodecleanup.Register(ctx, pdcCtl, pdCtl, nodeCtl); err != nil {
-				logrus.Fatalf("failed to register Node Cleanup Controller")
-			}
-		})
+	if err := pcideviceclaim.Register(ctx, pdcCtl, pdCtl, nodeName); err != nil {
+		return fmt.Errorf("error registering pcidevicesclaim controller: %v", err)
 	}
 
-	registerControllers(ctx)
+	if err := nodecleanup.Register(ctx, pdcCtl, pdCtl, nodeCtl); err != nil {
+		logrus.Fatalf("failed to register node cleanup controller: %v", err)
+	}
 
 	eg, egctx := errgroup.WithContext(ctx)
 	w := webhook.New(egctx, cfg)
@@ -173,6 +147,10 @@ func run(kubeConfig string) error {
 	eg.Go(func() error {
 		return pcidevice.Register(egctx, pdCtl, coreFactory, networkFactory)
 	})
+
+	if err := start.All(ctx, 2, coreFactory, networkFactory, pciFactory); err != nil {
+		return fmt.Errorf("error starting factories: %v", err)
+	}
 
 	return eg.Wait()
 }

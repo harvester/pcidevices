@@ -21,6 +21,7 @@ func (h *Handler) OnRemove(_ string, node *v1.Node) (*v1.Node, error) {
 	if node == nil || node.DeletionTimestamp == nil {
 		return node, nil
 	}
+	logrus.Debugf("cleaning pcidevices for node %s", node.Name)
 	// Delete all of that Node's PCIDeviceClaims
 	pdcs, err := h.pdcClient.List(metav1.ListOptions{})
 	if err != nil {
