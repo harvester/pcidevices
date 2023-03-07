@@ -42,6 +42,10 @@ type PCIDeviceStatus struct {
 	KernelDriverInUse string `json:"kernelDriverInUse,omitempty"`
 }
 
+func (p *PCIDevice) String() string {
+	return fmt.Sprintf("PCIDevice{name: \"%s\", ...}", p.ObjectMeta.Name)
+}
+
 func description(dev *pci.Device) string {
 	var vendorName string
 	if dev.Vendor.Name != util.UNKNOWN {

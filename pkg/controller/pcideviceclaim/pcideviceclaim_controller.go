@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/u-root/u-root/pkg/kmodule"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	"kubevirt.io/client-go/kubecli"
@@ -21,6 +23,7 @@ import (
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/deviceplugins"
 	v1beta1gen "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/iommu"
 )
 
 const pdcFinalizer = "harvesterhci.io/pcidevicecleanup"
@@ -38,10 +41,13 @@ type Controller struct {
 
 type Handler struct {
 	pdcClient     v1beta1gen.PCIDeviceClaimClient
+	pdcCache      v1beta1gen.PCIDeviceClaimCache
 	pdClient      v1beta1gen.PCIDeviceClient
+	pdCache       v1beta1gen.PCIDeviceCache
 	virtClient    kubecli.KubevirtClient
 	nodeName      string
 	devicePlugins map[string]*deviceplugins.PCIDevicePlugin
+	iommuGroupMap map[string]int
 }
 
 func Register(
@@ -60,7 +66,9 @@ func Register(
 
 	handler := &Handler{
 		pdcClient:     pdcClient,
+		pdcCache:      pdcClient.Cache(),
 		pdClient:      pdClient,
+		pdCache:       pdClient.Cache(),
 		nodeName:      nodeName,
 		virtClient:    virtClient,
 		devicePlugins: make(map[string]*deviceplugins.PCIDevicePlugin),
@@ -276,6 +284,34 @@ func (h *Handler) reconcilePCIDeviceClaims(name string, pdc *v1beta1.PCIDeviceCl
 		dp.AddDevice(pd, pdc)
 	}
 
+	// Update IOMMU Map
+	iommuGroupPaths, err := iommu.GroupPaths()
+	if err != nil {
+		return nil, err
+	}
+	h.iommuGroupMap = iommu.GroupMapForPCIDevices(iommuGroupPaths)
+	selector := labels.SelectorFromSet(
+		labels.Set(map[string]string{"nodename": pd.Labels["nodename"]}),
+	)
+	// Get all PDs on the node to further filter down to IOMMU group
+	pds, err := h.pdCache.List(selector)
+	if err != nil {
+		return pdc, err
+	}
+	for _, sibling := range getIommuSiblings(pd, pds, h.iommuGroupMap) {
+		if sibling.Name == pdc.Name {
+			continue
+		}
+		// Check if sibling is currently claimed, if not, then create it
+		_, err := h.pdcCache.Get(sibling.Name)
+		if err == nil {
+			pdcSibling, err := h.pdcClient.Create(&v1beta1.PCIDeviceClaim{})
+			if err != nil {
+				logrus.Fatalf("error creating IOMMU Sibling PDC: %s", pdcSibling.Name)
+			}
+		}
+	}
+
 	if !pdcCopy.Status.PassthroughEnabled {
 		pdcCopy.Status.PassthroughEnabled = true
 		pdcCopy.Status.KernelDriverToUnbind = pd.Status.KernelDriverInUse
@@ -479,4 +515,27 @@ func (h *Handler) bindDeviceToOriginalDriver(pd *v1beta1.PCIDevice) error {
 	pdCopy.Status.KernelDriverInUse = orgDriver
 	_, err = h.pdClient.UpdateStatus(pdCopy)
 	return err
+}
+
+// IOMMU Groups need to be kept together when assigning to a VM. This function
+// takes a device name and then finds all the other devices on that node that
+// are "siblings" of the group, or they have the same IOMMU group.
+func getIommuSiblings(
+	pd *v1beta1.PCIDevice,
+	pds []*v1beta1.PCIDevice,
+	iommuGroupMap map[string]int,
+) []*v1beta1.PCIDevice {
+	siblings := make([]*v1beta1.PCIDevice, 0)
+
+	for _, pdOther := range pds {
+		iommuGroup, err := strconv.Atoi(pd.Status.IOMMUGroup)
+		if err != nil {
+			logrus.Errorf("error getting converting iommu group to integer: %s", err)
+		}
+		if iommuGroup == iommuGroupMap[pdOther.Status.Address] {
+			siblings = append(siblings, pdOther)
+		}
+	}
+
+	return siblings
 }
