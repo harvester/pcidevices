@@ -13,18 +13,18 @@ require (
 	github.com/onsi/ginkgo/v2 v2.1.6
 	github.com/onsi/gomega v1.20.1
 	github.com/rancher/dynamiclistener v0.3.5
-	github.com/rancher/lasso v0.0.0-20220628160937-749b3397db38
-	github.com/rancher/wrangler v1.0.2
+	github.com/rancher/lasso v0.0.0-20221227210133-6ea88ca2fbcc
+	github.com/rancher/wrangler v1.1.0
 	github.com/sirupsen/logrus v1.9.0
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	github.com/u-root/u-root v7.0.0+incompatible
 	github.com/urfave/cli/v2 v2.11.1
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	google.golang.org/grpc v1.48.0
-	k8s.io/api v0.24.7
-	k8s.io/apimachinery v0.24.7
+	k8s.io/api v0.25.4
+	k8s.io/apimachinery v0.25.4
 	k8s.io/client-go v12.0.0+incompatible
-	k8s.io/kube-aggregator v0.24.0
+	k8s.io/kube-aggregator v0.25.4
 	kubevirt.io/client-go v0.54.0
 	kubevirt.io/kubevirt v0.54.0
 	sigs.k8s.io/controller-runtime v0.12.3
@@ -109,8 +109,8 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiextensions-apiserver v0.24.3 // indirect
-	k8s.io/code-generator v0.24.3 // indirect
+	k8s.io/apiextensions-apiserver v0.25.4 // indirect
+	k8s.io/code-generator v0.25.4 // indirect
 	k8s.io/gengo v0.0.0-20220613173612-397b4ae3bce7 // indirect
 	k8s.io/klog v1.0.0 // indirect
 	k8s.io/klog/v2 v2.80.1 // indirect
