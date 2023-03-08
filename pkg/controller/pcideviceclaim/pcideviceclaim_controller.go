@@ -133,7 +133,7 @@ func loadVfioDrivers() {
 	}
 }
 
-func bindDeviceToVFIOPCIDriver(pd *v1beta1.PCIDevice) error {
+func setDeviceIdForVFIOPCIDriver(pd *v1beta1.PCIDevice) {
 	vendorId := pd.Status.VendorId
 	deviceId := pd.Status.DeviceId
 	var id string = fmt.Sprintf("%s %s", vendorId, deviceId)
@@ -142,11 +142,30 @@ func bindDeviceToVFIOPCIDriver(pd *v1beta1.PCIDevice) error {
 	file, err := os.OpenFile("/sys/bus/pci/drivers/vfio-pci/new_id", os.O_WRONLY, 0400)
 	if err != nil {
 		logrus.Errorf("Error opening new_id file: %s", err)
-		return err
+		return
 	}
 	_, err = file.WriteString(id)
 	if err != nil {
 		logrus.Errorf("Error writing to new_id file: %s", err)
+		file.Close()
+		return
+	}
+	file.Close()
+	return
+}
+
+func bindDeviceToVFIOPCIDriver(pd *v1beta1.PCIDevice) error {
+	addr := pd.Status.Address
+	logrus.Infof("Binding device [%s] to vfio-pci", pd.Name)
+
+	file, err := os.OpenFile("/sys/bus/pci/drivers/vfio-pci/bind", os.O_WRONLY, 0400)
+	if err != nil {
+		logrus.Errorf("Error opening new_id file: %s", err)
+		return err
+	}
+	_, err = file.WriteString(addr)
+	if err != nil {
+		logrus.Errorf("Error writing to vfio-pci/bind file: %s", err)
 		file.Close()
 		return err
 	}
@@ -155,9 +174,17 @@ func bindDeviceToVFIOPCIDriver(pd *v1beta1.PCIDevice) error {
 }
 
 // Enabling passthrough for a PCI Device requires two steps:
-// 1. Bind the device to the vfio-pci driver in the host
-// 2. Add device to DevicePlugin so KubeVirt will recognize it
+// 1. Unbind the device from it's existing driver
+// 2. Bind the device to the vfio-pci driver in the host
+// 3. Add device to DevicePlugin so KubeVirt will recognize it
 func (h Handler) enablePassthrough(pd *v1beta1.PCIDevice) error {
+	// Set the vendorId, deviceId as a new_id in the vfio-pci driver, only needs to be done once
+	setDeviceIdForVFIOPCIDriver(pd)
+
+	// Unbind from existing driver, if there is one
+	if len(pd.Status.KernelDriverInUse) > 0 {
+		unbindDeviceFromDriver(pd.Status.Address, pd.Status.KernelDriverInUse)
+	}
 	err := bindDeviceToVFIOPCIDriver(pd)
 	if err != nil {
 		return err
