@@ -26,7 +26,7 @@ require (
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/kube-aggregator v0.25.4
 	kubevirt.io/client-go v0.54.0
-	kubevirt.io/kubevirt v0.54.0
+	kubevirt.io/kubevirt v0.55.1
 	sigs.k8s.io/controller-runtime v0.12.3
 )
 

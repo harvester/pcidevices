@@ -1347,8 +1347,8 @@ kubevirt.io/containerized-data-importer-api v1.47.0 h1:fncmQ/2J8MVb3c2snNkUXlBQX
 kubevirt.io/containerized-data-importer-api v1.47.0/go.mod h1:yjD8pGZVMCeqcN46JPUQdZ2JwRVoRCOXrTVyNuFvrLo=
 kubevirt.io/controller-lifecycle-operator-sdk/api v0.0.0-20220329064328-f3cc58c6ed90 h1:QMrd0nKP0BGbnxTqakhDZAUhGKxPiPiN5gSDqKUmGGc=
 kubevirt.io/controller-lifecycle-operator-sdk/api v0.0.0-20220329064328-f3cc58c6ed90/go.mod h1:018lASpFYBsYN6XwmA2TIrPCx6e0gviTd/ZNtSitKgc=
-kubevirt.io/kubevirt v0.54.0 h1:BKs0j+/ep4xGWcis3uIQzRZbFXuTy8ttUsX/r9mFBIE=
-kubevirt.io/kubevirt v0.54.0/go.mod h1:5bTNJ+dZcfUiCV9QToT38sK6R5VW+oiTqb4YSwCVi0g=
+kubevirt.io/kubevirt v0.55.1 h1:9Ls8Z+gohnQ4fVAHycfhdU1sqsjcaFROjMUZJucOEh0=
+kubevirt.io/kubevirt v0.55.1/go.mod h1:qyX4+kdsnXkqmSMYM+e6cW+huKGpFFX6bXzVflH2uV4=
 rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8=
 rsc.io/quote/v3 v3.1.0/go.mod h1:yEA65RcK8LyAZtP9Kv3t0HmxON59tX3rD+tICJqUlj0=
 rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
