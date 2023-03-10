@@ -82,8 +82,13 @@ func Register(
 
 // When a PCIDeviceClaim is removed, we need to unbind the device from the vfio-pci driver
 func (h *Handler) OnRemove(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
-	if pdc == nil || pdc.DeletionTimestamp == nil || pdc.Spec.NodeName != h.nodeName {
+	if pdc == nil || pdc.DeletionTimestamp == nil {
 		return pdc, nil
+	}
+
+	// need to requeue object to ensure correct node picks up and cleanup/rebind is executed
+	if pdc.Spec.NodeName != h.nodeName {
+		return pdc, fmt.Errorf("requeue object to ensure its picked up by correct node")
 	}
 
 	// Get PCIDevice for the PCIDeviceClaim
@@ -134,20 +139,44 @@ func loadVfioDrivers() {
 }
 
 func bindDeviceToVFIOPCIDriver(pd *v1beta1.PCIDevice) error {
-	logrus.Infof("Binding device %s vfio-pci", pd.Status.Address)
+	if deviceBoundToDriver("/sys/bus/pci/drivers/vfio-pci", pd.Status.Address) {
+		return nil
+	}
 
+	vendorId := pd.Status.VendorId
+	deviceId := pd.Status.DeviceId
+	var id string = fmt.Sprintf("%s %s", vendorId, deviceId)
+	logrus.Infof("Binding device %s [%s] to vfio-pci", pd.Name, id)
+
+	newIdFile, err := os.OpenFile("/sys/bus/pci/drivers/vfio-pci/new_id", os.O_WRONLY, 0200)
+	if err != nil {
+		logrus.Errorf("Error opening new_id file")
+		return err
+	}
+	defer newIdFile.Close()
+	_, err = newIdFile.WriteString(id)
+	if err != nil && !os.IsExist(err) {
+		logrus.Errorf("Error writing to new_id file: %s", err)
+		return err
+	}
+
+	logrus.Infof("Binding device %s vfio-pci", pd.Status.Address)
 	file, err := os.OpenFile("/sys/bus/pci/drivers/vfio-pci/bind", os.O_WRONLY, 0200)
 	if err != nil {
-		logrus.Errorf("Error opening new_id file: %s", err)
+		logrus.Errorf("Error opening bind file: %s", err)
 		return err
 	}
 	_, err = file.WriteString(pd.Status.Address)
 	if err != nil {
-		logrus.Errorf("Error writing to new_id file: %s", err)
+		logrus.Errorf("Error writing to bind file: %s", err)
 		file.Close()
 		return err
 	}
 	file.Close()
+
+	if !deviceBoundToDriver("/sys/bus/pci/drivers/vfio-pci", pd.Status.Address) {
+		return fmt.Errorf("no device %s found at /sys/bus/pci/drivers/vfio-pci", pd.Status.Address)
+	}
 	return nil
 }
 
@@ -180,15 +209,8 @@ func (h *Handler) disablePassthrough(pd *v1beta1.PCIDevice) error {
 func unbindDeviceFromDriver(addr string, driver string) error {
 	driverPath := fmt.Sprintf("/sys/bus/pci/drivers/%s", driver)
 	// Check if device at addr is already bound to driver
-	_, err := os.Stat(fmt.Sprintf("%s/%s", driverPath, addr))
-	if err != nil {
-		if os.IsNotExist(err) {
-			// file not found, likely device has already been unbound
-			// ignore device
-			return nil
-		}
-		logrus.Errorf("Device at address %s is not bound to driver %s", addr, driver)
-		return err
+	if !deviceBoundToDriver(driverPath, addr) {
+		return nil
 	}
 	path := fmt.Sprintf("%s/unbind", driverPath)
 	file, err := os.OpenFile(path, os.O_WRONLY, 0200)
@@ -197,7 +219,14 @@ func unbindDeviceFromDriver(addr string, driver string) error {
 	}
 	defer file.Close()
 	_, err = file.WriteString(addr)
-	return err
+	if err != nil {
+		return err
+	}
+
+	if deviceBoundToDriver(driverPath, addr) {
+		return fmt.Errorf("device still bound to driver, will check again")
+	}
+	return nil
 }
 
 func pciDeviceIsClaimed(pd *v1beta1.PCIDevice, pdcs *v1beta1.PCIDeviceClaimList, nodeName string) bool {
@@ -388,6 +417,14 @@ func (h *Handler) attemptToEnablePassthrough(pd *v1beta1.PCIDevice, pdc *v1beta1
 				return err
 			}
 		}
+
+		originalDriver, ok := pd.Annotations[v1beta1.PciDeviceDriver]
+		if ok {
+			err := unbindDeviceFromDriver(pd.Status.Address, originalDriver)
+			if err != nil {
+				return err
+			}
+		}
 		// Enable PCI Passthrough by binding the device to the vfio-pci driver
 		err := h.enablePassthrough(pd)
 		if err != nil {
@@ -476,4 +513,12 @@ func (h *Handler) bindDeviceToOriginalDriver(pd *v1beta1.PCIDevice) error {
 	pdCopy.Status.KernelDriverInUse = orgDriver
 	_, err = h.pdClient.UpdateStatus(pdCopy)
 	return err
+}
+
+func deviceBoundToDriver(driverPath string, pciAddress string) bool {
+	_, err := os.Stat(fmt.Sprintf("%s/%s", driverPath, pciAddress))
+	if err != nil {
+		return false
+	}
+	return true
 }
