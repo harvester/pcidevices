@@ -58,6 +58,17 @@ var (
 		},
 	}
 
+	node1dev2Claim = &devicesv1beta1.PCIDeviceClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "node1dev2",
+		},
+		Spec: devicesv1beta1.PCIDeviceClaimSpec{
+			UserName: "admin",
+			NodeName: "node1",
+			Address:  "0000:04:10.1",
+		},
+	}
+
 	node1dev3 = &devicesv1beta1.PCIDevice{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "node1dev3",
@@ -106,6 +117,33 @@ var (
 								{
 									Name:       node1dev1.Name,
 									DeviceName: node1dev1.Status.ResourceName,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	vmWithAllIommuDevice = &kubevirtv1.VirtualMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "vm-with-iommu-devices",
+			Namespace: "default",
+		},
+		Spec: kubevirtv1.VirtualMachineSpec{
+			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Domain: kubevirtv1.DomainSpec{
+						Devices: kubevirtv1.Devices{
+							HostDevices: []kubevirtv1.HostDevice{
+								{
+									Name:       node1dev1.Name,
+									DeviceName: node1dev1.Status.ResourceName,
+								},
+								{
+									Name:       node1dev2.Name,
+									DeviceName: node1dev2.Status.ResourceName,
 								},
 							},
 						},
@@ -237,6 +275,23 @@ func Test_VMWithIommuDevices(t *testing.T) {
 	assert.Equal(node1dev1Claim.Spec.UserName, newPCIDeviceClaimObj.Spec.UserName, "expected username to be copied")
 }
 
+func Test_VMWithAllIommuDevices(t *testing.T) {
+	assert := require.New(t)
+	fakeClient := fake.NewSimpleClientset(node1dev1, node1dev2, node1dev3, node2dev1, node1dev1Claim, node1dev2Claim)
+	pciDeviceCache := fakeclients.PCIDevicesCache(fakeClient.DevicesV1beta1().PCIDevices)
+	pciClaimClient := fakeclients.PCIDeviceClaimsClient(fakeClient.DevicesV1beta1().PCIDeviceClaims)
+	pciClaimCache := fakeclients.PCIDeviceClaimsCache(fakeClient.DevicesV1beta1().PCIDeviceClaims)
+
+	vmPCIMutator := &vmPCIMutator{
+		deviceCache:    pciDeviceCache,
+		pciClaimCache:  pciClaimCache,
+		pciClaimClient: pciClaimClient,
+	}
+
+	patchOps, err := vmPCIMutator.generatePatch(vmWithAllIommuDevice)
+	assert.NoError(err, "expect no error while creation of patch")
+	assert.Len(patchOps, 0, "expected no patch operation to be generated")
+}
 func Test_VMWithoutValidDeviceName(t *testing.T) {
 	assert := require.New(t)
 	fakeClient := fake.NewSimpleClientset(node1dev1, node1dev2, node1dev3, node2dev1, node1dev1Claim)

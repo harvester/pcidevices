@@ -172,12 +172,9 @@ func generateDevicePatch(dev *devicesv1beta1.PCIDevice) (types.PatchOps, error) 
 
 func identifyAdditionalPCIDevices(pciDevicesInVM []string, possiblePCIDeviceRequirement []pciDeviceWithOwners) []pciDeviceWithOwners {
 	var additionalDevicesNeeded []pciDeviceWithOwners
-	for _, currentDevice := range pciDevicesInVM {
-		for _, additionalDev := range possiblePCIDeviceRequirement {
-			if currentDevice == additionalDev.device.Name {
-				continue
-			}
-			additionalDevicesNeeded = append(additionalDevicesNeeded, additionalDev)
+	for _, v := range possiblePCIDeviceRequirement {
+		if !additionalDeviceAlreadyExists(pciDevicesInVM, v.device.Name) {
+			additionalDevicesNeeded = append(additionalDevicesNeeded, v)
 		}
 	}
 	return additionalDevicesNeeded
@@ -218,4 +215,14 @@ func generatePCIDeviceClaim(dev *devicesv1beta1.PCIDevice, owner string) *device
 			UserName: owner,
 		},
 	}
+}
+
+func additionalDeviceAlreadyExists(devList []string, dev string) bool {
+	for _, v := range devList {
+		if v == dev {
+			return true
+		}
+	}
+
+	return false
 }
