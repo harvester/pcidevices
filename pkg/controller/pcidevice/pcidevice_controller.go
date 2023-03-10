@@ -23,7 +23,8 @@ import (
 )
 
 const (
-	reconcilePeriod = time.Second * 20
+	reconcilePeriod  = time.Second * 20
+	pciBridgeClassID = "0604"
 )
 
 type Handler struct {
@@ -69,6 +70,8 @@ func Register(
 		if err != nil {
 			return fmt.Errorf("error querying management nic pci addresses: %v", err)
 		}
+		pciBridgeAddresses := identifyPCIBridgeDevices(pci)
+		skipAddresses = append(skipAddresses, pciBridgeAddresses...)
 		handler.pci = pci
 		handler.skipAddresses = skipAddresses
 		if err := handler.reconcilePCIDevices(nodename); err != nil {
@@ -170,4 +173,17 @@ func containsString(elements []string, element string) bool {
 	}
 
 	return false
+}
+
+// identifyPCIBridgeDevices will identify devices which are pci bridges to skip the same
+// as these cannot be bound to vfio-pci though share the same iommu group with devices attached
+// to the brdige
+func identifyPCIBridgeDevices(pci *ghw.PCIInfo) []string {
+	var pciBridgeAddresses []string
+	for _, v := range pci.Devices {
+		if fmt.Sprintf("%s%s", v.Class.ID, v.Subclass.ID) == pciBridgeClassID {
+			pciBridgeAddresses = append(pciBridgeAddresses, v.Address)
+		}
+	}
+	return pciBridgeAddresses
 }
