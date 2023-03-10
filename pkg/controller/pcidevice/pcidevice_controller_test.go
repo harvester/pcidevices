@@ -42,3 +42,14 @@ func Test_reconcilePCIDevices(t *testing.T) {
 	assert.True(apierrors.IsNotFound(err), "expected to not find the pci address for 000004001")
 	t.Log(gpuDevice.Status)
 }
+
+func Test_identifyPCIBridgeAddresses(t *testing.T) {
+	assert := require.New(t)
+	pci, err := ghw.PCI(ghw.WithSnapshot(ghw.SnapshotOptions{
+		Path: defaultPCIDeviceSnapshot,
+	}))
+	assert.NoError(err, "expected no error during snapshot loading")
+
+	devs := identifyPCIBridgeDevices(pci)
+	assert.Len(devs, 26, "expected to find 26 devices from the snapshot")
+}
