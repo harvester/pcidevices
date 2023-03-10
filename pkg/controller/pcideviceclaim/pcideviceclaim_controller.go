@@ -26,10 +26,11 @@ import (
 const pdcFinalizer = "harvesterhci.io/pcidevicecleanup"
 
 const (
-	reconcilePeriod = time.Minute * 20
-	vfioPCIDriver   = "vfio-pci"
-	DefaultNS       = "harvester-system"
-	KubevirtCR      = "kubevirt"
+	reconcilePeriod   = time.Minute * 20
+	vfioPCIDriver     = "vfio-pci"
+	DefaultNS         = "harvester-system"
+	KubevirtCR        = "kubevirt"
+	vfioPCIDriverPath = "/sys/bus/pci/drivers/vfio-pci"
 )
 
 type Controller struct {
@@ -139,7 +140,7 @@ func loadVfioDrivers() {
 }
 
 func bindDeviceToVFIOPCIDriver(pd *v1beta1.PCIDevice) error {
-	if deviceBoundToDriver("/sys/bus/pci/drivers/vfio-pci", pd.Status.Address) {
+	if deviceBoundToDriver(vfioPCIDriverPath, pd.Status.Address) {
 		return nil
 	}
 
@@ -174,7 +175,7 @@ func bindDeviceToVFIOPCIDriver(pd *v1beta1.PCIDevice) error {
 	}
 	file.Close()
 
-	if !deviceBoundToDriver("/sys/bus/pci/drivers/vfio-pci", pd.Status.Address) {
+	if !deviceBoundToDriver(vfioPCIDriverPath, pd.Status.Address) {
 		return fmt.Errorf("no device %s found at /sys/bus/pci/drivers/vfio-pci", pd.Status.Address)
 	}
 	return nil
@@ -406,9 +407,7 @@ func (h *Handler) startDevicePlugin(
 }
 
 func (h *Handler) attemptToEnablePassthrough(pd *v1beta1.PCIDevice, pdc *v1beta1.PCIDeviceClaim) error {
-	vfioDriverEnabled := pd.Status.KernelDriverInUse == vfioPCIDriver // it is possible that device was enabled however pcideviceclaim status updated failed
-
-	if !vfioDriverEnabled {
+	if !deviceBoundToDriver(vfioPCIDriverPath, pd.Status.Address) {
 		logrus.Infof("Enabling passthrough for PDC: %s", pdc.Name)
 		// Only unbind from driver is a driver is currently in use
 		if strings.TrimSpace(pd.Status.KernelDriverInUse) != "" {
