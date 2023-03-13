@@ -54,8 +54,8 @@ var _ = Describe("run node deletion tests", func() {
 
 	claim1Node2 := &devicesv1beta1.PCIDeviceClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "dev1node2",
-			//Finalizers: []string{"wrangler.cattle.io/PCIDeviceClaimOnRemove"},
+			Name:       "dev1node2",
+			Finalizers: []string{"wrangler.cattle.io/PCIDeviceClaimOnRemove"},
 		},
 		Spec: devicesv1beta1.PCIDeviceClaimSpec{
 			NodeName: "node2",
@@ -64,8 +64,8 @@ var _ = Describe("run node deletion tests", func() {
 
 	claim2Node2 := &devicesv1beta1.PCIDeviceClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "dev2node2",
-			//Finalizers: []string{"wrangler.cattle.io/PCIDeviceClaimOnRemove"},
+			Name:       "dev2node2",
+			Finalizers: []string{"wrangler.cattle.io/PCIDeviceClaimOnRemove"},
 		},
 		Spec: devicesv1beta1.PCIDeviceClaimSpec{
 			NodeName: "node2",

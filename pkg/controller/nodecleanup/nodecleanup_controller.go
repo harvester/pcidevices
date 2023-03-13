@@ -11,6 +11,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	wranglerFinalizer = "wrangler.cattle.io/PCIDeviceClaimOnRemove"
+)
+
 type Handler struct {
 	pdcClient  v1beta1.PCIDeviceClaimClient
 	pdClient   v1beta1.PCIDeviceClient
@@ -32,6 +36,15 @@ func (h *Handler) OnRemove(_ string, node *v1.Node) (*v1.Node, error) {
 		if pdc.Spec.NodeName != node.Name {
 			continue
 		}
+		pdcCopy := pdc.DeepCopy()
+		if containsFinalizer(pdcCopy.Finalizers, wranglerFinalizer) {
+			pdcCopy.Finalizers = removeFinalizer(pdcCopy.Finalizers, wranglerFinalizer)
+			_, err := h.pdcClient.Update(pdcCopy)
+			if err != nil {
+				return node, fmt.Errorf("error removing finalizer: %v", err)
+			}
+		}
+
 		err = h.pdcClient.Delete(pdc.Name, &metav1.DeleteOptions{})
 		if err != nil {
 			logrus.Errorf("error deleting pdc: %s", err)
@@ -68,4 +81,22 @@ func Register(
 	}
 	nodeClient.OnRemove(ctx, "node-remove", handler.OnRemove)
 	return nil
+}
+
+func containsFinalizer(finalizers []string, finalizer string) bool {
+	for _, v := range finalizers {
+		if v == finalizer {
+			return true
+		}
+	}
+	return false
+}
+
+func removeFinalizer(finalizers []string, finalizer string) []string {
+	for i, v := range finalizers {
+		if v == finalizer {
+			return append(finalizers[:i], finalizers[i+1:]...)
+		}
+	}
+	return finalizers
 }

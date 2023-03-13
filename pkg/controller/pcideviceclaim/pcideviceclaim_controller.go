@@ -38,7 +38,7 @@ type Controller struct {
 }
 
 type Handler struct {
-	pdcClient     v1beta1gen.PCIDeviceClaimClient
+	pdcClient     v1beta1gen.PCIDeviceClaimController
 	pdClient      v1beta1gen.PCIDeviceClient
 	virtClient    kubecli.KubevirtClient
 	nodeName      string
@@ -89,7 +89,8 @@ func (h *Handler) OnRemove(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.P
 
 	// need to requeue object to ensure correct node picks up and cleanup/rebind is executed
 	if pdc.Spec.NodeName != h.nodeName {
-		return pdc, fmt.Errorf("requeue object to ensure its picked up by correct node")
+		h.pdcClient.Enqueue(name)
+		return pdc, nil
 	}
 
 	// Get PCIDevice for the PCIDeviceClaim
@@ -151,27 +152,23 @@ func bindDeviceToVFIOPCIDriver(pd *v1beta1.PCIDevice) error {
 
 	newIdFile, err := os.OpenFile("/sys/bus/pci/drivers/vfio-pci/new_id", os.O_WRONLY, 0200)
 	if err != nil {
-		logrus.Errorf("Error opening new_id file")
-		return err
+		return fmt.Errorf("error opening new_id file: %v", err)
 	}
 	defer newIdFile.Close()
 	_, err = newIdFile.WriteString(id)
 	if err != nil && !os.IsExist(err) {
-		logrus.Errorf("Error writing to new_id file: %s", err)
-		return err
+		return fmt.Errorf("error writing to new_id file: %v", err)
 	}
 
 	logrus.Infof("Binding device %s vfio-pci", pd.Status.Address)
 	file, err := os.OpenFile("/sys/bus/pci/drivers/vfio-pci/bind", os.O_WRONLY, 0200)
 	if err != nil {
-		logrus.Errorf("Error opening bind file: %s", err)
-		return err
+		return fmt.Errorf("error opening bind file: %s", err)
 	}
 	_, err = file.WriteString(pd.Status.Address)
 	if err != nil {
-		logrus.Errorf("Error writing to bind file: %s", err)
 		file.Close()
-		return err
+		return fmt.Errorf("error writing to bind file: %s", err)
 	}
 	file.Close()
 
