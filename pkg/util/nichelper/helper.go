@@ -8,6 +8,7 @@ import (
 	ctlcorev1 "github.com/rancher/wrangler/pkg/generated/controllers/core/v1"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/json"
 )
@@ -19,7 +20,17 @@ const (
 )
 
 func IdentifyHarvesterManagedNIC(nodeName string, nodeCache ctlcorev1.NodeCache, vlanConfigCache ctlnetworkv1beta1.VlanConfigCache) ([]string, error) {
-	link, err := netlink.LinkList()
+	hostProcessNS, err := netns.GetFromPath("/host/proc/1/ns/net")
+	if err != nil {
+		return nil, fmt.Errorf("error fetching host network namespace: %v", err)
+	}
+
+	handler, err := netlink.NewHandleAt(hostProcessNS)
+	if err != nil {
+		return nil, fmt.Errorf("error generating handler for host network namespace: %v", err)
+	}
+
+	link, err := handler.LinkList()
 	if err != nil {
 		return nil, fmt.Errorf("error fetching link by name: %v", err)
 	}
