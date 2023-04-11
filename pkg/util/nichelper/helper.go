@@ -20,6 +20,46 @@ const (
 )
 
 func IdentifyHarvesterManagedNIC(nodeName string, nodeCache ctlcorev1.NodeCache, vlanConfigCache ctlnetworkv1beta1.VlanConfigCache) ([]string, error) {
+	var skipInterfaces []string
+	managementInterfaces, err := IdentifyManagementNics()
+	if err != nil {
+		return nil, err
+	}
+
+	skipInterfaces = append(skipInterfaces, managementInterfaces...)
+
+	// query interfaces used for vlanConfigs and add them to list of skipped interfaces
+	vlanConfigNICS, err := identifyClusterNetworks(nodeName, nodeCache, vlanConfigCache)
+	if err != nil {
+		return nil, err
+	}
+
+	skipInterfaces = append(skipInterfaces, vlanConfigNICS...)
+
+	logrus.Debugf("skipping interfaces %v", skipInterfaces)
+
+	// pciAddressess contains the pci addresses for the management nics
+	var pciAddresses []string
+	nics, err := ghw.Network()
+	if err != nil {
+		return nil, fmt.Errorf("error listing network info: %v", err)
+	}
+
+	for _, v := range skipInterfaces {
+		for _, nic := range nics.NICs {
+			if nic.Name == v {
+				pciAddresses = append(pciAddresses, *nic.PCIAddress)
+			}
+		}
+	}
+
+	logrus.Debugf("skipping interfaces with pciAddresses: %v", pciAddresses)
+	return pciAddresses, nil
+}
+
+// IdentifyManagementNics will identify the NICS used on the host for default harvester management
+// and bonded interfaces
+func IdentifyManagementNics() ([]string, error) {
 	hostProcessNS, err := netns.GetFromPath("/host/proc/1/ns/net")
 	if err != nil {
 		return nil, fmt.Errorf("error fetching host network namespace: %v", err)
@@ -60,33 +100,7 @@ func IdentifyHarvesterManagedNIC(nodeName string, nodeCache ctlcorev1.NodeCache,
 		}
 	}
 
-	// query interfaces used for vlanConfigs and add them to list of skipped interfaces
-	vlanConfigNICS, err := identifyClusterNetworks(nodeName, nodeCache, vlanConfigCache)
-	if err != nil {
-		return nil, err
-	}
-
-	skipInterfaces = append(skipInterfaces, vlanConfigNICS...)
-
-	logrus.Debugf("skipping interfaces %v", skipInterfaces)
-
-	// pciAddressess contains the pci addresses for the management nics
-	var pciAddresses []string
-	nics, err := ghw.Network()
-	if err != nil {
-		return nil, fmt.Errorf("error listing network info: %v", err)
-	}
-
-	for _, v := range skipInterfaces {
-		for _, nic := range nics.NICs {
-			if nic.Name == v {
-				pciAddresses = append(pciAddresses, *nic.PCIAddress)
-			}
-		}
-	}
-
-	logrus.Debugf("skipping interfaces with pciAddresses: %v", pciAddresses)
-	return pciAddresses, nil
+	return skipInterfaces, nil
 }
 
 // identifyClusterNetworks will identify vlanConfigs covering the current node and identify NICs in use for
