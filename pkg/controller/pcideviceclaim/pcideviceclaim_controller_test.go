@@ -4,9 +4,10 @@ import (
 	"reflect"
 	"testing"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
+	"github.com/stretchr/testify/require"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 )
 
 func TestHandler_getOrphanedPCIDevices(t *testing.T) {
@@ -102,4 +103,66 @@ func TestHandler_getOrphanedPCIDevices(t *testing.T) {
 			}
 		})
 	}
+}
+
+var (
+	pd = &v1beta1.PCIDevice{
+		ObjectMeta: v1.ObjectMeta{
+			Name: "testnode1-00003f063",
+		},
+		Status: v1beta1.PCIDeviceStatus{
+			Address:           "0000:3f:06.3",
+			KernelDriverInUse: "vfio-pci",
+			NodeName:          "testnode1",
+			ResourceName:      "intel.com/82571EB_82571GB_GIGABIT_ETHERNET_CONTROLLER_COPPER",
+			VendorId:          "8086",
+			DeviceId:          "10bc",
+		},
+	}
+
+	kubevirtCR = &kubevirtv1.KubeVirt{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "kubevirt",
+			Namespace: "harvester-system",
+		},
+		Spec: kubevirtv1.KubeVirtSpec{
+			Configuration: kubevirtv1.KubeVirtConfiguration{},
+		},
+	}
+
+	permittedHostDevices = &kubevirtv1.PermittedHostDevices{
+		PciHostDevices: []kubevirtv1.PciHostDevice{
+			{
+				PCIVendorSelector: "8086:10bc",
+				ResourceName:      "intel.com/82571EB_82571GB_GIGABIT_ETHERNET_CONTROLLER_COPPER",
+			},
+		},
+	}
+)
+
+func Test_permitHostDeviceInKubevirtWithNoDevices(t *testing.T) {
+	assert := require.New(t)
+	reconcileKubevirtCR(kubevirtCR, pd)
+	assert.Len(kubevirtCR.Spec.Configuration.PermittedHostDevices.PciHostDevices, 1, "expected to find one device added")
+}
+
+func Test_permitHostDeviceInKubevirtWithoutExternalResourceDevices(t *testing.T) {
+	assert := require.New(t)
+	kubevirtCR.Spec.Configuration.PermittedHostDevices = permittedHostDevices
+	kvCopy := kubevirtCR.DeepCopy()
+	reconcileKubevirtCR(kvCopy, pd)
+	assert.False(reflect.DeepEqual(kvCopy, kubevirtCR), "expected to find changes in the kubevirt CR")
+	assert.Len(kvCopy.Spec.Configuration.PermittedHostDevices.PciHostDevices, 1, "expected to find one device added")
+	assert.True(kvCopy.Spec.Configuration.PermittedHostDevices.PciHostDevices[0].ExternalResourceProvider, "expected external resource provider to be updated")
+}
+
+func Test_permitHostDeviceInKubevirtWithExternalResourceDevices(t *testing.T) {
+	assert := require.New(t)
+	permittedHostDevices.PciHostDevices[0].ExternalResourceProvider = true
+	kubevirtCR.Spec.Configuration.PermittedHostDevices = permittedHostDevices
+	kvCopy := kubevirtCR.DeepCopy()
+	reconcileKubevirtCR(kvCopy, pd)
+	assert.True(reflect.DeepEqual(kvCopy, kubevirtCR), "expected to find no changes in the kubevirt CR")
+	assert.Len(kvCopy.Spec.Configuration.PermittedHostDevices.PciHostDevices, 1, "expected to find one device added")
+	assert.True(kvCopy.Spec.Configuration.PermittedHostDevices.PciHostDevices[0].ExternalResourceProvider, "expected external resource provider to be updated")
 }
