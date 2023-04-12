@@ -142,16 +142,15 @@ var (
 
 func Test_permitHostDeviceInKubevirtWithNoDevices(t *testing.T) {
 	assert := require.New(t)
-	reconcileKubevirtCR(kubevirtCR, pd)
-	assert.Len(kubevirtCR.Spec.Configuration.PermittedHostDevices.PciHostDevices, 1, "expected to find one device added")
+	kvCopy := reconcileKubevirtCR(kubevirtCR, pd)
+	assert.Len(kvCopy.Spec.Configuration.PermittedHostDevices.PciHostDevices, 1, "expected to find one device added")
 }
 
 func Test_permitHostDeviceInKubevirtWithoutExternalResourceDevices(t *testing.T) {
 	assert := require.New(t)
 	kubevirtCR.Spec.Configuration.PermittedHostDevices = permittedHostDevices
-	kvCopy := kubevirtCR.DeepCopy()
-	reconcileKubevirtCR(kvCopy, pd)
-	assert.False(reflect.DeepEqual(kvCopy, kubevirtCR), "expected to find changes in the kubevirt CR")
+	kvCopy := reconcileKubevirtCR(kubevirtCR, pd)
+	assert.False(reflect.DeepEqual(kvCopy.Spec.Configuration.PermittedHostDevices, kubevirtCR.Spec.Configuration.PermittedHostDevices), "expected to find changes in the kubevirt CR")
 	assert.Len(kvCopy.Spec.Configuration.PermittedHostDevices.PciHostDevices, 1, "expected to find one device added")
 	assert.True(kvCopy.Spec.Configuration.PermittedHostDevices.PciHostDevices[0].ExternalResourceProvider, "expected external resource provider to be updated")
 }
@@ -160,9 +159,8 @@ func Test_permitHostDeviceInKubevirtWithExternalResourceDevices(t *testing.T) {
 	assert := require.New(t)
 	permittedHostDevices.PciHostDevices[0].ExternalResourceProvider = true
 	kubevirtCR.Spec.Configuration.PermittedHostDevices = permittedHostDevices
-	kvCopy := kubevirtCR.DeepCopy()
-	reconcileKubevirtCR(kvCopy, pd)
-	assert.True(reflect.DeepEqual(kvCopy, kubevirtCR), "expected to find no changes in the kubevirt CR")
+	kvCopy := reconcileKubevirtCR(kubevirtCR, pd)
+	assert.True(reflect.DeepEqual(kvCopy.Spec.Configuration.PermittedHostDevices, kubevirtCR.Spec.Configuration.PermittedHostDevices), "expected to find no changes in the kubevirt CR")
 	assert.Len(kvCopy.Spec.Configuration.PermittedHostDevices.PciHostDevices, 1, "expected to find one device added")
 	assert.True(kvCopy.Spec.Configuration.PermittedHostDevices.PciHostDevices[0].ExternalResourceProvider, "expected external resource provider to be updated")
 }

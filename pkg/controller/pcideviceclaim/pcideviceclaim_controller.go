@@ -336,9 +336,8 @@ func (h *Handler) permitHostDeviceInKubeVirt(pd *v1beta1.PCIDevice) error {
 		return errors.New(msg)
 	}
 
-	kvCopy := kv.DeepCopy()
-	reconcileKubevirtCR(kvCopy, pd)
-	if !reflect.DeepEqual(kv, kvCopy) {
+	kvCopy := reconcileKubevirtCR(kv, pd)
+	if !reflect.DeepEqual(kv.Spec.Configuration.PermittedHostDevices, kvCopy.Spec.Configuration.PermittedHostDevices) {
 		_, err := h.virtClient.KubeVirt(DefaultNS).Update(kvCopy)
 		return err
 	}
@@ -346,7 +345,8 @@ func (h *Handler) permitHostDeviceInKubeVirt(pd *v1beta1.PCIDevice) error {
 	return nil
 }
 
-func reconcileKubevirtCR(kv *kubevirtv1.KubeVirt, pd *v1beta1.PCIDevice) {
+func reconcileKubevirtCR(kvObj *kubevirtv1.KubeVirt, pd *v1beta1.PCIDevice) *kubevirtv1.KubeVirt {
+	kv := kvObj.DeepCopy()
 	if kv.Spec.Configuration.PermittedHostDevices == nil {
 		kv.Spec.Configuration.PermittedHostDevices = &kubevirtv1.PermittedHostDevices{
 			PciHostDevices: []kubevirtv1.PciHostDevice{},
@@ -377,6 +377,7 @@ func reconcileKubevirtCR(kv *kubevirtv1.KubeVirt, pd *v1beta1.PCIDevice) {
 		}
 		kv.Spec.Configuration.PermittedHostDevices.PciHostDevices = append(permittedPCIDevices, devToPermit)
 	}
+	return kv
 }
 
 func (h *Handler) getPCIDeviceForClaim(pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDevice, error) {
