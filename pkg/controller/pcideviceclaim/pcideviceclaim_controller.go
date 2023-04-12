@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	"time"
 
@@ -334,22 +335,38 @@ func (h *Handler) permitHostDeviceInKubeVirt(pd *v1beta1.PCIDevice) error {
 		msg := fmt.Sprintf("cannot obtain KubeVirt CR: %v", err)
 		return errors.New(msg)
 	}
+
 	kvCopy := kv.DeepCopy()
+	reconcileKubevirtCR(kvCopy, pd)
+	if !reflect.DeepEqual(kv, kvCopy) {
+		_, err := h.virtClient.KubeVirt(DefaultNS).Update(kvCopy)
+		return err
+	}
+
+	return nil
+}
+
+func reconcileKubevirtCR(kv *kubevirtv1.KubeVirt, pd *v1beta1.PCIDevice) {
 	if kv.Spec.Configuration.PermittedHostDevices == nil {
-		kvCopy.Spec.Configuration.PermittedHostDevices = &kubevirtv1.PermittedHostDevices{
+		kv.Spec.Configuration.PermittedHostDevices = &kubevirtv1.PermittedHostDevices{
 			PciHostDevices: []kubevirtv1.PciHostDevice{},
 		}
 	}
-	permittedPCIDevices := kvCopy.Spec.Configuration.PermittedHostDevices.PciHostDevices
+	permittedPCIDevices := kv.Spec.Configuration.PermittedHostDevices.PciHostDevices
 	resourceName := pd.Status.ResourceName
 	// check if device is currently permitted
 	var devPermitted bool = false
-	for _, permittedPCIDev := range permittedPCIDevices {
+	for i, permittedPCIDev := range permittedPCIDevices {
 		if permittedPCIDev.ResourceName == resourceName {
-			devPermitted = true
+			if permittedPCIDev.ExternalResourceProvider {
+				devPermitted = true
+			}
+			// remove device so it can be re-added
+			permittedPCIDevices = append(permittedPCIDevices[:i], permittedPCIDevices[i+1:]...)
 			break
 		}
 	}
+
 	if !devPermitted {
 		vendorId := pd.Status.VendorId
 		deviceId := pd.Status.DeviceId
@@ -358,14 +375,8 @@ func (h *Handler) permitHostDeviceInKubeVirt(pd *v1beta1.PCIDevice) error {
 			ResourceName:             resourceName,
 			ExternalResourceProvider: true,
 		}
-		kvCopy.Spec.Configuration.PermittedHostDevices.PciHostDevices = append(permittedPCIDevices, devToPermit)
-		_, err := h.virtClient.KubeVirt(DefaultNS).Update(kvCopy)
-		if err != nil {
-			msg := fmt.Sprintf("Failed to update kubevirt CR: %s", err)
-			return errors.New(msg)
-		}
+		kv.Spec.Configuration.PermittedHostDevices.PciHostDevices = append(permittedPCIDevices, devToPermit)
 	}
-	return nil
 }
 
 func (h *Handler) getPCIDeviceForClaim(pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDevice, error) {
