@@ -14,9 +14,10 @@ import (
 )
 
 const (
-	defaultBRInterface     = "mgmt-br"
-	defaultBOInterface     = "mgmt-bo"
-	matchedNodesAnnotation = "network.harvesterhci.io/matched-nodes"
+	defaultBRInterface       = "mgmt-br"
+	defaultBOInterface       = "mgmt-bo"
+	matchedNodesAnnotation   = "network.harvesterhci.io/matched-nodes"
+	defaultHostNetworkNSPath = "/host/proc/1/ns/net"
 )
 
 func IdentifyHarvesterManagedNIC(nodeName string, nodeCache ctlcorev1.NodeCache, vlanConfigCache ctlnetworkv1beta1.VlanConfigCache) ([]string, error) {
@@ -60,15 +61,17 @@ func IdentifyHarvesterManagedNIC(nodeName string, nodeCache ctlcorev1.NodeCache,
 // IdentifyManagementNics will identify the NICS used on the host for default harvester management
 // and bonded interfaces
 func IdentifyManagementNics() ([]string, error) {
-	hostProcessNS, err := netns.GetFromPath("/host/proc/1/ns/net")
+	hostProcessNS, err := netns.GetFromPath(defaultHostNetworkNSPath)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching host network namespace: %v", err)
 	}
+	defer hostProcessNS.Close()
 
 	handler, err := netlink.NewHandleAt(hostProcessNS)
 	if err != nil {
 		return nil, fmt.Errorf("error generating handler for host network namespace: %v", err)
 	}
+	defer handler.Close()
 
 	link, err := handler.LinkList()
 	if err != nil {
@@ -92,10 +95,8 @@ func IdentifyManagementNics() ([]string, error) {
 		for _, l := range link {
 			// check helps skip over cases when mgmt-br is also being used for vm networks
 			// in which case mgmt-bo is also pointing to mgmt-br
-			if l.Attrs().Slave != nil {
-				if l.Attrs().MasterIndex == i {
-					skipInterfaces = append(skipInterfaces, l.Attrs().Name)
-				}
+			if l.Attrs().Slave != nil && l.Attrs().MasterIndex == i {
+				skipInterfaces = append(skipInterfaces, l.Attrs().Name)
 			}
 		}
 	}
