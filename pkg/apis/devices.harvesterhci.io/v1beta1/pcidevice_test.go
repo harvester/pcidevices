@@ -53,9 +53,9 @@ func TestNewPCIDeviceForName(t *testing.T) {
 				},
 				Status: PCIDeviceStatus{
 					NodeName:          "deepgreen",
-					VendorId:          "8086",
-					DeviceId:          "1521",
-					ClassId:           "0200",
+					VendorID:          "8086",
+					DeviceID:          "1521",
+					ClassID:           "0200",
 					ResourceName:      "intel.com/I350_GIGABIT_NETWORK_CONNECTION",
 					Description:       "Ethernet controller: Intel Corporation I350 Gigabit Network Connection",
 					Address:           "00:1f.6",
@@ -67,6 +67,7 @@ func TestNewPCIDeviceForName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := NewPCIDeviceForHostname(tt.args.dev, tt.args.hostname)
+			t.Log(got)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("\nNewPCIDeviceForHostname() = %v,\nwant %v", got, tt.want)
 			}

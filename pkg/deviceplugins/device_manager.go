@@ -1,5 +1,6 @@
-/*
- * This file was part of the KubeVirt project, copied to this project
+package deviceplugins
+
+/* This file was part of the KubeVirt project, copied to this project
  * to get around private package issues.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +18,6 @@
  * Copyright 2023 SUSE, LLC.
  *
  */
-package deviceplugins
 
 import (
 	"errors"
@@ -88,7 +88,7 @@ func (dp *PCIDevicePlugin) GetCount() int {
 	var count int
 	for _, dev := range dp.devs {
 		if dev.Health == pluginapi.Healthy {
-			count += 1
+			count++
 		}
 	}
 	return count
@@ -148,91 +148,95 @@ func constructDPIdevices(pciDevices []*PCIDevice, iommuToPCIMap map[string]strin
 var defaultBackoffTime = []time.Duration{1 * time.Second, 2 * time.Second, 5 * time.Second, 10 * time.Second}
 
 // Set Started is used after a call to Start. It's purpose is to set the private starter properly
-func (dpi *PCIDevicePlugin) SetStarted(stop chan struct{}) {
-	c := dpi.starter
+func (dp *PCIDevicePlugin) SetStarted(stop chan struct{}) {
+	c := dp.starter
 	c.stopChan = stop
 	c.started = true
-	logrus.Infof("Started DevicePlugin: %s", dpi.resourceName)
+	logrus.Infof("Started DevicePlugin: %s", dp.resourceName)
 }
 
-func (dpi *PCIDevicePlugin) Started() bool {
-	return dpi.starter.started
+func (dp *PCIDevicePlugin) Started() bool {
+	return dp.starter.started
 }
 
-func (dpi *PCIDevicePlugin) Stop() error {
-	return dpi.stopDevicePlugin()
+func (dp *PCIDevicePlugin) Stop() error {
+	return dp.stopDevicePlugin()
 }
 
 // Start starts the device plugin
-func (dpi *PCIDevicePlugin) Start(stop <-chan struct{}) (err error) {
+func (dp *PCIDevicePlugin) Start(stop <-chan struct{}) (err error) {
 	logger := log.DefaultLogger()
-	dpi.stop = stop
-	dpi.done = make(chan struct{})
-	dpi.deregistered = make(chan struct{})
+	dp.stop = stop
+	dp.done = make(chan struct{})
+	dp.deregistered = make(chan struct{})
 
-	err = dpi.cleanup()
+	err = dp.cleanup()
 	if err != nil {
 		return err
 	}
 
-	sock, err := net.Listen("unix", dpi.socketPath)
+	sock, err := net.Listen("unix", dp.socketPath)
 	if err != nil {
 		return fmt.Errorf("error creating GRPC server socket: %v", err)
 	}
 
-	dpi.server = grpc.NewServer([]grpc.ServerOption{}...)
-	defer dpi.stopDevicePlugin()
+	dp.server = grpc.NewServer([]grpc.ServerOption{}...)
+	//defer dpi.stopDevicePlugin()
 
-	pluginapi.RegisterDevicePluginServer(dpi.server, dpi)
+	pluginapi.RegisterDevicePluginServer(dp.server, dp)
 
 	errChan := make(chan error, 1)
 
 	go func() {
-		errChan <- dpi.server.Serve(sock)
+		errChan <- dp.server.Serve(sock)
 	}()
 
-	err = waitForGRPCServer(dpi.socketPath, connectionTimeout)
+	err = waitForGRPCServer(dp.socketPath, connectionTimeout)
 	if err != nil {
 		return fmt.Errorf("error starting the GRPC server: %v", err)
 	}
 
-	err = dpi.register()
+	err = dp.register()
 	if err != nil {
 		return fmt.Errorf("error registering with device plugin manager: %v", err)
 	}
 
-	dpi.setInitialized(true)
-	logger.Infof("Initialized DevicePlugin: %s", dpi.resourceName)
-	dpi.starter.started = true
+	dp.setInitialized(true)
+	logger.Infof("Initialized DevicePlugin: %s", dp.resourceName)
+	dp.starter.started = true
 	err = <-errChan
 
 	return err
 }
 
-func (dpi *PCIDevicePlugin) ListAndWatch(_ *pluginapi.Empty, s pluginapi.DevicePlugin_ListAndWatchServer) error {
+func (dp *PCIDevicePlugin) ListAndWatch(_ *pluginapi.Empty, s pluginapi.DevicePlugin_ListAndWatchServer) error {
 
 	errChan := make(chan error, 1)
 	go func() {
-		errChan <- dpi.healthCheck()
+		errChan <- dp.healthCheck()
 	}()
 
 	emptyList := []*pluginapi.Device{}
-	s.Send(&pluginapi.ListAndWatchResponse{Devices: dpi.devs})
-
+	err := s.Send(&pluginapi.ListAndWatchResponse{Devices: dp.devs})
+	if err != nil {
+		return err
+	}
 	done := false
 	for {
 		select {
-		case devHealth := <-dpi.health:
-			for _, dev := range dpi.devs {
-				if devHealth.DevId == dev.ID {
+		case devHealth := <-dp.health:
+			for _, dev := range dp.devs {
+				if devHealth.DevID == dev.ID {
 					dev.Health = devHealth.Health
 				}
 			}
-			s.Send(&pluginapi.ListAndWatchResponse{Devices: dpi.devs})
-			logrus.Debugf("Sending ListAndWatchResponse for device with dpi.devs = %v", dpi.devs)
-		case <-dpi.stop:
+			if err := s.Send(&pluginapi.ListAndWatchResponse{Devices: dp.devs}); err != nil {
+				return err
+			}
+			logrus.Debugf("Sending ListAndWatchResponse for device with dpi.devs = %v", dp.devs)
+		case <-dp.stop:
 			done = true
-		case <-dpi.done:
+		case <-dp.done:
 			done = true
 		}
 		if done {
@@ -242,15 +246,15 @@ func (dpi *PCIDevicePlugin) ListAndWatch(_ *pluginapi.Empty, s pluginapi.DeviceP
 	// Send empty list to increase the chance that the kubelet acts fast on stopped device plugins
 	// There exists no explicit way to deregister devices
 	if err := s.Send(&pluginapi.ListAndWatchResponse{Devices: emptyList}); err != nil {
-		log.DefaultLogger().Reason(err).Infof("%s device plugin failed to deregister: %s", dpi.resourceName, err)
+		log.DefaultLogger().Reason(err).Infof("%s device plugin failed to deregister: %s", dp.resourceName, err)
 	}
-	close(dpi.deregistered)
+	close(dp.deregistered)
 	return <-errChan
 }
 
-func (dpi *PCIDevicePlugin) Allocate(_ context.Context, r *pluginapi.AllocateRequest) (*pluginapi.AllocateResponse, error) {
+func (dp *PCIDevicePlugin) Allocate(_ context.Context, r *pluginapi.AllocateRequest) (*pluginapi.AllocateResponse, error) {
 	logrus.Debugf("Allocate request %s", r.String())
-	resourceNameEnvVar := util.ResourceNameToEnvVar(PCIResourcePrefix, dpi.resourceName)
+	resourceNameEnvVar := util.ResourceNameToEnvVar(PCIResourcePrefix, dp.resourceName)
 	allocatedDevices := []string{}
 	resp := new(pluginapi.AllocateResponse)
 	containerResponse := new(pluginapi.ContainerAllocateResponse)
@@ -259,13 +263,13 @@ func (dpi *PCIDevicePlugin) Allocate(_ context.Context, r *pluginapi.AllocateReq
 		deviceSpecs := make([]*pluginapi.DeviceSpec, 0)
 		for _, devID := range request.DevicesIDs {
 			// translate device's iommu group to its pci address
-			logrus.Debugf("looking up deviceID %s in map %v", devID, dpi.iommuToPCIMap)
-			iommuGroup, exist := dpi.iommuToPCIMap[devID] // not finding device ids
+			logrus.Debugf("looking up deviceID %s in map %v", devID, dp.iommuToPCIMap)
+			iommuGroup, exist := dp.iommuToPCIMap[devID] // not finding device ids
 			if exist {
 				// if device exists, check if there other devices
 				// in the same iommuGroup, and append these too
 				allocatedDevices = append(allocatedDevices, devID)
-				for devPCIAddress, ig := range dpi.iommuToPCIMap {
+				for devPCIAddress, ig := range dp.iommuToPCIMap {
 					if ig == iommuGroup {
 						allocatedDevices = append(allocatedDevices, devPCIAddress)
 					}
@@ -286,7 +290,7 @@ func (dpi *PCIDevicePlugin) Allocate(_ context.Context, r *pluginapi.AllocateReq
 	return resp, nil
 }
 
-func (dpi *PCIDevicePlugin) healthCheck() error {
+func (dp *PCIDevicePlugin) healthCheck() error {
 	logger := log.DefaultLogger()
 	monitoredDevices := make(map[string]string)
 	watcher, err := fsnotify.NewWatcher()
@@ -296,7 +300,7 @@ func (dpi *PCIDevicePlugin) healthCheck() error {
 	defer watcher.Close()
 
 	// This way we don't have to mount /dev from the node
-	devicePath := filepath.Join(dpi.deviceRoot, dpi.devicePath)
+	devicePath := filepath.Join(dp.deviceRoot, dp.devicePath)
 
 	// Start watching the files before we check for their existence to avoid races
 	dirName := filepath.Dir(devicePath)
@@ -313,9 +317,9 @@ func (dpi *PCIDevicePlugin) healthCheck() error {
 	}
 
 	// probe all devices
-	for _, dev := range dpi.devs {
+	for _, dev := range dp.devs {
 		// get iommuGroup from PCI Addr
-		for pciAddr, iommuGroup := range dpi.iommuToPCIMap {
+		for pciAddr, iommuGroup := range dp.iommuToPCIMap {
 			if pciAddr == dev.ID {
 				vfioDevice := filepath.Join(devicePath, iommuGroup)
 				err = watcher.Add(vfioDevice)
@@ -327,72 +331,66 @@ func (dpi *PCIDevicePlugin) healthCheck() error {
 		}
 	}
 
-	dirName = filepath.Dir(dpi.socketPath)
+	dirName = filepath.Dir(dp.socketPath)
 	err = watcher.Add(dirName)
 
 	if err != nil {
 		return fmt.Errorf("failed to add the device-plugin kubelet path to the watcher: %v", err)
 	}
-	_, err = os.Stat(dpi.socketPath)
+	_, err = os.Stat(dp.socketPath)
 	if err != nil {
 		return fmt.Errorf("failed to stat the device-plugin socket: %v", err)
 	}
 
-	err = watcher.Add(dpi.socketPath)
+	err = watcher.Add(dp.socketPath)
 	if err != nil {
 		return fmt.Errorf("failed to watch device-plugin socket: %v", err)
 	}
 
 	for {
 		select {
-		case <-dpi.stop:
+		case <-dp.stop:
 			return nil
 		case err := <-watcher.Errors:
 			logger.Reason(err).Errorf("error watching devices and device plugin directory")
 		case event := <-watcher.Events:
 			logger.V(4).Infof("health Event: %v", event)
-			if monDevId, exist := monitoredDevices[event.Name]; exist {
+			if monDevID, exist := monitoredDevices[event.Name]; exist {
 				// Health in this case is if the device path actually exists
 				if event.Op == fsnotify.Create {
-					logger.Infof("monitored device %s appeared", dpi.resourceName)
-					dpi.health <- deviceHealth{
-						DevId:  monDevId,
+					logger.Infof("monitored device %s appeared", dp.resourceName)
+					dp.health <- deviceHealth{
+						DevID:  monDevID,
 						Health: pluginapi.Healthy,
 					}
 				} else if (event.Op == fsnotify.Remove) || (event.Op == fsnotify.Rename) {
-					logger.Infof("monitored device %s disappeared", dpi.resourceName)
-					dpi.health <- deviceHealth{
-						DevId:  monDevId,
+					logger.Infof("monitored device %s disappeared", dp.resourceName)
+					dp.health <- deviceHealth{
+						DevID:  monDevID,
 						Health: pluginapi.Unhealthy,
 					}
 				}
-			} else if event.Name == dpi.socketPath && event.Op == fsnotify.Remove {
-				logger.Infof("device socket file for device %s was removed, kubelet probably restarted.", dpi.resourceName)
+			} else if event.Name == dp.socketPath && event.Op == fsnotify.Remove {
+				logger.Infof("device socket file for device %s was removed, kubelet probably restarted.", dp.resourceName)
 				return nil
 			}
 		}
 	}
 }
 
-func (dpi *PCIDevicePlugin) GetDevicePath() string {
-	return dpi.devicePath
+func (dp *PCIDevicePlugin) GetDevicePath() string {
+	return dp.devicePath
 }
 
-func (dpi *PCIDevicePlugin) GetDeviceName() string {
-	return dpi.resourceName
-}
-
-func (dpi *PCIDevicePlugin) Restart() string {
-	dpi.stopDevicePlugin()
-	dpi.Start(dpi.stop)
-	return dpi.resourceName
+func (dp *PCIDevicePlugin) GetDeviceName() string {
+	return dp.resourceName
 }
 
 // Stop stops the gRPC server
-func (dpi *PCIDevicePlugin) stopDevicePlugin() error {
+func (dp *PCIDevicePlugin) stopDevicePlugin() error {
 	defer func() {
-		if !IsChanClosed(dpi.done) {
-			close(dpi.done)
+		if !IsChanClosed(dp.done) {
+			close(dp.done)
 		}
 	}()
 
@@ -400,17 +398,17 @@ func (dpi *PCIDevicePlugin) stopDevicePlugin() error {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 	select {
-	case <-dpi.deregistered:
+	case <-dp.deregistered:
 	case <-ticker.C:
 	}
 
-	dpi.server.Stop()
-	dpi.setInitialized(false)
-	return dpi.cleanup()
+	dp.server.Stop()
+	dp.setInitialized(false)
+	return dp.cleanup()
 }
 
 // Register the device plugin for the given resourceName with Kubelet.
-func (dpi *PCIDevicePlugin) register() error {
+func (dp *PCIDevicePlugin) register() error {
 	conn, err := gRPCConnect(pluginapi.KubeletSocket, connectionTimeout)
 	if err != nil {
 		return err
@@ -420,8 +418,8 @@ func (dpi *PCIDevicePlugin) register() error {
 	client := pluginapi.NewRegistrationClient(conn)
 	reqt := &pluginapi.RegisterRequest{
 		Version:      pluginapi.Version,
-		Endpoint:     path.Base(dpi.socketPath),
-		ResourceName: dpi.resourceName,
+		Endpoint:     path.Base(dp.socketPath),
+		ResourceName: dp.resourceName,
 	}
 
 	_, err = client.Register(context.Background(), reqt)
@@ -431,75 +429,34 @@ func (dpi *PCIDevicePlugin) register() error {
 	return nil
 }
 
-func (dpi *PCIDevicePlugin) cleanup() error {
-	if err := os.Remove(dpi.socketPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+func (dp *PCIDevicePlugin) cleanup() error {
+	if err := os.Remove(dp.socketPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 
 	return nil
 }
 
-func (dpi *PCIDevicePlugin) GetDevicePluginOptions(_ context.Context, _ *pluginapi.Empty) (*pluginapi.DevicePluginOptions, error) {
+func (dp *PCIDevicePlugin) GetDevicePluginOptions(_ context.Context, _ *pluginapi.Empty) (*pluginapi.DevicePluginOptions, error) {
 	options := &pluginapi.DevicePluginOptions{
 		PreStartRequired: false,
 	}
 	return options, nil
 }
 
-func (dpi *PCIDevicePlugin) PreStartContainer(_ context.Context, _ *pluginapi.PreStartContainerRequest) (*pluginapi.PreStartContainerResponse, error) {
+func (dp *PCIDevicePlugin) PreStartContainer(_ context.Context, _ *pluginapi.PreStartContainerRequest) (*pluginapi.PreStartContainerResponse, error) {
 	res := &pluginapi.PreStartContainerResponse{}
 	return res, nil
 }
 
-func discoverPermittedHostPCIDevices(supportedPCIDeviceMap map[string]string) map[string][]*PCIDevice {
-	initHandler()
-
-	pciDevicesMap := make(map[string][]*PCIDevice)
-	err := filepath.Walk(pciBasePath, func(path string, info os.FileInfo, err error) error {
-		if info.IsDir() {
-			return nil
-		}
-		pciID, err := Handler.GetDevicePCIID(pciBasePath, info.Name())
-		if err != nil {
-			log.DefaultLogger().Reason(err).Errorf("failed get vendor:device ID for device: %s", info.Name())
-			return nil
-		}
-		if resourceName, supported := supportedPCIDeviceMap[pciID]; supported {
-			// check device driver
-			driver, err := Handler.GetDeviceDriver(pciBasePath, info.Name())
-			if err != nil || driver != "vfio-pci" {
-				return nil
-			}
-
-			pcidev := &PCIDevice{
-				pciID:      pciID,
-				pciAddress: info.Name(),
-			}
-			iommuGroup, err := Handler.GetDeviceIOMMUGroup(pciBasePath, info.Name())
-			if err != nil {
-				return nil
-			}
-			pcidev.iommuGroup = iommuGroup
-			pcidev.driver = driver
-			pcidev.numaNode = Handler.GetDeviceNumaNode(pciBasePath, info.Name())
-			pciDevicesMap[resourceName] = append(pciDevicesMap[resourceName], pcidev)
-		}
-		return nil
-	})
-	if err != nil {
-		log.DefaultLogger().Reason(err).Errorf("failed to discover host devices")
-	}
-	return pciDevicesMap
+func (dp *PCIDevicePlugin) GetInitialized() bool {
+	dp.lock.Lock()
+	defer dp.lock.Unlock()
+	return dp.initialized
 }
 
-func (dpi *PCIDevicePlugin) GetInitialized() bool {
-	dpi.lock.Lock()
-	defer dpi.lock.Unlock()
-	return dpi.initialized
-}
-
-func (dpi *PCIDevicePlugin) setInitialized(initialized bool) {
-	dpi.lock.Lock()
-	dpi.initialized = initialized
-	dpi.lock.Unlock()
+func (dp *PCIDevicePlugin) setInitialized(initialized bool) {
+	dp.lock.Lock()
+	dp.initialized = initialized
+	dp.lock.Unlock()
 }

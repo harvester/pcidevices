@@ -6,13 +6,6 @@ import (
 	"time"
 
 	ctlnetwork "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io"
-	"github.com/harvester/pcidevices/pkg/controller/nodecleanup"
-	"github.com/harvester/pcidevices/pkg/controller/nodes"
-	"github.com/harvester/pcidevices/pkg/controller/pcideviceclaim"
-	"github.com/harvester/pcidevices/pkg/controller/sriovdevice"
-	"github.com/harvester/pcidevices/pkg/crd"
-	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
-	"github.com/harvester/pcidevices/pkg/webhook"
 	"github.com/rancher/lasso/pkg/cache"
 	"github.com/rancher/lasso/pkg/client"
 	"github.com/rancher/lasso/pkg/controller"
@@ -22,6 +15,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/workqueue"
+
+	"github.com/harvester/pcidevices/pkg/controller/nodecleanup"
+	"github.com/harvester/pcidevices/pkg/controller/nodes"
+	"github.com/harvester/pcidevices/pkg/controller/pcideviceclaim"
+	"github.com/harvester/pcidevices/pkg/controller/sriovdevice"
+	"github.com/harvester/pcidevices/pkg/crd"
+	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
+	"github.com/harvester/pcidevices/pkg/webhook"
 )
 
 func Setup(ctx context.Context, cfg *rest.Config, scheme *runtime.Scheme) error {

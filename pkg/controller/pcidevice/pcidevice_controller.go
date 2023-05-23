@@ -52,7 +52,7 @@ func (h *Handler) ReconcilePCIDevices(nodename string) error {
 	iommuGroupMap := iommu.GroupMapForPCIDevices(iommuGroupPaths)
 
 	commonLabels := map[string]string{"nodename": nodename} // label
-	var setOfRealPCIAddrs map[string]bool = make(map[string]bool)
+	var setOfRealPCIAddrs = make(map[string]bool)
 	for _, dev := range h.pci.Devices {
 		if !containsString(h.skipAddresses, dev.Address) {
 			setOfRealPCIAddrs[dev.Address] = true

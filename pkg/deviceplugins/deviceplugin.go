@@ -10,7 +10,7 @@ import (
 func (dp *PCIDevicePlugin) MarkPCIDeviceAsHealthy(resourceName string, pciAddress string) {
 	go func() {
 		dp.health <- deviceHealth{
-			DevId:  pciAddress,
+			DevID:  pciAddress,
 			Health: pluginapi.Healthy,
 		}
 	}()
@@ -19,7 +19,7 @@ func (dp *PCIDevicePlugin) MarkPCIDeviceAsHealthy(resourceName string, pciAddres
 func (dp *PCIDevicePlugin) MarkPCIDeviceAsUnhealthy(pciAddress string) {
 	go func() {
 		dp.health <- deviceHealth{
-			DevId:  pciAddress,
+			DevID:  pciAddress,
 			Health: pluginapi.Unhealthy,
 		}
 	}()

@@ -23,6 +23,7 @@ package deviceplugins
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -32,6 +33,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"kubevirt.io/client-go/log"
 	"kubevirt.io/kubevirt/pkg/virt-handler/device-manager/deviceplugin/v1beta1"
 )
@@ -127,20 +129,17 @@ func waitForGRPCServer(socketPath string, timeout time.Duration) error {
 
 // dial establishes the gRPC communication with the registered device plugin.
 func gRPCConnect(socketPath string, timeout time.Duration) (*grpc.ClientConn, error) {
-	c, err := grpc.Dial(socketPath,
-		grpc.WithInsecure(),
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	c, err := grpc.DialContext(ctx, socketPath,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
-		grpc.WithTimeout(timeout),
-		grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
+		grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
 			return net.DialTimeout("unix", addr, timeout)
 		}),
 	)
 
-	if err != nil {
-		return nil, err
-	}
-
-	return c, nil
+	return c, err
 }
 
 func SocketPath(deviceName string) string {
@@ -176,6 +175,6 @@ func formatVFIODeviceSpecs(devID string) []*v1beta1.DeviceSpec {
 }
 
 type deviceHealth struct {
-	DevId  string
+	DevID  string
 	Health string
 }

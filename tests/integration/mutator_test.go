@@ -3,17 +3,17 @@ package integration
 import (
 	"fmt"
 
-	"github.com/harvester/pcidevices/pkg/webhook"
-	"github.com/harvester/pcidevices/tests/helpers"
-	corev1 "k8s.io/api/core/v1"
-
 	"github.com/google/uuid"
-	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	kubevirtv1 "kubevirt.io/api/core/v1"
+
+	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/webhook"
+	"github.com/harvester/pcidevices/tests/helpers"
 )
 
 var _ = Describe("validate mutator by sending a mock pod request needing mutation", func() {
@@ -63,9 +63,9 @@ var _ = Describe("validate mutator by sending a mock pod request needing mutatio
 		Spec: v1beta1.PCIDeviceSpec{},
 		Status: v1beta1.PCIDeviceStatus{
 			Address:      "00000",
-			VendorId:     "ab",
-			DeviceId:     "1f3c",
-			ClassId:      "0C05",
+			VendorID:     "ab",
+			DeviceID:     "1f3c",
+			ClassID:      "0C05",
 			NodeName:     "node1",
 			ResourceName: "pcidevice-0000",
 			Description:  "fake device",
@@ -74,9 +74,9 @@ var _ = Describe("validate mutator by sending a mock pod request needing mutatio
 
 	deviceStatus := v1beta1.PCIDeviceStatus{
 		Address:      "00000",
-		VendorId:     "ab",
-		DeviceId:     "1f3c",
-		ClassId:      "0C05",
+		VendorID:     "ab",
+		DeviceID:     "1f3c",
+		ClassID:      "0C05",
 		NodeName:     "node1",
 		ResourceName: "pcidevice-0000",
 		Description:  "fake device",
@@ -227,9 +227,9 @@ var _ = Describe("validate mutator by sending a mock pod request not needing mut
 		Spec: v1beta1.PCIDeviceSpec{},
 		Status: v1beta1.PCIDeviceStatus{
 			Address:      "00000",
-			VendorId:     "ab",
-			DeviceId:     "1f3c",
-			ClassId:      "0C05",
+			VendorID:     "ab",
+			DeviceID:     "1f3c",
+			ClassID:      "0C05",
 			NodeName:     "node1",
 			ResourceName: "pcidevice-0000",
 			Description:  "fake device",

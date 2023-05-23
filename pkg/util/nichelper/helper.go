@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	ctlnetworkv1beta1 "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io/v1beta1"
-	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/jaypipes/ghw"
 	"github.com/jaypipes/ghw/pkg/net"
 	ctlcorev1 "github.com/rancher/wrangler/pkg/generated/controllers/core/v1"
@@ -19,6 +18,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/json"
+
+	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 )
 
 const (
@@ -142,7 +143,7 @@ func identifyClusterNetworks(nodeName string, nodeCache ctlcorev1.NodeCache, vla
 		}
 		ok, err := currentNodeMatchesSelector(nodeName, managedNodes)
 		if err != nil {
-			return nil, fmt.Errorf("error evaulating nodes from selector: %v", err)
+			return nil, fmt.Errorf("error evaluating nodes from selector: %v", err)
 		}
 		if ok {
 			nicsList = append(nicsList, v.Spec.Uplink.NICs...)

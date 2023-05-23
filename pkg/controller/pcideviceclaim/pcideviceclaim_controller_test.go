@@ -4,10 +4,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
+
+	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 )
 
 func TestHandler_getOrphanedPCIDevices(t *testing.T) {
@@ -41,7 +42,7 @@ func TestHandler_getOrphanedPCIDevices(t *testing.T) {
 		ObjectMeta: v1.ObjectMeta{
 			Name: "testnode1-00003f063",
 			OwnerReferences: []v1.OwnerReference{
-				v1.OwnerReference{
+				{
 					Kind: "PCIDevice",
 					Name: "testnode1-00003f063",
 					UID:  pd.GetObjectMeta().GetUID(),
@@ -115,8 +116,8 @@ var (
 			KernelDriverInUse: "vfio-pci",
 			NodeName:          "testnode1",
 			ResourceName:      "intel.com/82571EB_82571GB_GIGABIT_ETHERNET_CONTROLLER_COPPER",
-			VendorId:          "8086",
-			DeviceId:          "10bc",
+			VendorID:          "8086",
+			DeviceID:          "10bc",
 		},
 	}
 

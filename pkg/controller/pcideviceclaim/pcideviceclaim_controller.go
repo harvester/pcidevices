@@ -24,10 +24,7 @@ import (
 	v1beta1gen "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 )
 
-const pdcFinalizer = "harvesterhci.io/pcidevicecleanup"
-
 const (
-	reconcilePeriod   = time.Minute * 20
 	vfioPCIDriver     = "vfio-pci"
 	DefaultNS         = "harvester-system"
 	KubevirtCR        = "kubevirt"
@@ -71,7 +68,7 @@ func Register(
 	pdcClient.OnRemove(ctx, "PCIDeviceClaimOnRemove", handler.OnRemove)
 	pdcClient.OnChange(ctx, "PCIDeviceClaimReconcile", handler.reconcilePCIDeviceClaims)
 	// Watch to check for updates to pcidevices. This can happen on reboot as devices are set to reflect the correct
-	// driver in use by said device. This helps ensure that associated claim is reconcilled to trigger a rebind if needed
+	// driver in use by said device. This helps ensure that associated claim is reconciled to trigger rebind if needed
 	relatedresource.WatchClusterScoped(ctx, "PCIDeviceToClaimReconcile", handler.OnDeviceChange, pdcClient, pdClient)
 	err = handler.unbindOrphanedPCIDevices()
 	if err != nil {
@@ -90,8 +87,7 @@ func (h *Handler) OnRemove(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.P
 
 	// need to requeue object to ensure correct node picks up and cleanup/rebind is executed
 	if pdc.Spec.NodeName != h.nodeName {
-		h.pdcClient.Enqueue(name)
-		return pdc, nil
+		return pdc, fmt.Errorf("controller %s cannot process claims for node %s", h.nodeName, pdc.Spec.NodeName)
 	}
 
 	// Get PCIDevice for the PCIDeviceClaim
@@ -146,17 +142,17 @@ func bindDeviceToVFIOPCIDriver(pd *v1beta1.PCIDevice) error {
 		return nil
 	}
 
-	vendorId := pd.Status.VendorId
-	deviceId := pd.Status.DeviceId
-	var id string = fmt.Sprintf("%s %s", vendorId, deviceId)
+	vendorID := pd.Status.VendorID
+	deviceID := pd.Status.DeviceID
+	id := fmt.Sprintf("%s %s", vendorID, deviceID)
 	logrus.Infof("Binding device %s [%s] to vfio-pci", pd.Name, id)
 
-	newIdFile, err := os.OpenFile("/sys/bus/pci/drivers/vfio-pci/new_id", os.O_WRONLY, 0200)
+	newIDFile, err := os.OpenFile("/sys/bus/pci/drivers/vfio-pci/new_id", os.O_WRONLY, 0200)
 	if err != nil {
 		return fmt.Errorf("error opening new_id file: %v", err)
 	}
-	defer newIdFile.Close()
-	_, err = newIdFile.WriteString(id)
+	defer newIDFile.Close()
+	_, err = newIDFile.WriteString(id)
 	if err != nil && !os.IsExist(err) {
 		return fmt.Errorf("error writing to new_id file: %v", err)
 	}
@@ -294,11 +290,15 @@ func (h *Handler) reconcilePCIDeviceClaims(name string, pdc *v1beta1.PCIDeviceCl
 		pds := []*v1beta1.PCIDevice{pd}
 		dp, err = h.createDevicePlugin(pds, pdc)
 		if err != nil {
-			return nil, err
+			return pdc, err
 		}
+		// new plugin created. Need to store state.
+		h.devicePlugins[resourceName] = dp
 	} else {
 		// Add the Device to the DevicePlugin
-		dp.AddDevice(pd, pdc)
+		if err := dp.AddDevice(pd, pdc); err != nil {
+			return pdc, err
+		}
 	}
 
 	if !pdcCopy.Status.PassthroughEnabled {
@@ -355,7 +355,7 @@ func reconcileKubevirtCR(kvObj *kubevirtv1.KubeVirt, pd *v1beta1.PCIDevice) *kub
 	permittedPCIDevices := kv.Spec.Configuration.PermittedHostDevices.PciHostDevices
 	resourceName := pd.Status.ResourceName
 	// check if device is currently permitted
-	var devPermitted bool = false
+	devPermitted := false
 	for i, permittedPCIDev := range permittedPCIDevices {
 		if permittedPCIDev.ResourceName == resourceName {
 			if permittedPCIDev.ExternalResourceProvider {
@@ -368,10 +368,10 @@ func reconcileKubevirtCR(kvObj *kubevirtv1.KubeVirt, pd *v1beta1.PCIDevice) *kub
 	}
 
 	if !devPermitted {
-		vendorId := pd.Status.VendorId
-		deviceId := pd.Status.DeviceId
+		vendorID := pd.Status.VendorID
+		deviceID := pd.Status.DeviceID
 		devToPermit := kubevirtv1.PciHostDevice{
-			PCIVendorSelector:        fmt.Sprintf("%s:%s", vendorId, deviceId),
+			PCIVendorSelector:        fmt.Sprintf("%s:%s", vendorID, deviceID),
 			ResourceName:             resourceName,
 			ExternalResourceProvider: true,
 		}
@@ -459,7 +459,9 @@ func (h *Handler) unbindOrphanedPCIDevices() error {
 		return err
 	}
 	for _, pd := range orphanedPCIDevices.Items {
-		unbindDeviceFromDriver(pd.Status.Address, vfioPCIDriver)
+		if err := unbindDeviceFromDriver(pd.Status.Address, vfioPCIDriver); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -525,8 +527,5 @@ func (h *Handler) bindDeviceToOriginalDriver(pd *v1beta1.PCIDevice) error {
 
 func deviceBoundToDriver(driverPath string, pciAddress string) bool {
 	_, err := os.Stat(fmt.Sprintf("%s/%s", driverPath, pciAddress))
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }

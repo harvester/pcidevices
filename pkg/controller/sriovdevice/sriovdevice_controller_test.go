@@ -7,14 +7,15 @@ import (
 	"testing"
 
 	fakenetworkclient "github.com/harvester/harvester-network-controller/pkg/generated/clientset/versioned/fake"
-	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
-	"github.com/harvester/pcidevices/pkg/generated/clientset/versioned/fake"
-	fakeclient "github.com/harvester/pcidevices/pkg/util/fakeclients"
-	"github.com/harvester/pcidevices/pkg/util/nichelper"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+
+	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/generated/clientset/versioned/fake"
+	fakeclient "github.com/harvester/pcidevices/pkg/util/fakeclients"
+	"github.com/harvester/pcidevices/pkg/util/nichelper"
 )
 
 var (

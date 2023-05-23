@@ -3,7 +3,6 @@ package testhelper
 import (
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -41,7 +40,7 @@ var (
 
 // SetupGHWNetworkSnapshot will setup a fake ghw client to be used for running local unit tests
 func SetupGHWNetworkSnapshot() (*ghw.NetworkInfo, error) {
-	tmpDir, err := ioutil.TempDir("/tmp", defaultTestNICSnapshotPrefix)
+	tmpDir, err := os.MkdirTemp("/tmp", defaultTestNICSnapshotPrefix)
 	defer os.RemoveAll(tmpDir)
 	if err != nil {
 		return nil, fmt.Errorf("error creating tmp dir: %v", err)
