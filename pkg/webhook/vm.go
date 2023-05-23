@@ -88,7 +88,7 @@ func (vm *vmPCIMutator) Update(request *types.Request, oldObj runtime.Object, ne
 
 // generatePatch is a common method used by create and update calls to generate a patch operation for VM
 func (vm *vmPCIMutator) generatePatch(vmObj *kubevirtv1.VirtualMachine) (types.PatchOps, error) {
-	var pciDevicesInVM []string
+	pciDevicesInVM := make([]string, len(vmObj.Spec.Template.Spec.Domain.Devices.HostDevices))
 	var possiblePCIDeviceRequirement []pciDeviceWithOwners
 	for _, v := range vmObj.Spec.Template.Spec.Domain.Devices.HostDevices {
 		// ui sends name to be same as the pcidevice claim name, which in turn matches pcidevice
@@ -187,9 +187,8 @@ func (vm *vmPCIMutator) findAndCreateClaim(dev *devicesv1beta1.PCIDevice, owner 
 			newClaim := generatePCIDeviceClaim(dev, owner)
 			_, createErr := vm.pciClaimClient.Create(newClaim)
 			return createErr
-		} else {
-			return err
 		}
+		return err
 	}
 
 	// claim exists

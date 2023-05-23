@@ -10,7 +10,6 @@ import (
 )
 
 func Mutation(clients *Clients) (http.Handler, []types.Resource, error) {
-	var resources []types.Resource
 	mutators := []types.Mutator{
 		NewPodMutator(clients.PCIFactory.Devices().V1beta1().PCIDevice().Cache(),
 			clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()),
@@ -20,6 +19,7 @@ func Mutation(clients *Clients) (http.Handler, []types.Resource, error) {
 	}
 
 	router := webhook.NewRouter()
+	resources := make([]types.Resource, 0, len(mutators))
 	for _, m := range mutators {
 		addHandler(router, types.AdmissionTypeMutation, m)
 		resources = append(resources, m.Resource())

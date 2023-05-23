@@ -8,13 +8,13 @@ import (
 )
 
 func Validation(clients *Clients) (http.Handler, []types.Resource, error) {
-	var resources []types.Resource
 	validators := []types.Validator{
 		NewSriovNetworkDeviceValidator(clients.PCIFactory.Devices().V1beta1().PCIDeviceClaim().Cache()),
 		NewPCIDeviceClaimValidator(clients.PCIFactory.Devices().V1beta1().PCIDevice().Cache(), clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()),
 	}
 
 	router := webhook.NewRouter()
+	resources := make([]types.Resource, 0, len(validators))
 	for _, v := range validators {
 		addHandler(router, types.AdmissionTypeValidation, types.NewValidatorAdapter(v))
 		resources = append(resources, v.Resource())

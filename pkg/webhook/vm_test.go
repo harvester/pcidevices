@@ -20,11 +20,11 @@ var (
 		Spec: devicesv1beta1.PCIDeviceSpec{},
 		Status: devicesv1beta1.PCIDeviceStatus{
 			Address:           "0000:04:10.0",
-			ClassId:           "0200",
+			ClassID:           "0200",
 			Description:       "fake device 1",
 			NodeName:          "node1",
 			ResourceName:      "fake.com/device1",
-			VendorId:          "8086",
+			VendorID:          "8086",
 			KernelDriverInUse: "ixgbevf",
 			IOMMUGroup:        "89",
 		},
@@ -48,11 +48,11 @@ var (
 		Spec: devicesv1beta1.PCIDeviceSpec{},
 		Status: devicesv1beta1.PCIDeviceStatus{
 			Address:           "0000:04:10.1",
-			ClassId:           "0200",
+			ClassID:           "0200",
 			Description:       "fake device 2",
 			NodeName:          "node1",
 			ResourceName:      "fake.com/device2",
-			VendorId:          "8086",
+			VendorID:          "8086",
 			KernelDriverInUse: "ixgbevf",
 			IOMMUGroup:        "89",
 		},
@@ -76,11 +76,11 @@ var (
 		Spec: devicesv1beta1.PCIDeviceSpec{},
 		Status: devicesv1beta1.PCIDeviceStatus{
 			Address:           "0000:05:10.1",
-			ClassId:           "0300",
+			ClassID:           "0300",
 			Description:       "fake device 3",
 			NodeName:          "node1",
 			ResourceName:      "fake.com/device3",
-			VendorId:          "8086",
+			VendorID:          "8086",
 			KernelDriverInUse: "ixgbevf",
 			IOMMUGroup:        "99",
 		},
@@ -93,11 +93,11 @@ var (
 		Spec: devicesv1beta1.PCIDeviceSpec{},
 		Status: devicesv1beta1.PCIDeviceStatus{
 			Address:           "0000:04:10.0",
-			ClassId:           "0300",
+			ClassID:           "0300",
 			Description:       "fake device 1",
 			NodeName:          "node2",
 			ResourceName:      "fake.com/device1",
-			VendorId:          "8086",
+			VendorID:          "8086",
 			KernelDriverInUse: "ixgbevf",
 			IOMMUGroup:        "89",
 		},
@@ -292,6 +292,7 @@ func Test_VMWithAllIommuDevices(t *testing.T) {
 	assert.NoError(err, "expect no error while creation of patch")
 	assert.Len(patchOps, 0, "expected no patch operation to be generated")
 }
+
 func Test_VMWithoutValidDeviceName(t *testing.T) {
 	assert := require.New(t)
 	fakeClient := fake.NewSimpleClientset(node1dev1, node1dev2, node1dev3, node2dev1, node1dev1Claim)

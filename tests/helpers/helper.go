@@ -5,23 +5,22 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/rancher/wrangler/pkg/gvk"
 	"github.com/rancher/wrangler/pkg/unstructured"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
-	"k8s.io/kubernetes/pkg/apis/authentication"
-
-	"github.com/google/uuid"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/apis/admission"
+	"k8s.io/kubernetes/pkg/apis/authentication"
 )
 
 // GenerateMutationRequest is a helper method to perform an admission review request
@@ -62,7 +61,7 @@ func GenerateMutationRequest(source runtime.Object, endpoint string, cfg *rest.C
 	admissionResponse := &admission.AdmissionResponse{}
 
 	err = json.Unmarshal(admissionRespJSON, admissionResponse)
-	return admissionResponse, nil
+	return admissionResponse, err
 }
 
 func makeWebhookCall(endpoint string, message []byte) ([]byte, error) {
@@ -91,7 +90,7 @@ func makeWebhookCall(endpoint string, message []byte) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	// return response contents
-	return ioutil.ReadAll(resp.Body)
+	return io.ReadAll(resp.Body)
 }
 
 func generateAdmissionRequest(obj runtime.Object, cfg *rest.Config) (*admission.AdmissionReview, error) {

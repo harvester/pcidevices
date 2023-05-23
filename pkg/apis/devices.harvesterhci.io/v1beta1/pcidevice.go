@@ -32,9 +32,9 @@ type PCIDevice struct {
 // PCIDeviceStatus defines the observed state of PCIDevice
 type PCIDeviceStatus struct {
 	Address           string `json:"address"`
-	VendorId          string `json:"vendorId"`
-	DeviceId          string `json:"deviceId"`
-	ClassId           string `json:"classId"`
+	VendorID          string `json:"vendorId"`
+	DeviceID          string `json:"deviceId"`
+	ClassID           string `json:"classId"`
 	IOMMUGroup        string `json:"iommuGroup"`
 	NodeName          string `json:"nodeName"`
 	ResourceName      string `json:"resourceName"`
@@ -103,7 +103,7 @@ func resourceName(dev *pci.Device) string {
 		productCleaned = strings.ToUpper(productCleaned)
 		productCleaned = strings.Replace(productCleaned, "/", "_", -1)
 		productCleaned = strings.Replace(productCleaned, ".", "_", -1)
-		reg, _ := regexp.Compile("\\s+")
+		reg, _ := regexp.Compile(`\s+`)
 		productCleaned = reg.ReplaceAllString(productCleaned, "_") // Replace all spaces with underscore
 		reg, _ = regexp.Compile("[^a-zA-Z0-9_.]+")
 		productCleaned = reg.ReplaceAllString(productCleaned, "") // Removes any char other than alphanumeric and underscore
@@ -115,9 +115,9 @@ func resourceName(dev *pci.Device) string {
 
 func (status *PCIDeviceStatus) Update(dev *pci.Device, hostname string, iommuGroups map[string]int) {
 	status.Address = dev.Address
-	status.VendorId = dev.Vendor.ID
-	status.DeviceId = dev.Product.ID
-	status.ClassId = fmt.Sprintf("%s%s", dev.Class.ID, dev.Subclass.ID)
+	status.VendorID = dev.Vendor.ID
+	status.DeviceID = dev.Product.ID
+	status.ClassID = fmt.Sprintf("%s%s", dev.Class.ID, dev.Subclass.ID)
 	// Generate the ResourceName field, this is used by KubeVirt to schedule the VM to the node
 	status.ResourceName = resourceName(dev)
 	status.Description = description(dev)
@@ -152,9 +152,9 @@ func NewPCIDeviceForHostname(dev *pci.Device, hostname string) PCIDevice {
 		},
 		Status: PCIDeviceStatus{
 			Address:           dev.Address,
-			VendorId:          dev.Vendor.ID,
-			DeviceId:          dev.Product.ID,
-			ClassId:           fmt.Sprintf("%s%s", dev.Class.ID, dev.Subclass.ID),
+			VendorID:          dev.Vendor.ID,
+			DeviceID:          dev.Product.ID,
+			ClassID:           fmt.Sprintf("%s%s", dev.Class.ID, dev.Subclass.ID),
 			NodeName:          hostname,
 			ResourceName:      resourceName(dev),
 			Description:       description(dev),

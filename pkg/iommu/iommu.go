@@ -2,7 +2,7 @@ package iommu
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 
@@ -34,15 +34,15 @@ const sysKernelIommuGroups = "/sys/kernel/iommu_groups"
 // return all paths like /sys/kernel/iommu_groups/$GROUP/devices/$DEVICE
 func GroupPaths() ([]string, error) {
 	// list all iommu groups
-	iommuGroups, err := ioutil.ReadDir(sysKernelIommuGroups)
+	iommuGroups, err := os.ReadDir(sysKernelIommuGroups)
 	if err != nil {
 		// TODO log the error
 		return []string{}, err
 	}
-	var groupPaths []string = []string{}
+	var groupPaths []string
 	for _, group := range iommuGroups {
 		path := fmt.Sprintf("%s/%s/devices", sysKernelIommuGroups, group.Name())
-		devices, err := ioutil.ReadDir(path)
+		devices, err := os.ReadDir(path)
 		if err != nil {
 			return []string{}, err
 		}
