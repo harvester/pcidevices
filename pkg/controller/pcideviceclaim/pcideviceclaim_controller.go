@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/rancher/wrangler/pkg/relatedresource"
@@ -22,6 +23,10 @@ import (
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/deviceplugins"
 	v1beta1gen "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
+)
+
+var (
+	lock sync.Mutex
 )
 
 const (
@@ -103,6 +108,8 @@ func (h *Handler) OnRemove(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.P
 		return pdc, err
 	}
 
+	lock.Lock()
+	defer lock.Unlock()
 	// Find the DevicePlugin
 	resourceName := pd.Status.ResourceName
 	dp := deviceplugins.Find(
@@ -269,13 +276,6 @@ func (h *Handler) reconcilePCIDeviceClaims(name string, pdc *v1beta1.PCIDeviceCl
 		return pdc, err
 	}
 
-	// Find the DevicePlugin
-	resourceName := pd.Status.ResourceName
-	dp := deviceplugins.Find(
-		resourceName,
-		h.devicePlugins,
-	)
-
 	if err := h.permitHostDeviceInKubeVirt(pd); err != nil {
 		return pdc, fmt.Errorf("error updating kubevirt CR: %v", err)
 	}
@@ -286,6 +286,14 @@ func (h *Handler) reconcilePCIDeviceClaims(name string, pdc *v1beta1.PCIDeviceCl
 		return pdc, err
 	}
 
+	lock.Lock()
+	defer lock.Unlock()
+	// Find the DevicePlugin
+	resourceName := pd.Status.ResourceName
+	dp := deviceplugins.Find(
+		resourceName,
+		h.devicePlugins,
+	)
 	if dp == nil {
 		pds := []*v1beta1.PCIDevice{pd}
 		dp, err = h.createDevicePlugin(pds, pdc)
