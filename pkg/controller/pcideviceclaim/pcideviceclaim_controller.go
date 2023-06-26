@@ -253,7 +253,8 @@ func getOrphanedPCIDevices(
 	pdcs *v1beta1.PCIDeviceClaimList,
 	pds *v1beta1.PCIDeviceList, nodeName string) (*v1beta1.PCIDeviceList, error) {
 	pdsOrphaned := v1beta1.PCIDeviceList{}
-	for _, pd := range pds.Items {
+	for i := range pds.Items {
+		pd := pds.Items[i] // fix G601: Implicit memory aliasing in for loop. (gosec)
 		isVfioPci := pd.Status.KernelDriverInUse == "vfio-pci"
 		isOnThisNode := nodeName == pd.Status.NodeName
 		if isVfioPci && isOnThisNode && !pciDeviceIsClaimed(&pd, pdcs, nodeName) {
