@@ -64,6 +64,7 @@ func GenerateMutationRequest(source runtime.Object, endpoint string, cfg *rest.C
 	return admissionResponse, err
 }
 
+//nolint:gosec // skip gosec, test helper only needed for integration tests
 func makeWebhookCall(endpoint string, message []byte) ([]byte, error) {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
