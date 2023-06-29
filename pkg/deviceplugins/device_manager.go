@@ -181,7 +181,6 @@ func (dp *PCIDevicePlugin) Start(stop <-chan struct{}) (err error) {
 	}
 
 	dp.server = grpc.NewServer([]grpc.ServerOption{}...)
-	//defer dpi.stopDevicePlugin()
 
 	pluginapi.RegisterDevicePluginServer(dp.server, dp)
 

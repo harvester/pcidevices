@@ -5,7 +5,7 @@ ENV ARCH $DAPPER_HOST_ARCH
 
 RUN zypper -n ar  https://download.opensuse.org/repositories/hardware/15.4/hardware.repo && \
     zypper -n --gpg-auto-import-keys refresh && \
-    zypper -n install bash git gcc docker vim less file curl wget ca-certificates pciutils go umockdev
+    zypper -n install bash git gcc docker vim less file curl wget ca-certificates pciutils go1.19 umockdev
 RUN go install golang.org/x/lint/golint@latest
 RUN go install golang.org/x/tools/cmd/goimports@latest
 RUN go install github.com/incu6us/goimports-reviser/v3@latest
