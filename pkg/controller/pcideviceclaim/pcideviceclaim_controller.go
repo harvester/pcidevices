@@ -26,6 +26,16 @@ import (
 )
 
 var (
+	// the pcidevice-controller runs 2 threads for all the registered handlers
+	// as a result there may be cases when processing multiple pcideviceclaims
+	// for same device types, there is a race condition in creating/updating the
+	// deviceplugin to register additional pcidevice addresses.
+	// the lock has been introduced to ensure serial updates to the deviceplugin map
+	// stored in the handler.
+	// the lock is called during pcideviceclaim creation and deletion operations
+	// to ensure that the deviceplugin updates are performed serially.
+	// this in turn helps ensure that the correct device capacity / allocation
+	// is updated in the corev1.NodeStatus.Allocatable and corev1.NodeStatus.Capacity
 	lock sync.Mutex
 )
 
@@ -41,6 +51,7 @@ type Controller struct {
 }
 
 type Handler struct {
+	ctx           context.Context
 	pdcClient     v1beta1gen.PCIDeviceClaimController
 	pdClient      v1beta1gen.PCIDeviceClient
 	virtClient    kubecli.KubevirtClient
@@ -63,6 +74,7 @@ func Register(
 	}
 
 	handler := &Handler{
+		ctx:           ctx,
 		pdcClient:     pdcClient,
 		pdClient:      pdClient,
 		nodeName:      nodeName,
@@ -325,7 +337,7 @@ func (h *Handler) createDevicePlugin(
 ) (*deviceplugins.PCIDevicePlugin, error) {
 	resourceName := pds[0].Status.ResourceName
 	logrus.Infof("Creating DevicePlugin: %s", resourceName)
-	dp := deviceplugins.Create(resourceName, pdc.Spec.Address, pds)
+	dp := deviceplugins.Create(h.ctx, resourceName, pdc.Spec.Address, pds)
 	h.devicePlugins[resourceName] = dp
 	// Start the DevicePlugin
 	if pdc.Status.PassthroughEnabled && !dp.Started() {

@@ -1,6 +1,8 @@
 package deviceplugins
 
 import (
+	"context"
+
 	"github.com/sirupsen/logrus"
 	pluginapi "kubevirt.io/kubevirt/pkg/virt-handler/device-manager/deviceplugin/v1beta1"
 
@@ -38,7 +40,7 @@ func Find(
 }
 
 // Creates a new PCIDevicePlugin with that resourceName, and returns it
-func Create(
+func Create(ctx context.Context,
 	resourceName string,
 	pciAddressInitial string, // the initial PCI address to mark as healthy
 	pdsWithSameResourceName []*v1beta1.PCIDevice,
@@ -54,7 +56,7 @@ func Create(
 		})
 	}
 	// Create the DevicePlugin
-	dp := NewPCIDevicePlugin(pcidevs, resourceName)
+	dp := NewPCIDevicePlugin(ctx, pcidevs, resourceName)
 	dp.MarkPCIDeviceAsHealthy(resourceName, pciAddressInitial)
 	return dp
 }

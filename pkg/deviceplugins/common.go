@@ -118,8 +118,8 @@ func initHandler() {
 	}
 }
 
-func waitForGRPCServer(socketPath string, timeout time.Duration) error {
-	conn, err := gRPCConnect(socketPath, timeout)
+func waitForGRPCServer(ctx context.Context, socketPath string, timeout time.Duration) error {
+	conn, err := gRPCConnect(ctx, socketPath, timeout)
 	if err != nil {
 		return err
 	}
@@ -128,8 +128,8 @@ func waitForGRPCServer(socketPath string, timeout time.Duration) error {
 }
 
 // dial establishes the gRPC communication with the registered device plugin.
-func gRPCConnect(socketPath string, timeout time.Duration) (*grpc.ClientConn, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+func gRPCConnect(existingCtx context.Context, socketPath string, timeout time.Duration) (*grpc.ClientConn, error) {
+	ctx, cancel := context.WithTimeout(existingCtx, timeout)
 	defer cancel()
 	c, err := grpc.DialContext(ctx, socketPath,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),

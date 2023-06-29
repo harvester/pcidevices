@@ -71,6 +71,7 @@ type PCIDevicePlugin struct {
 	lock          *sync.Mutex
 	deregistered  chan struct{}
 	starter       *DeviceStarter
+	ctx           context.Context
 }
 
 type DeviceStarter struct {
@@ -98,7 +99,7 @@ func (d *PCIDevice) GetID() string {
 	return d.pciID
 }
 
-func NewPCIDevicePlugin(pciDevices []*PCIDevice, resourceName string) *PCIDevicePlugin {
+func NewPCIDevicePlugin(ctx context.Context, pciDevices []*PCIDevice, resourceName string) *PCIDevicePlugin {
 	serverSock := SocketPath(strings.Replace(resourceName, "/", "-", -1))
 	iommuToPCIMap := make(map[string]string)
 
@@ -121,6 +122,7 @@ func NewPCIDevicePlugin(pciDevices []*PCIDevice, resourceName string) *PCIDevice
 			stopChan: make(chan struct{}),
 			backoff:  defaultBackoffTime,
 		},
+		ctx: ctx,
 	}
 	return dpi
 }
@@ -190,7 +192,7 @@ func (dp *PCIDevicePlugin) Start(stop <-chan struct{}) (err error) {
 		errChan <- dp.server.Serve(sock)
 	}()
 
-	err = waitForGRPCServer(dp.socketPath, connectionTimeout)
+	err = waitForGRPCServer(dp.ctx, dp.socketPath, connectionTimeout)
 	if err != nil {
 		return fmt.Errorf("error starting the GRPC server: %v", err)
 	}
@@ -408,7 +410,7 @@ func (dp *PCIDevicePlugin) stopDevicePlugin() error {
 
 // Register the device plugin for the given resourceName with Kubelet.
 func (dp *PCIDevicePlugin) register() error {
-	conn, err := gRPCConnect(pluginapi.KubeletSocket, connectionTimeout)
+	conn, err := gRPCConnect(dp.ctx, pluginapi.KubeletSocket, connectionTimeout)
 	if err != nil {
 		return err
 	}
