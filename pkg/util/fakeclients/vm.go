@@ -14,6 +14,7 @@ import (
 
 const (
 	VMByPCIDeviceClaim = "harvesterhci.io/vm-by-pcideviceclaim"
+	VMByVGPU           = "harvesterhci.io/vm-by-vgpu"
 )
 
 type VirtualMachineClient func(string) kubevirtv1.VirtualMachineInterface
@@ -87,6 +88,21 @@ func (c VirtualMachineCache) GetByIndex(indexName, key string) ([]*kubevirtv1api
 		for _, vm := range vmList {
 			for _, hostDevice := range vm.Spec.Template.Spec.Domain.Devices.HostDevices {
 				if hostDevice.Name == key {
+					vms = append(vms, vm)
+				}
+			}
+		}
+		return vms, nil
+	case VMByVGPU:
+		var vms []*kubevirtv1api.VirtualMachine
+		vmList, err := c.List("", labels.NewSelector())
+		if err != nil {
+			return nil, err
+		}
+
+		for _, vm := range vmList {
+			for _, gpuDevice := range vm.Spec.Template.Spec.Domain.Devices.GPUs {
+				if gpuDevice.Name == key {
 					vms = append(vms, vm)
 				}
 			}

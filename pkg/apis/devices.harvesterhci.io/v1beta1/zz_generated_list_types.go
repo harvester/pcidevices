@@ -77,6 +77,23 @@ func NewPCIDeviceClaim(namespace, name string, obj PCIDeviceClaim) *PCIDeviceCla
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
+// SRIOVGPUDeviceList is a list of SRIOVGPUDevice resources
+type SRIOVGPUDeviceList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+
+	Items []SRIOVGPUDevice `json:"items"`
+}
+
+func NewSRIOVGPUDevice(namespace, name string, obj SRIOVGPUDevice) *SRIOVGPUDevice {
+	obj.APIVersion, obj.Kind = SchemeGroupVersion.WithKind("SRIOVGPUDevice").ToAPIVersionAndKind()
+	obj.Name = name
+	obj.Namespace = namespace
+	return &obj
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
 // SRIOVNetworkDeviceList is a list of SRIOVNetworkDevice resources
 type SRIOVNetworkDeviceList struct {
 	metav1.TypeMeta `json:",inline"`
@@ -87,6 +104,23 @@ type SRIOVNetworkDeviceList struct {
 
 func NewSRIOVNetworkDevice(namespace, name string, obj SRIOVNetworkDevice) *SRIOVNetworkDevice {
 	obj.APIVersion, obj.Kind = SchemeGroupVersion.WithKind("SRIOVNetworkDevice").ToAPIVersionAndKind()
+	obj.Name = name
+	obj.Namespace = namespace
+	return &obj
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// VGPUDeviceList is a list of VGPUDevice resources
+type VGPUDeviceList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+
+	Items []VGPUDevice `json:"items"`
+}
+
+func NewVGPUDevice(namespace, name string, obj VGPUDevice) *VGPUDevice {
+	obj.APIVersion, obj.Kind = SchemeGroupVersion.WithKind("VGPUDevice").ToAPIVersionAndKind()
 	obj.Name = name
 	obj.Namespace = namespace
 	return &obj

@@ -31,7 +31,9 @@ var (
 	NodeResourceName               = "nodes"
 	PCIDeviceResourceName          = "pcidevices"
 	PCIDeviceClaimResourceName     = "pcideviceclaims"
+	SRIOVGPUDeviceResourceName     = "sriovgpudevices"
 	SRIOVNetworkDeviceResourceName = "sriovnetworkdevices"
+	VGPUDeviceResourceName         = "vgpudevices"
 )
 
 // SchemeGroupVersion is group version used to register these objects
@@ -61,8 +63,12 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&PCIDeviceList{},
 		&PCIDeviceClaim{},
 		&PCIDeviceClaimList{},
+		&SRIOVGPUDevice{},
+		&SRIOVGPUDeviceList{},
 		&SRIOVNetworkDevice{},
 		&SRIOVNetworkDeviceList{},
+		&VGPUDevice{},
+		&VGPUDeviceList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

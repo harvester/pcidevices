@@ -24,4 +24,8 @@ type PCIDeviceExpansion interface{}
 
 type PCIDeviceClaimExpansion interface{}
 
+type SRIOVGPUDeviceExpansion interface{}
+
 type SRIOVNetworkDeviceExpansion interface{}
+
+type VGPUDeviceExpansion interface{}

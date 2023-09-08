@@ -33,7 +33,9 @@ type Interface interface {
 	Node() NodeController
 	PCIDevice() PCIDeviceController
 	PCIDeviceClaim() PCIDeviceClaimController
+	SRIOVGPUDevice() SRIOVGPUDeviceController
 	SRIOVNetworkDevice() SRIOVNetworkDeviceController
+	VGPUDevice() VGPUDeviceController
 }
 
 func New(controllerFactory controller.SharedControllerFactory) Interface {
@@ -55,6 +57,12 @@ func (c *version) PCIDevice() PCIDeviceController {
 func (c *version) PCIDeviceClaim() PCIDeviceClaimController {
 	return NewPCIDeviceClaimController(schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "PCIDeviceClaim"}, "pcideviceclaims", false, c.controllerFactory)
 }
+func (c *version) SRIOVGPUDevice() SRIOVGPUDeviceController {
+	return NewSRIOVGPUDeviceController(schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "SRIOVGPUDevice"}, "sriovgpudevices", false, c.controllerFactory)
+}
 func (c *version) SRIOVNetworkDevice() SRIOVNetworkDeviceController {
 	return NewSRIOVNetworkDeviceController(schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "SRIOVNetworkDevice"}, "sriovnetworkdevices", false, c.controllerFactory)
+}
+func (c *version) VGPUDevice() VGPUDeviceController {
+	return NewVGPUDeviceController(schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "VGPUDevice"}, "vgpudevices", false, c.controllerFactory)
 }
