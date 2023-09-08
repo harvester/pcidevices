@@ -21,11 +21,14 @@ require (
 	github.com/urfave/cli/v2 v2.11.1
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74
+	gitlab.com/nvidia/cloud-native/go-nvlib v0.0.0-20230818092907-09424fdc8884
 	google.golang.org/grpc v1.54.0
 	k8s.io/api v0.25.4
 	k8s.io/apimachinery v0.25.4
+	k8s.io/cli-runtime v0.24.10
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/kube-aggregator v0.25.4
+	k8s.io/kubectl v0.24.2
 	kubevirt.io/client-go v0.54.0
 	kubevirt.io/kubevirt v0.55.1
 	sigs.k8s.io/controller-runtime v0.13.1
@@ -33,10 +36,20 @@ require (
 
 require (
 	emperror.dev/errors v0.8.0 // indirect
+	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
+	github.com/BurntSushi/toml v1.1.0 // indirect
+	github.com/MakeNowJust/heredoc v1.0.0 // indirect
+	github.com/alessio/shellescape v1.4.1 // indirect
 	github.com/banzaicloud/logging-operator/pkg/sdk v0.8.16 // indirect
 	github.com/banzaicloud/operator-tools v0.28.10 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
+	github.com/chai2010/gettext-go v0.0.0-20160711120539-c6fed771bfd5 // indirect
 	github.com/coreos/prometheus-operator v0.38.1-0.20200424145508-7e176fda06cc // indirect
+	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
+	github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d // indirect
+	github.com/fatih/camelcase v1.0.0 // indirect
+	github.com/fvbommel/sortorder v1.0.1 // indirect
+	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-kit/kit v0.10.0 // indirect
 	github.com/go-logfmt/logfmt v0.5.0 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
@@ -44,17 +57,30 @@ require (
 	github.com/golang/glog v1.1.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/mock v1.6.0 // indirect
+	github.com/google/btree v1.0.1 // indirect
+	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
+	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/iancoleman/orderedmap v0.2.0 // indirect
+	github.com/iancoleman/strcase v0.2.0 // indirect
+	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jinzhu/copier v0.3.5 // indirect
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v0.0.0-20200331171230-d50e42f2b669 // indirect
 	github.com/klauspost/compress v1.15.9 // indirect
 	github.com/klauspost/pgzip v1.2.4 // indirect
 	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.2.0 // indirect
 	github.com/kubernetes-csi/external-snapshotter/v2 v2.1.3 // indirect
+	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
 	github.com/longhorn/longhorn-manager v1.3.1 // indirect
+	github.com/mattn/go-isatty v0.0.16 // indirect
+	github.com/mitchellh/go-wordwrap v1.0.0 // indirect
+	github.com/moby/spdystream v0.2.0 // indirect
+	github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6 // indirect
+	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/openshift/api v0.0.0 // indirect
 	github.com/openshift/client-go v0.0.0 // indirect
+	github.com/pelletier/go-toml v1.9.5 // indirect
+	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.62.0 // indirect
 	github.com/rancher/aks-operator v1.0.7 // indirect
 	github.com/rancher/eks-operator v1.1.5 // indirect
@@ -64,7 +90,11 @@ require (
 	github.com/rancher/rancher/pkg/apis v0.0.0 // indirect
 	github.com/rancher/rke v1.3.18 // indirect
 	github.com/rancher/system-upgrade-controller/pkg/apis v0.0.0-20210727200656-10b094e30007 // indirect
+	github.com/russross/blackfriday v1.6.0 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
+	github.com/spf13/cobra v1.5.0 // indirect
+	github.com/xlab/treeprint v1.1.0 // indirect
+	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
 	howett.net/plist v1.0.0 // indirect
@@ -72,6 +102,9 @@ require (
 	k8s.io/component-base v0.25.4 // indirect
 	sigs.k8s.io/cli-utils v0.27.0 // indirect
 	sigs.k8s.io/cluster-api v1.2.0-beta.0 // indirect
+	sigs.k8s.io/kind v0.14.0 // indirect
+	sigs.k8s.io/kustomize/api v0.11.4 // indirect
+	sigs.k8s.io/kustomize/kyaml v0.13.6 // indirect
 )
 
 require (

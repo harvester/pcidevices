@@ -11,6 +11,8 @@ func Validation(clients *Clients) (http.Handler, []types.Resource, error) {
 	validators := []types.Validator{
 		NewSriovNetworkDeviceValidator(clients.PCIFactory.Devices().V1beta1().PCIDeviceClaim().Cache()),
 		NewPCIDeviceClaimValidator(clients.PCIFactory.Devices().V1beta1().PCIDevice().Cache(), clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()),
+		NewVGPUValidator(clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()),
+		NewSRIOVGPUValidator(clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()),
 	}
 
 	router := webhook.NewRouter()

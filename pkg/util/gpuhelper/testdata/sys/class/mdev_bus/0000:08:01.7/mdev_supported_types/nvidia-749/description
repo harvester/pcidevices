@@ -1,0 +1,1 @@
+num_heads=1, frl_config=60, framebuffer=1024M, max_resolution=1280x1024, max_instance=16

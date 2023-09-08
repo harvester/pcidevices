@@ -108,6 +108,24 @@ func List() []crd.CRD {
 			c.Status = false
 			return c
 		}),
+		newCRD(&devices.SRIOVGPUDevice{}, func(c crd.CRD) crd.CRD {
+			c.NonNamespace = true
+			return c.
+				WithColumn("Address", ".spec.address").
+				WithColumn("Node Name", ".spec.nodeName").
+				WithColumn("Enabled", ".spec.enabled").
+				WithColumn("VGPUDevices", ".status.vGPUDevices")
+		}),
+		newCRD(&devices.VGPUDevice{}, func(c crd.CRD) crd.CRD {
+			c.NonNamespace = true
+			return c.
+				WithColumn("Address", ".spec.address").
+				WithColumn("Node Name", ".spec.nodeName").
+				WithColumn("Enabled", ".spec.enabled").
+				WithColumn("UUID", ".status.uuid").
+				WithColumn("VGPUType", ".status.configureVGPUTypeName").
+				WithColumn("ParentGPUDevice", ".spec.parentGPUDeviceAddress")
+		}),
 	}
 }
 

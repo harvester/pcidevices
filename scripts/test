@@ -5,6 +5,9 @@ cd $(dirname $0)/..
 
 echo Running tests
 export GHW_DISABLE_WARNINGS=true
-umockdev-run -d ./tests/snapshots/all.umockdev -- go test ./pkg/... -cover -tags=test
+umockdev-run -d ./tests/snapshots/all.umockdev -- go test -v ./pkg/apis/... ./pkg/codegen/... ./pkg/controller/... ./pkg/crd/... ./pkg/deviceplugins/... ./pkg/generated/... ./pkg/iommu/... ./pkg/util/nichelper/... ./pkg/webhook/... -cover -tags=test
+
+## snapshot from GPU enabled node for tests
+umockdev-run -d ./tests/snapshots/vgpu-node.umockdev -- go test -v ./pkg/util/gpuhelper/... -cover -tags=test
 
 go test -v ./tests/integration

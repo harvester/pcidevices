@@ -31,7 +31,9 @@ type DevicesV1beta1Interface interface {
 	NodesGetter
 	PCIDevicesGetter
 	PCIDeviceClaimsGetter
+	SRIOVGPUDevicesGetter
 	SRIOVNetworkDevicesGetter
+	VGPUDevicesGetter
 }
 
 // DevicesV1beta1Client is used to interact with features provided by the devices.harvesterhci.io group.
@@ -51,8 +53,16 @@ func (c *DevicesV1beta1Client) PCIDeviceClaims() PCIDeviceClaimInterface {
 	return newPCIDeviceClaims(c)
 }
 
+func (c *DevicesV1beta1Client) SRIOVGPUDevices() SRIOVGPUDeviceInterface {
+	return newSRIOVGPUDevices(c)
+}
+
 func (c *DevicesV1beta1Client) SRIOVNetworkDevices() SRIOVNetworkDeviceInterface {
 	return newSRIOVNetworkDevices(c)
+}
+
+func (c *DevicesV1beta1Client) VGPUDevices() VGPUDeviceInterface {
+	return newVGPUDevices(c)
 }
 
 // NewForConfig creates a new DevicesV1beta1Client for the given config.

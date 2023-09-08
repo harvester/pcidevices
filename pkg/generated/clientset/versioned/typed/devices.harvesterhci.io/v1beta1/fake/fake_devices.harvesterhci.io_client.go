@@ -40,8 +40,16 @@ func (c *FakeDevicesV1beta1) PCIDeviceClaims() v1beta1.PCIDeviceClaimInterface {
 	return &FakePCIDeviceClaims{c}
 }
 
+func (c *FakeDevicesV1beta1) SRIOVGPUDevices() v1beta1.SRIOVGPUDeviceInterface {
+	return &FakeSRIOVGPUDevices{c}
+}
+
 func (c *FakeDevicesV1beta1) SRIOVNetworkDevices() v1beta1.SRIOVNetworkDeviceInterface {
 	return &FakeSRIOVNetworkDevices{c}
+}
+
+func (c *FakeDevicesV1beta1) VGPUDevices() v1beta1.VGPUDeviceInterface {
+	return &FakeVGPUDevices{c}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

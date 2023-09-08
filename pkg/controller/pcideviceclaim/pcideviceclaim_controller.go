@@ -114,14 +114,15 @@ func (h *Handler) OnRemove(_ string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCID
 		return pdc, err
 	}
 
+	lock.Lock()
+	defer lock.Unlock()
+
 	// Disable PCI Passthrough by unbinding from the vfio-pci device driver
 	err = h.disablePassthrough(pd)
 	if err != nil {
 		return pdc, err
 	}
 
-	lock.Lock()
-	defer lock.Unlock()
 	// Find the DevicePlugin
 	resourceName := pd.Status.ResourceName
 	dp := deviceplugins.Find(
@@ -289,6 +290,9 @@ func (h *Handler) reconcilePCIDeviceClaims(_ string, pdc *v1beta1.PCIDeviceClaim
 		return pdc, err
 	}
 
+	lock.Lock()
+	defer lock.Unlock()
+
 	if err := h.permitHostDeviceInKubeVirt(pd); err != nil {
 		return pdc, fmt.Errorf("error updating kubevirt CR: %v", err)
 	}
@@ -299,8 +303,6 @@ func (h *Handler) reconcilePCIDeviceClaims(_ string, pdc *v1beta1.PCIDeviceClaim
 		return pdc, err
 	}
 
-	lock.Lock()
-	defer lock.Unlock()
 	// Find the DevicePlugin
 	resourceName := pd.Status.ResourceName
 	dp := deviceplugins.Find(
