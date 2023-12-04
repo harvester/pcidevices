@@ -12,7 +12,11 @@ import (
 )
 
 const (
-	PciDeviceDriver = "harvesterhci.io/pcideviceDriver"
+	PciDeviceDriver     = "harvesterhci.io/pcideviceDriver"
+	PluginNamePrefix    = "/var/lib/kubelet/device-plugins/kubevirt-"
+	SocketFileNameLimit = 108
+	VFSuffix            = "VIRTUAL_FUNCTION"
+	ShortenedVFSuffix   = "VF"
 )
 
 // +genclient
@@ -107,7 +111,7 @@ func resourceName(dev *pci.Device) string {
 		productCleaned = reg.ReplaceAllString(productCleaned, "_") // Replace all spaces with underscore
 		reg, _ = regexp.Compile("[^a-zA-Z0-9_.]+")
 		productCleaned = reg.ReplaceAllString(productCleaned, "") // Removes any char other than alphanumeric and underscore
-		return fmt.Sprintf("%s/%s", vendorCleaned, productCleaned)
+		return trimResourceNameIfNeeded(vendorCleaned, productCleaned, dev.Product.ID)
 	}
 	// If the pcidb doesn't have the deviceId, just show the deviceId
 	return fmt.Sprintf("%s/%s", vendorCleaned, dev.Product.ID)
@@ -162,4 +166,20 @@ func NewPCIDeviceForHostname(dev *pci.Device, hostname string) PCIDevice {
 		},
 	}
 	return pciDevice
+}
+
+// if plugin name is going to exceed 108 chars due to 108 char limit on socket length
+// then we need to trim name and switch to using ID https://man7.org/linux/man-pages/man7/unix.7.html
+func trimResourceNameIfNeeded(vendorCleaned, productCleaned, ID string) string {
+	fullSocketName := fmt.Sprintf("%s/%s-%s.sock", PluginNamePrefix, vendorCleaned, productCleaned)
+	if len(fullSocketName) > SocketFileNameLimit {
+		if strings.Contains(productCleaned, VFSuffix) {
+			// replace VIRTUAL_FUNCTION with VF and retry check
+			// to ensure that now new name is lower than socket file limit
+			productCleaned = strings.ReplaceAll(productCleaned, VFSuffix, ShortenedVFSuffix)
+			return trimResourceNameIfNeeded(vendorCleaned, productCleaned, ID)
+		}
+		return fmt.Sprintf("%s/%s", vendorCleaned, ID)
+	}
+	return fmt.Sprintf("%s/%s", vendorCleaned, productCleaned)
 }
