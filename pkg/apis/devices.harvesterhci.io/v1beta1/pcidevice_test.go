@@ -1,11 +1,13 @@
 package v1beta1
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/jaypipes/ghw/pkg/pci"
 	"github.com/jaypipes/pcidb"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -179,5 +181,45 @@ func TestDescriptionForVendorDevice(t *testing.T) {
 				t.Errorf("\ndescription() = %v,\nwant %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func Test_trimResourceName(t *testing.T) {
+	tests := []struct {
+		name           string
+		vendorCleaned  string
+		productCleaned string
+		ID             string
+		want           string
+	}{
+		{
+			name:           "long virtual function name",
+			vendorCleaned:  "broadcom.com",
+			productCleaned: "NETXTREME_II_BCM57810_10_GIGABIT_ETHERNET_VIRTUAL_FUNCTION",
+			ID:             "16af",
+			want:           "broadcom.com/NETXTREME_II_BCM57810_10_GIGABIT_ETHERNET_VF",
+		},
+		{
+
+			name:           "shorter product name",
+			vendorCleaned:  "broadcom.com",
+			productCleaned: "NETXTREME_II_BCM57810_10_GIGABIT_ETHERNET",
+			ID:             "16af",
+			want:           "broadcom.com/NETXTREME_II_BCM57810_10_GIGABIT_ETHERNET",
+		},
+		{
+
+			name:           "long product name",
+			vendorCleaned:  "broadcom.com",
+			productCleaned: "NETXTREME_II_BCM57810_10_GIGABIT_ETHERNET_REALLY_REALLY_LONG_NAME",
+			ID:             "16af",
+			want:           "broadcom.com/16af",
+		},
+	}
+
+	assert := require.New(t)
+	for _, tt := range tests {
+		resourceName := trimResourceNameIfNeeded(tt.vendorCleaned, tt.productCleaned, tt.ID)
+		assert.Equal(tt.want, resourceName, fmt.Sprintf("expected resourceName did not match specified for case: %s", tt.name))
 	}
 }
