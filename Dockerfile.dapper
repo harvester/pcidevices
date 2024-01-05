@@ -15,9 +15,7 @@ RUN export K8S_VERSION=1.24.2 && \
     tar -C /usr/local/kubebuilder --strip-components=1 -zvxf envtest-bins.tar.gz
 
 ## install golangci
-RUN if [ "${ARCH}" = "amd64" ]; then \
-    curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.49.0; \
-    fi
+RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.55.2
 
 ENV GO111MODULE on
 ENV DAPPER_ENV REPO TAG DRONE_TAG
