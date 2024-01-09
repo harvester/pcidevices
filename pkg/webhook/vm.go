@@ -60,7 +60,7 @@ func (vm *vmPCIMutator) Resource() types.Resource {
 	}
 }
 
-func (vm *vmPCIMutator) Create(request *types.Request, newObj runtime.Object) (types.PatchOps, error) {
+func (vm *vmPCIMutator) Create(_ *types.Request, newObj runtime.Object) (types.PatchOps, error) {
 	vmObj := newObj.(*kubevirtv1.VirtualMachine)
 
 	if len(vmObj.Spec.Template.Spec.Domain.Devices.HostDevices) == 0 {
@@ -70,7 +70,7 @@ func (vm *vmPCIMutator) Create(request *types.Request, newObj runtime.Object) (t
 	return vm.generatePatch(vmObj)
 }
 
-func (vm *vmPCIMutator) Update(request *types.Request, oldObj runtime.Object, newObj runtime.Object) (types.PatchOps, error) {
+func (vm *vmPCIMutator) Update(_ *types.Request, _ runtime.Object, newObj runtime.Object) (types.PatchOps, error) {
 	vmObj := newObj.(*kubevirtv1.VirtualMachine)
 	oldVMObj := newObj.(*kubevirtv1.VirtualMachine)
 

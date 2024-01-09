@@ -31,10 +31,10 @@ func (c VlanConfigCache) List(selector labels.Selector) ([]*v1beta1.VlanConfig, 
 	return result, err
 }
 
-func (c VlanConfigCache) AddIndexer(indexName string, indexer ctlnetworkv1beta1.VlanConfigIndexer) {
+func (c VlanConfigCache) AddIndexer(_ string, _ ctlnetworkv1beta1.VlanConfigIndexer) {
 	panic("implement me")
 }
 
-func (c VlanConfigCache) GetByIndex(indexName, key string) ([]*v1beta1.VlanConfig, error) {
+func (c VlanConfigCache) GetByIndex(_, _ string) ([]*v1beta1.VlanConfig, error) {
 	panic("implement me")
 }

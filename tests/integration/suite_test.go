@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	"github.com/onsi/ginkgo/v2"
+	"github.com/onsi/gomega"
 	"github.com/rancher/lasso/pkg/controller"
 	"github.com/rancher/wrangler/pkg/generated/controllers/core"
 	"github.com/rancher/wrangler/pkg/generic"
@@ -46,6 +46,27 @@ var (
 		},
 	}
 )
+
+// Declarations for Ginkgo DSL
+var Fail = ginkgo.Fail
+var Describe = ginkgo.Describe
+var It = ginkgo.It
+var By = ginkgo.By
+var BeforeEach = ginkgo.BeforeEach
+var AfterEach = ginkgo.AfterEach
+var BeforeSuite = ginkgo.BeforeSuite
+var AfterSuite = ginkgo.AfterSuite
+var RunSpecs = ginkgo.RunSpecs
+var GinkgoWriter = ginkgo.GinkgoWriter
+
+// Declarations for Gomega Matchers
+var RegisterFailHandler = gomega.RegisterFailHandler
+var Equal = gomega.Equal
+var Expect = gomega.Expect
+var BeNil = gomega.BeNil
+var HaveOccurred = gomega.HaveOccurred
+var BeEmpty = gomega.BeEmpty
+var Eventually = gomega.Eventually
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
