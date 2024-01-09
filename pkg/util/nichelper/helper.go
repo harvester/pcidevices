@@ -130,7 +130,7 @@ func IdentifyManagementNics() ([]string, error) {
 
 // identifyClusterNetworks will identify vlanConfigs covering the current node and identify NICs in use for
 // vlanconfigs
-func identifyClusterNetworks(nodeName string, nodeCache ctlcorev1.NodeCache, vlanConfigCache ctlnetworkv1beta1.VlanConfigCache) ([]string, error) {
+func identifyClusterNetworks(nodeName string, _ ctlcorev1.NodeCache, vlanConfigCache ctlnetworkv1beta1.VlanConfigCache) ([]string, error) {
 	var nicsList []string
 	vlanConfigList, err := vlanConfigCache.List(labels.NewSelector())
 	if err != nil {

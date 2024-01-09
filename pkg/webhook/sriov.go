@@ -39,7 +39,7 @@ func (s *sriovNetworkDeviceValidator) Resource() types.Resource {
 	}
 }
 
-func (s *sriovNetworkDeviceValidator) Update(request *types.Request, oldObj runtime.Object, newObj runtime.Object) error {
+func (s *sriovNetworkDeviceValidator) Update(_ *types.Request, oldObj runtime.Object, newObj runtime.Object) error {
 	oldSriovDevice := oldObj.(*devicesv1beta1.SRIOVNetworkDevice)
 	newSriovDevice := newObj.(*devicesv1beta1.SRIOVNetworkDevice)
 
@@ -54,7 +54,7 @@ func (s *sriovNetworkDeviceValidator) Update(request *types.Request, oldObj runt
 	return nil
 }
 
-func (s *sriovNetworkDeviceValidator) Delete(request *types.Request, oldObj runtime.Object) error {
+func (s *sriovNetworkDeviceValidator) Delete(_ *types.Request, oldObj runtime.Object) error {
 	oldSriovDevice := oldObj.(*devicesv1beta1.SRIOVNetworkDevice)
 	return s.checkVFInUse(oldSriovDevice)
 

@@ -97,7 +97,7 @@ func Register(
 }
 
 // When a PCIDeviceClaim is removed, we need to unbind the device from the vfio-pci driver
-func (h *Handler) OnRemove(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
+func (h *Handler) OnRemove(_ string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
 	if pdc == nil || pdc.DeletionTimestamp == nil {
 		return pdc, nil
 	}
@@ -276,7 +276,7 @@ func getOrphanedPCIDevices(
 	return &pdsOrphaned, nil
 }
 
-func (h *Handler) reconcilePCIDeviceClaims(name string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
+func (h *Handler) reconcilePCIDeviceClaims(_ string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
 
 	if pdc == nil || pdc.DeletionTimestamp != nil || (pdc.Spec.NodeName != h.nodeName) {
 		return pdc, nil

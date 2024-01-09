@@ -21,7 +21,7 @@ func (s SriovDevicesClient) Update(d *pcidevicev1beta1.SRIOVNetworkDevice) (*pci
 }
 
 func (s SriovDevicesClient) Get(name string, options metav1.GetOptions) (*pcidevicev1beta1.SRIOVNetworkDevice, error) {
-	return s().Get(context.TODO(), name, metav1.GetOptions{})
+	return s().Get(context.TODO(), name, options)
 }
 
 func (s SriovDevicesClient) Create(d *pcidevicev1beta1.SRIOVNetworkDevice) (*pcidevicev1beta1.SRIOVNetworkDevice, error) {
@@ -36,11 +36,11 @@ func (s SriovDevicesClient) List(opts metav1.ListOptions) (*pcidevicev1beta1.SRI
 	return s().List(context.TODO(), opts)
 }
 
-func (s SriovDevicesClient) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+func (s SriovDevicesClient) Watch(metav1.ListOptions) (watch.Interface, error) {
 	panic("implement me")
 }
 
-func (s SriovDevicesClient) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *pcidevicev1beta1.SRIOVNetworkDevice, err error) {
+func (s SriovDevicesClient) Patch(_ string, _ types.PatchType, _ []byte, _ ...string) (*pcidevicev1beta1.SRIOVNetworkDevice, error) {
 	panic("implement me")
 }
 
@@ -69,7 +69,7 @@ func (s SriovDevicesCache) List(selector labels.Selector) ([]*pcidevicev1beta1.S
 	return result, err
 }
 
-func (s SriovDevicesCache) AddIndexer(indexName string, indexer pcidevicesv1beta1ctl.SRIOVNetworkDeviceIndexer) {
+func (s SriovDevicesCache) AddIndexer(_ string, _ pcidevicesv1beta1ctl.SRIOVNetworkDeviceIndexer) {
 	panic("implement me")
 }
 

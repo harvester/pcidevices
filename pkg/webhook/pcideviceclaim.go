@@ -40,7 +40,7 @@ func (pdc *pciDeviceClaimValidator) Resource() types.Resource {
 	}
 }
 
-func (pdc *pciDeviceClaimValidator) Create(request *types.Request, newObj runtime.Object) error {
+func (pdc *pciDeviceClaimValidator) Create(_ *types.Request, newObj runtime.Object) error {
 	pciClaimObj := newObj.(*devicesv1beta1.PCIDeviceClaim)
 	pciDev, err := pdc.deviceCache.Get(pciClaimObj.Name)
 	if err != nil {
@@ -55,7 +55,7 @@ func (pdc *pciDeviceClaimValidator) Create(request *types.Request, newObj runtim
 	return nil
 }
 
-func (pdc *pciDeviceClaimValidator) Delete(request *types.Request, oldObj runtime.Object) error {
+func (pdc *pciDeviceClaimValidator) Delete(_ *types.Request, oldObj runtime.Object) error {
 	pciClaimObj := oldObj.(*devicesv1beta1.PCIDeviceClaim)
 	vms, err := pdc.kubevirtCache.GetByIndex(VMByPCIDeviceClaim, pciClaimObj.Name)
 	if err != nil {

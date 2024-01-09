@@ -25,7 +25,7 @@ import (
 	"github.com/harvester/pcidevices/pkg/webhook"
 )
 
-func Setup(ctx context.Context, cfg *rest.Config, scheme *runtime.Scheme) error {
+func Setup(ctx context.Context, cfg *rest.Config, _ *runtime.Scheme) error {
 	err := crd.Create(ctx, cfg)
 	if err != nil {
 		return fmt.Errorf("error setting up crds: %v", err)

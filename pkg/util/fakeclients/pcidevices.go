@@ -25,7 +25,7 @@ func (p PCIDevicesClient) Update(d *pcidevicev1beta1.PCIDevice) (*pcidevicev1bet
 }
 
 func (p PCIDevicesClient) Get(name string, options metav1.GetOptions) (*pcidevicev1beta1.PCIDevice, error) {
-	return p().Get(context.TODO(), name, metav1.GetOptions{})
+	return p().Get(context.TODO(), name, options)
 }
 
 func (p PCIDevicesClient) Create(d *pcidevicev1beta1.PCIDevice) (*pcidevicev1beta1.PCIDevice, error) {
@@ -40,11 +40,11 @@ func (p PCIDevicesClient) List(opts metav1.ListOptions) (*pcidevicev1beta1.PCIDe
 	return p().List(context.TODO(), opts)
 }
 
-func (p PCIDevicesClient) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+func (p PCIDevicesClient) Watch(metav1.ListOptions) (watch.Interface, error) {
 	panic("implement me")
 }
 
-func (p PCIDevicesClient) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *pcidevicev1beta1.PCIDevice, err error) {
+func (p PCIDevicesClient) Patch(_ string, _ types.PatchType, _ []byte, _ ...string) (result *pcidevicev1beta1.PCIDevice, err error) {
 	panic("implement me")
 }
 
@@ -58,11 +58,11 @@ func (p PCIDevicesCache) Get(name string) (*pcidevicev1beta1.PCIDevice, error) {
 	return p().Get(context.TODO(), name, metav1.GetOptions{})
 }
 
-func (p PCIDevicesCache) List(selector labels.Selector) ([]*pcidevicev1beta1.PCIDevice, error) {
+func (p PCIDevicesCache) List(labels.Selector) ([]*pcidevicev1beta1.PCIDevice, error) {
 	panic("implement me")
 }
 
-func (p PCIDevicesCache) AddIndexer(indexName string, indexer pcidevicesv1beta1ctl.PCIDeviceIndexer) {
+func (p PCIDevicesCache) AddIndexer(_ string, _ pcidevicesv1beta1ctl.PCIDeviceIndexer) {
 	panic("implement me")
 }
 

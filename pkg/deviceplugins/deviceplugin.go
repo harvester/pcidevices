@@ -9,7 +9,7 @@ import (
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 )
 
-func (dp *PCIDevicePlugin) MarkPCIDeviceAsHealthy(resourceName string, pciAddress string) {
+func (dp *PCIDevicePlugin) MarkPCIDeviceAsHealthy(_ string, pciAddress string) {
 	go func() {
 		dp.health <- deviceHealth{
 			DevID:  pciAddress,
