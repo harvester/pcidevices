@@ -9,13 +9,14 @@ import (
 )
 
 const (
-	defaultTotalVFFile      = "sriov_totalvfs"
 	defaultConfiguredVFFile = "sriov_numvfs"
+	defaultVFCheckFile      = "sriov_vf_device"
 )
 
-// IsDeviceSRIOVCapable checks for existence of `sriov_totalvfs` file in the pcidevice tree
+// IsDeviceSRIOVCapable checks for existence of `sriov_vf_device` file in the pcidevice tree
 func IsDeviceSRIOVCapable(devicePath string) (bool, error) {
-	_, err := os.Stat(filepath.Join(devicePath, defaultTotalVFFile))
+	vfCheckFilePath := filepath.Join(devicePath, defaultVFCheckFile)
+	_, err := os.Stat(vfCheckFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
@@ -23,6 +24,14 @@ func IsDeviceSRIOVCapable(devicePath string) (bool, error) {
 		return false, err
 	}
 
+	contents, err := os.ReadFile(vfCheckFilePath)
+	if err != nil {
+		return false, err
+	}
+
+	if strings.TrimSuffix(string(contents), "\n") == "0" {
+		return false, nil
+	}
 	return true, nil
 }
 
