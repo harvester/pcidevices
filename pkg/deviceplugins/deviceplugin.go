@@ -92,5 +92,11 @@ func (dp *PCIDevicePlugin) RemoveDevice(pd *v1beta1.PCIDevice, pdc *v1beta1.PCID
 		logrus.Infof("Removing %s from device plugin", resourceName)
 		dp.MarkPCIDeviceAsUnhealthy(pdc.Spec.Address)
 	}
+
+	for i, dev := range dp.devs {
+		if dev.ID == pdc.Spec.Address {
+			dp.devs[i].Health = pluginapi.Unhealthy
+		}
+	}
 	return nil
 }
