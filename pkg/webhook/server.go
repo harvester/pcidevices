@@ -2,12 +2,12 @@ package webhook
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/harvester/harvester/pkg/webhook/types"
 	"github.com/rancher/dynamiclistener"
 	"github.com/rancher/dynamiclistener/server"
 	"github.com/sirupsen/logrus"
@@ -15,6 +15,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
+
+	"github.com/harvester/harvester/pkg/webhook/types"
 )
 
 var (
@@ -30,6 +32,13 @@ var (
 	threadiness         = 5
 	MutatorName         = "pcidevices-mutator"
 	ValidatorName       = "pcidevices-validator"
+	whiteListedCiphers  = []uint16{tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+		tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+		tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+		tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+		tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+	}
 )
 
 // AdmissionWebhookServer serves the mutating webhook for pcidevices
@@ -156,6 +165,10 @@ func (s *AdmissionWebhookServer) listenAndServe(clients *Clients, handler http.H
 				tlsName,
 			},
 			FilterCN: dynamiclistener.OnlyAllow(tlsName),
+			TLSConfig: &tls.Config{
+				MinVersion:   tls.VersionTLS12,
+				CipherSuites: whiteListedCiphers,
+			},
 		},
 	})
 }
