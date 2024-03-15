@@ -3,8 +3,6 @@ package webhook
 import (
 	"fmt"
 
-	kubevirtctl "github.com/harvester/harvester/pkg/generated/controllers/kubevirt.io/v1"
-	"github.com/harvester/harvester/pkg/webhook/types"
 	"github.com/sirupsen/logrus"
 	admissionregv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -12,11 +10,15 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/json"
 
+	kubevirtctl "github.com/harvester/harvester/pkg/generated/controllers/kubevirt.io/v1"
+	"github.com/harvester/harvester/pkg/webhook/types"
+
 	"github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 )
 
 const (
-	VMLabel = "harvesterhci.io/vmName"
+	VMLabel                     = "harvesterhci.io/vmName"
+	defaultComputeContainerName = "compute"
 )
 
 var matchingLabels = []labels.Set{
@@ -131,11 +133,14 @@ func (m *podMutator) Create(_ *types.Request, newObj runtime.Object) (types.Patc
 func createCapabilityPatch(pod *corev1.Pod) (types.PatchOps, error) {
 	var patchOps types.PatchOps
 	for idx, container := range pod.Spec.Containers {
-		addPatch, err := resourcePatch(container.SecurityContext.Capabilities.Add, fmt.Sprintf("/spec/containers/%d/securityContext/capabilities/add", idx))
-		if err != nil {
-			return nil, err
+		if container.Name == defaultComputeContainerName {
+
+			addPatch, err := resourcePatch(container.SecurityContext.Capabilities.Add, fmt.Sprintf("/spec/containers/%d/securityContext/capabilities/add", idx))
+			if err != nil {
+				return nil, err
+			}
+			patchOps = append(patchOps, addPatch...)
 		}
-		patchOps = append(patchOps, addPatch...)
 	}
 
 	return patchOps, nil
