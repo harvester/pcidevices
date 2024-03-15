@@ -92,7 +92,7 @@ var _ = Describe("validate mutator by sending a mock pod request needing mutatio
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
-					Name:  "fakepod",
+					Name:  "compute",
 					Image: "fakeimage",
 					SecurityContext: &corev1.SecurityContext{
 						Capabilities: &corev1.Capabilities{
