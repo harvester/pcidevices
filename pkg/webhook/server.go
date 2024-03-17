@@ -81,15 +81,15 @@ func (s *AdmissionWebhookServer) ListenAndServe() error {
 		return err
 	}
 
-	if err := clients.Start(s.context); err != nil {
+	if err := clients.Clients.Start(s.context); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (s *AdmissionWebhookServer) listenAndServe(clients *Clients, handler http.Handler, mutationResources []types.Resource, validationResources []types.Resource) error {
-	apply := clients.Apply.WithDynamicLookup()
-	clients.Core.Secret().OnChange(s.context, "secrets", func(key string, secret *corev1.Secret) (*corev1.Secret, error) {
+	apply := clients.Clients.Apply.WithDynamicLookup()
+	clients.Clients.Core.Secret().OnChange(s.context, "secrets", func(key string, secret *corev1.Secret) (*corev1.Secret, error) {
 		if secret == nil || secret.Name != caName || secret.Namespace != namespace || len(secret.Data[corev1.TLSCertKey]) == 0 {
 			return nil, nil
 		}
@@ -156,7 +156,7 @@ func (s *AdmissionWebhookServer) listenAndServe(clients *Clients, handler http.H
 	tlsName := fmt.Sprintf("pcidevices-webhook.%s.svc", namespace)
 
 	return server.ListenAndServe(s.context, int(port), 0, handler, &server.ListenOpts{
-		Secrets:       clients.Core.Secret(),
+		Secrets:       clients.Clients.Core.Secret(),
 		CertNamespace: namespace,
 		CertName:      certName,
 		CAName:        caName,
