@@ -45,6 +45,7 @@ const (
 	pciBasePath       = "/sys/bus/pci/devices"
 	connectionTimeout = 120 * time.Second // Google gRPC default timeout
 	PCIResourcePrefix = "PCI_RESOURCE"
+	tickerTimeout     = 30 * time.Second
 )
 
 type PCIDevice struct {
@@ -292,7 +293,6 @@ func (dp *PCIDevicePlugin) Allocate(_ context.Context, r *pluginapi.AllocateRequ
 }
 
 func (dp *PCIDevicePlugin) healthCheck() error {
-	logger := log.DefaultLogger()
 	monitoredDevices := make(map[string]string)
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -348,31 +348,37 @@ func (dp *PCIDevicePlugin) healthCheck() error {
 		return fmt.Errorf("failed to watch device-plugin socket: %v", err)
 	}
 
+	return dp.performCheck(monitoredDevices, watcher)
+}
+
+func (dp *PCIDevicePlugin) performCheck(monitoredDevices map[string]string, watcher *fsnotify.Watcher) error {
 	for {
 		select {
 		case <-dp.stop:
 			return nil
+		case <-dp.done:
+			return nil
 		case err := <-watcher.Errors:
-			logger.Reason(err).Errorf("error watching devices and device plugin directory")
+			logrus.Errorf("error watching devices and device plugin directory: %v", err)
 		case event := <-watcher.Events:
-			logger.V(4).Infof("health Event: %v", event)
+			logrus.Infof("health Event: %v", event)
 			if monDevID, exist := monitoredDevices[event.Name]; exist {
 				// Health in this case is if the device path actually exists
 				if event.Op == fsnotify.Create {
-					logger.Infof("monitored device %s appeared", dp.resourceName)
+					logrus.Infof("monitored device %s appeared", dp.resourceName)
 					dp.health <- deviceHealth{
 						DevID:  monDevID,
 						Health: pluginapi.Healthy,
 					}
 				} else if (event.Op == fsnotify.Remove) || (event.Op == fsnotify.Rename) {
-					logger.Infof("monitored device %s disappeared", dp.resourceName)
+					logrus.Infof("monitored device %s disappeared", dp.resourceName)
 					dp.health <- deviceHealth{
 						DevID:  monDevID,
 						Health: pluginapi.Unhealthy,
 					}
 				}
 			} else if event.Name == dp.socketPath && event.Op == fsnotify.Remove {
-				logger.Infof("device socket file for device %s was removed, kubelet probably restarted.", dp.resourceName)
+				logrus.Infof("device socket file for device %s was removed, kubelet probably restarted.", dp.resourceName)
 				return nil
 			}
 		}
@@ -389,14 +395,12 @@ func (dp *PCIDevicePlugin) GetDeviceName() string {
 
 // Stop stops the gRPC server
 func (dp *PCIDevicePlugin) stopDevicePlugin() error {
-	defer func() {
-		if !IsChanClosed(dp.done) {
-			close(dp.done)
-		}
-	}()
+	if !IsChanClosed(dp.done) {
+		close(dp.done)
+	}
 
 	// Give the device plugin one second to properly deregister
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(tickerTimeout)
 	defer ticker.Stop()
 	select {
 	case <-dp.deregistered:
