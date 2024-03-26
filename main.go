@@ -60,7 +60,7 @@ func main() {
 		},
 	}
 
-	app.Action = func(c *cli.Context) error {
+	app.Action = func(_ *cli.Context) error {
 		return run(kubeConfig)
 	}
 
