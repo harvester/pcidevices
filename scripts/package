@@ -16,7 +16,7 @@ if echo $TAG | grep -q dirty; then
 fi
 
 mkdir -p dist/artifacts
-cp bin/pcidevices dist/artifacts/pcidevices${SUFFIX}
+cp bin/pcidevices${SUFFIX} dist/artifacts/pcidevices${SUFFIX}
 
 IMAGE=${REPO}/pcidevices:${TAG}
 DOCKERFILE=package/Dockerfile
@@ -24,5 +24,7 @@ if [ -e ${DOCKERFILE}.${ARCH} ]; then
     DOCKERFILE=${DOCKERFILE}.${ARCH}
 fi
 
-docker build -f ${DOCKERFILE} -t ${IMAGE} .
+buildx build --load \
+  -f ${DOCKERFILE} -t ${IMAGE} .
+
 echo Built ${IMAGE}
