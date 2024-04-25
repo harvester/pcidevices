@@ -40,7 +40,6 @@ type USBDevicesGetter interface {
 type USBDeviceInterface interface {
 	Create(ctx context.Context, uSBDevice *v1beta1.USBDevice, opts v1.CreateOptions) (*v1beta1.USBDevice, error)
 	Update(ctx context.Context, uSBDevice *v1beta1.USBDevice, opts v1.UpdateOptions) (*v1beta1.USBDevice, error)
-	UpdateStatus(ctx context.Context, uSBDevice *v1beta1.USBDevice, opts v1.UpdateOptions) (*v1beta1.USBDevice, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
 	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1beta1.USBDevice, error)
@@ -122,21 +121,6 @@ func (c *uSBDevices) Update(ctx context.Context, uSBDevice *v1beta1.USBDevice, o
 	err = c.client.Put().
 		Resource("usbdevices").
 		Name(uSBDevice.Name).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(uSBDevice).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *uSBDevices) UpdateStatus(ctx context.Context, uSBDevice *v1beta1.USBDevice, opts v1.UpdateOptions) (result *v1beta1.USBDevice, err error) {
-	result = &v1beta1.USBDevice{}
-	err = c.client.Put().
-		Resource("usbdevices").
-		Name(uSBDevice.Name).
-		SubResource("status").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(uSBDevice).
 		Do(ctx).

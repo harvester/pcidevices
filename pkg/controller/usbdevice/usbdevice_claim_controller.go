@@ -31,7 +31,7 @@ func (h *ClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1beta1
 	usbDevice, err := h.usbDeviceCache.Get(usbDeviceClaim.Name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			fmt.Println("usbClient device not found")
+			fmt.Println("usb device not found")
 			return usbDeviceClaim, nil
 		}
 		return usbDeviceClaim, err
@@ -58,7 +58,7 @@ func (h *ClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1beta1
 
 	usbs := virtDp.Spec.Configuration.PermittedHostDevices.USB
 
-	// check if the usbClient device is already added
+	// check if the usb device is already added
 	for _, usb := range usbs {
 		// skip same resource name
 		if usb.ResourceName == usbDevice.Status.ResourceName {
@@ -163,7 +163,7 @@ func (h *ClaimHandler) OnRemove(_ string, claim *v1beta1.USBDeviceClaim) (*v1bet
 
 	usbs := virtDp.Spec.Configuration.PermittedHostDevices.USB
 
-	// split target one if usbClient.ResourceName == usbDevice.Name
+	// split target one if usb.ResourceName == usbDevice.Name
 
 	for i, usb := range usbs {
 		if usb.ResourceName == usbDevice.Status.ResourceName {

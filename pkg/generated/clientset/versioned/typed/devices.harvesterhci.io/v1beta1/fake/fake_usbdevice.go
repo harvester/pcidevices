@@ -96,17 +96,6 @@ func (c *FakeUSBDevices) Update(ctx context.Context, uSBDevice *v1beta1.USBDevic
 	return obj.(*v1beta1.USBDevice), err
 }
 
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeUSBDevices) UpdateStatus(ctx context.Context, uSBDevice *v1beta1.USBDevice, opts v1.UpdateOptions) (*v1beta1.USBDevice, error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceAction(usbdevicesResource, "status", uSBDevice), &v1beta1.USBDevice{})
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1beta1.USBDevice), err
-}
-
 // Delete takes name of the uSBDevice and deletes it. Returns an error if one occurs.
 func (c *FakeUSBDevices) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.

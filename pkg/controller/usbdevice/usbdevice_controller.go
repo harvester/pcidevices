@@ -102,65 +102,44 @@ func parseSysUeventFile(path string) *USBDevice {
 	return &u
 }
 
-func walkUSBDevices() (error, map[int][]*USBDevice) {
-	usbDevices := make(map[int][]*USBDevice, 0)
-	err := filepath.Walk("/sys/bus/usbClient/devices", func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Ignore named usbClient controllers
-		if strings.HasPrefix(info.Name(), "usbClient") {
-			return nil
-		}
-		// We are interested in actual USB devices information that
-		// contains idVendor and idProduct. We can skip all others.
-		if _, err := os.Stat(filepath.Join(path, "idVendor")); err != nil {
-			return nil
-		}
-
-		fmt.Println(path)
-		fmt.Printf("%#v\n", info)
-
-		// Get device information
-		if device := parseSysUeventFile(path); device != nil {
-			usbDevices[device.Vendor] = append(usbDevices[device.Vendor], device)
-		}
-		return nil
-	})
-
-	if err != nil {
-		return err, nil
-	}
-
-	return nil, usbDevices
-}
-
 func (h *Handler) init() {
 	err, usbDevices := deviceplugins.WalkUSBDevices()
 	if err != nil {
 		fmt.Println(usbDevices)
+		fmt.Println("========")
+		fmt.Println(err)
+		fmt.Println("========")
 	}
 
 	for vendorId, usbDevices := range usbDevices {
 		for _, usbDevice := range usbDevices {
-			devicePath := strings.Replace(usbDevice.DevicePath, "/dev/bus/usbClient/", "", -1)
+			devicePath := strings.Replace(usbDevice.DevicePath, "/dev/bus/usb/", "", -1)
 			devicePath = strings.Join(strings.Split(devicePath, "/"), "")
 			name := fmt.Sprintf("%04x-%04x-%s", vendorId, usbDevice.Product, devicePath)
 
-			if err, _ := h.usbClient.Create(&v1beta1.USBDevice{
+			fmt.Println(fmt.Sprintf("%04x", usbDevice.Vendor))
+			fmt.Println(fmt.Sprintf("%04x", usbDevice.Product))
+			fmt.Println(fmt.Sprintf("kubevirt.io/%s", name))
+			fmt.Println(os.Getenv("NODE_NAME"))
+			fmt.Println(usbDevice.DevicePath)
+
+			if newOne, err := h.usbClient.Create(&v1beta1.USBDevice{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: name,
 				},
-				Status: v1beta1.USBDeviceStatus{
+			}); err != nil {
+				fmt.Println(err)
+			} else {
+				newOne.Status = v1beta1.USBDeviceStatus{
 					VendorID:     fmt.Sprintf("%04x", usbDevice.Vendor),
 					ProductID:    fmt.Sprintf("%04x", usbDevice.Product),
 					ResourceName: fmt.Sprintf("kubevirt.io/%s", name),
 					NodeName:     os.Getenv("NODE_NAME"),
 					DevicePath:   usbDevice.DevicePath,
-				},
-			}); err != nil {
-				fmt.Println(err)
+				}
+				fmt.Printf("USBDevice old: %#v\n", newOne)
+				newOne, err = h.usbClient.UpdateStatus(newOne)
+				fmt.Printf("USBDevice new: %#v\n", newOne)
 			}
 		}
 	}
