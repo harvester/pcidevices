@@ -142,7 +142,7 @@ func (plugin *USBDevicePlugin) GetDeviceName() string {
 	return plugin.resourceName
 }
 
-func (plugin *USBDevicePlugin) stopDevicePlugin() error {
+func (plugin *USBDevicePlugin) StopDevicePlugin() error {
 	defer func() {
 		select {
 		case <-plugin.done:
@@ -181,7 +181,7 @@ func (plugin *USBDevicePlugin) Start(stop <-chan struct{}) error {
 	}
 
 	plugin.server = grpc.NewServer([]grpc.ServerOption{}...)
-	defer plugin.stopDevicePlugin()
+	defer plugin.StopDevicePlugin()
 
 	pluginapi.RegisterDevicePluginServer(plugin.server, plugin)
 
@@ -517,7 +517,7 @@ func parseSelector(s *v1.USBSelector) (int, int, error) {
 	return vendor, product, nil
 }
 
-func discoverAllowedUSBDevices(usbs []v1.USBHostDevice) map[string][]*PluginDevices {
+func DiscoverAllowedUSBDevices(usbs []v1.USBHostDevice) map[string][]*PluginDevices {
 	// The return value: USB USBDevice Plugins found and permitted to be exposed
 	plugins := make(map[string][]*PluginDevices)
 	// All USB devices found plugged in the Node
@@ -622,7 +622,7 @@ func parseSysUeventFile(path string) *USBDevice {
 	return &u
 }
 
-func walkUSBDevices() (error, map[int][]*USBDevice) {
+func WalkUSBDevices() (error, map[int][]*USBDevice) {
 	usbDevices := make(map[int][]*USBDevice, 0)
 	err := filepath.Walk("/sys/bus/usb/devices", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -655,33 +655,3 @@ func walkUSBDevices() (error, map[int][]*USBDevice) {
 
 	return nil, usbDevices
 }
-
-//func (h *USBDeviceHandler) init() {
-//	err, usbDevices := walkUSBDevices()
-//	if err != nil {
-//		fmt.Println(usbDevices)
-//	}
-//
-//	for vendorId, usbDevices := range usbDevices {
-//		for _, usbDevice := range usbDevices {
-//			devicePath := strings.Replace(usbDevice.DevicePath, "/dev/bus/usb/", "", -1)
-//			devicePath = strings.Join(strings.Split(devicePath, "/"), "")
-//			name := fmt.Sprintf("%04x-%04x-%s", vendorId, usbDevice.Product, devicePath)
-//
-//			if err, _ := h.usb.Create(&harvesterv1.USBDevice{
-//				ObjectMeta: metav1.ObjectMeta{
-//					Name: name,
-//				},
-//				Status: harvesterv1.USBDeviceStatus{
-//					VendorID:     fmt.Sprintf("%04x", usbDevice.Vendor),
-//					ProductID:    fmt.Sprintf("%04x", usbDevice.Product),
-//					ResourceName: fmt.Sprintf("kubevirt.io/%s", name),
-//					NodeName:     os.Getenv("NODE_NAME"),
-//					DevicePath:   usbDevice.DevicePath,
-//				},
-//			}); err != nil {
-//				fmt.Println(err)
-//			}
-//		}
-//	}
-//}

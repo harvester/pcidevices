@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	ctlnetwork "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io"
+	"github.com/harvester/pcidevices/pkg/controller/usbdevice"
 
 	"github.com/harvester/pcidevices/pkg/controller/gpudevice"
 	"github.com/harvester/pcidevices/pkg/controller/nodecleanup"
@@ -77,6 +78,8 @@ func Setup(ctx context.Context, cfg *rest.Config, _ *runtime.Scheme) error {
 
 	pdCtl := pciFactory.Devices().V1beta1().PCIDevice()
 	pdcCtl := pciFactory.Devices().V1beta1().PCIDeviceClaim()
+	usbDeviceCtrl := pciFactory.Devices().V1beta1().USBDevice()
+	usbDeviceClaim := pciFactory.Devices().V1beta1().USBDeviceClaim()
 	sriovCtl := pciFactory.Devices().V1beta1().SRIOVNetworkDevice()
 	nodeCtl := pciFactory.Devices().V1beta1().Node()
 	coreNodeCtl := coreFactory.Core().V1().Node()
@@ -89,6 +92,10 @@ func Setup(ctx context.Context, cfg *rest.Config, _ *runtime.Scheme) error {
 
 	if err := pcideviceclaim.Register(ctx, pdcCtl, pdCtl); err != nil {
 		return fmt.Errorf("error registering pcidevicclaim controllers :%v", err)
+	}
+
+	if err := usbdevice.Register(ctx, usbDeviceCtrl, usbDeviceClaim); err != nil {
+		return fmt.Errorf("error registering usbdevice controllers :%v", err)
 	}
 
 	if err := nodes.Register(ctx, sriovCtl, pdCtl, nodeCtl, coreNodeCtl, vlanCtl.Cache(),
