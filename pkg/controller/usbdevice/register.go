@@ -19,13 +19,6 @@ func Register(ctx context.Context, usbDeviceCtrl v1beta1gen.USBDeviceController,
 		fmt.Println(err)
 	}
 
-	usbDeviceController := &Handler{
-		usbClient:  usbDeviceCtrl,
-		virtClient: virtClient,
-		lock:       &sync.Mutex{},
-	}
-	usbDeviceController.init()
-
 	usbDeviceClaimController := &ClaimHandler{
 		usbDeviceCache: usbDeviceCtrl.Cache(),
 		usbClaimClient: usbDeviceClaimCtrl,

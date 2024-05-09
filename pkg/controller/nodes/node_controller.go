@@ -7,14 +7,17 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/harvester/pcidevices/pkg/controller/gpudevice"
-
-	ctlnetworkv1beta1 "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io/v1beta1"
 	"github.com/jaypipes/ghw"
 	ctlcorev1 "github.com/rancher/wrangler/pkg/generated/controllers/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"kubevirt.io/client-go/kubecli"
+
+	"github.com/harvester/pcidevices/pkg/controller/gpudevice"
+	"github.com/harvester/pcidevices/pkg/controller/usbdevice"
+
+	ctlnetworkv1beta1 "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io/v1beta1"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/controller/pcidevice"
@@ -42,16 +45,15 @@ type handler struct {
 	vGPUController           ctl.VGPUDeviceController
 	pciDeviceClaimController ctl.PCIDeviceClaimController
 	sriovGPUController       ctl.SRIOVGPUDeviceController
+	usbCtl                   ctl.USBDeviceController
+	virtClient               kubecli.KubevirtClient
 }
 
 const (
 	reconcilePCIDevices = "reconcile-pcidevices"
 )
 
-func Register(ctx context.Context, sriovCtl ctl.SRIOVNetworkDeviceController, pciDeviceCtl ctl.PCIDeviceController,
-	nodeCtl ctl.NodeController, coreNodeCtl ctlcorev1.NodeController, vlanConfigCache ctlnetworkv1beta1.VlanConfigCache,
-	sriovNetworkDeviceCache ctl.SRIOVNetworkDeviceCache, pciDeviceClaimController ctl.PCIDeviceClaimController, vGPUController ctl.VGPUDeviceController,
-	sriovGPUController ctl.SRIOVGPUDeviceController) error {
+func Register(ctx context.Context, sriovCtl ctl.SRIOVNetworkDeviceController, pciDeviceCtl ctl.PCIDeviceController, nodeCtl ctl.NodeController, coreNodeCtl ctlcorev1.NodeController, vlanConfigCache ctlnetworkv1beta1.VlanConfigCache, sriovNetworkDeviceCache ctl.SRIOVNetworkDeviceCache, pciDeviceClaimController ctl.PCIDeviceClaimController, vGPUController ctl.VGPUDeviceController, sriovGPUController ctl.SRIOVGPUDeviceController, usbCtl ctl.USBDeviceController, virtClient kubecli.KubevirtClient) error {
 	nodeName := os.Getenv(v1beta1.NodeEnvVarName)
 	h := &handler{
 		ctx:                      ctx,
@@ -68,6 +70,8 @@ func Register(ctx context.Context, sriovCtl ctl.SRIOVNetworkDeviceController, pc
 		vGPUController:           vGPUController,
 		pciDeviceClaimController: pciDeviceClaimController,
 		sriovGPUController:       sriovGPUController,
+		usbCtl:                   usbCtl,
+		virtClient:               virtClient,
 	}
 
 	nodeCtl.OnChange(ctx, reconcilePCIDevices, h.reconcileNodeDevices)
@@ -97,6 +101,9 @@ func (h *handler) reconcileNodeDevices(name string, node *v1beta1.Node) (*v1beta
 	if err != nil {
 		return nil, fmt.Errorf("error reconciling pcidevices for node %s: %v", h.nodeName, err)
 	}
+
+	usbHandler := usbdevice.NewHandler(h.usbCtl, h.virtClient)
+	usbHandler.ReconcileUSBDevices()
 
 	// additional steps for sriov reconcile
 	sriovHelper := sriovdevice.NewHandler(h.ctx, h.sriovCache, h.sriovClient, h.nodeName, h.coreNodeCache, h.vlanConfigCache)

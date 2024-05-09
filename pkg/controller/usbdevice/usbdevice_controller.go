@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"kubevirt.io/client-go/kubecli"
@@ -20,7 +19,6 @@ import (
 type Handler struct {
 	usbClient  ctlpcidevicerv1.USBDeviceController
 	virtClient kubecli.KubevirtClient
-	lock       *sync.Mutex
 }
 
 type USBDevice struct {
@@ -33,6 +31,13 @@ type USBDevice struct {
 	DeviceNumber int
 	Serial       string
 	DevicePath   string
+}
+
+func NewHandler(usbClient ctlpcidevicerv1.USBDeviceController, virtClient kubecli.KubevirtClient) *Handler {
+	return &Handler{
+		usbClient:  usbClient,
+		virtClient: virtClient,
+	}
 }
 
 func (dev *USBDevice) GetID() string {
@@ -102,7 +107,7 @@ func parseSysUeventFile(path string) *USBDevice {
 	return &u
 }
 
-func (h *Handler) init() {
+func (h *Handler) ReconcileUSBDevices() {
 	err, usbDevices := deviceplugins.WalkUSBDevices()
 	if err != nil {
 		fmt.Println(usbDevices)
@@ -113,14 +118,15 @@ func (h *Handler) init() {
 
 	for vendorId, usbDevices := range usbDevices {
 		for _, usbDevice := range usbDevices {
+			nodeName := os.Getenv("NODE_NAME")
 			devicePath := strings.Replace(usbDevice.DevicePath, "/dev/bus/usb/", "", -1)
 			devicePath = strings.Join(strings.Split(devicePath, "/"), "")
-			name := fmt.Sprintf("%04x-%04x-%s", vendorId, usbDevice.Product, devicePath)
+			name := fmt.Sprintf("%s-%04x-%04x-%s", nodeName, vendorId, usbDevice.Product, devicePath)
 
 			fmt.Println(fmt.Sprintf("%04x", usbDevice.Vendor))
 			fmt.Println(fmt.Sprintf("%04x", usbDevice.Product))
 			fmt.Println(fmt.Sprintf("kubevirt.io/%s", name))
-			fmt.Println(os.Getenv("NODE_NAME"))
+			fmt.Println(nodeName)
 			fmt.Println(usbDevice.DevicePath)
 
 			if newOne, err := h.usbClient.Create(&v1beta1.USBDevice{
@@ -134,7 +140,7 @@ func (h *Handler) init() {
 					VendorID:     fmt.Sprintf("%04x", usbDevice.Vendor),
 					ProductID:    fmt.Sprintf("%04x", usbDevice.Product),
 					ResourceName: fmt.Sprintf("kubevirt.io/%s", name),
-					NodeName:     os.Getenv("NODE_NAME"),
+					NodeName:     nodeName,
 					DevicePath:   usbDevice.DevicePath,
 				}
 				fmt.Printf("USBDevice old: %#v\n", newOne)

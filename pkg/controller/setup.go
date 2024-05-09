@@ -11,9 +11,11 @@ import (
 	ctlcore "github.com/rancher/wrangler/pkg/generated/controllers/core"
 	"github.com/rancher/wrangler/pkg/generic"
 	"github.com/rancher/wrangler/pkg/start"
+	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/workqueue"
+	"kubevirt.io/client-go/kubecli"
 
 	ctlnetwork "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io"
 	"github.com/harvester/pcidevices/pkg/controller/usbdevice"
@@ -88,6 +90,8 @@ func Setup(ctx context.Context, cfg *rest.Config, _ *runtime.Scheme) error {
 	sriovGPUCtl := pciFactory.Devices().V1beta1().SRIOVGPUDevice()
 	vGPUCtl := pciFactory.Devices().V1beta1().VGPUDevice()
 	podCtl := coreFactory.Core().V1().Pod()
+	clientConfig := kubecli.DefaultClientConfig(&pflag.FlagSet{})
+	virtClient, err := kubecli.GetKubevirtClientFromClientConfig(clientConfig)
 	RegisterIndexers(sriovNetworkDeviceCache)
 
 	if err := pcideviceclaim.Register(ctx, pdcCtl, pdCtl); err != nil {
@@ -99,7 +103,7 @@ func Setup(ctx context.Context, cfg *rest.Config, _ *runtime.Scheme) error {
 	}
 
 	if err := nodes.Register(ctx, sriovCtl, pdCtl, nodeCtl, coreNodeCtl, vlanCtl.Cache(),
-		sriovNetworkDeviceCache, pdcCtl, vGPUCtl, sriovGPUCtl); err != nil {
+		sriovNetworkDeviceCache, pdcCtl, vGPUCtl, sriovGPUCtl, usbDeviceCtrl, virtClient); err != nil {
 		return fmt.Errorf("error registering node controller: %v", err)
 	}
 
