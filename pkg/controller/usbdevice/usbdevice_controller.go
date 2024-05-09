@@ -1,11 +1,7 @@
 package usbdevice
 
 import (
-	"bufio"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strconv"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,6 +29,10 @@ type USBDevice struct {
 	DevicePath   string
 }
 
+func (dev *USBDevice) GetID() string {
+	return fmt.Sprintf("%04x:%04x-%02d:%02d", dev.Vendor, dev.Product, dev.Bus, dev.DeviceNumber)
+}
+
 func NewHandler(usbClient ctlpcidevicerv1.USBDeviceController, virtClient kubecli.KubevirtClient) *Handler {
 	return &Handler{
 		usbClient:  usbClient,
@@ -40,113 +40,86 @@ func NewHandler(usbClient ctlpcidevicerv1.USBDeviceController, virtClient kubecl
 	}
 }
 
-func (dev *USBDevice) GetID() string {
-	return fmt.Sprintf("%04x:%04x-%02d:%02d", dev.Vendor, dev.Product, dev.Bus, dev.DeviceNumber)
-}
-
-func parseSysUeventFile(path string) *USBDevice {
-	// Grab all details we are interested from uevent
-	file, err := os.Open(filepath.Join(path, "uevent"))
+func (h *Handler) ReconcileUSBDevices(nodeName string) error {
+	err, localUSBDevices := deviceplugins.WalkUSBDevices()
 	if err != nil {
-		fmt.Printf("Unable to access %s/%s\n", path, "uevent")
-		return nil
+		return fmt.Errorf("failed to walk USB devices: %v", err)
 	}
-	defer file.Close()
 
-	u := USBDevice{}
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		values := strings.Split(line, "=")
-		if len(values) != 2 {
-			fmt.Printf("Skipping %s due not being key=value\n", line)
-			continue
-		}
-		switch values[0] {
-		case "BUSNUM":
-			val, err := strconv.ParseInt(values[1], 10, 32)
-			if err != nil {
-				return nil
-			}
-			u.Bus = int(val)
-		case "DEVNUM":
-			val, err := strconv.ParseInt(values[1], 10, 32)
-			if err != nil {
-				return nil
-			}
-			u.DeviceNumber = int(val)
-		case "PRODUCT":
-			products := strings.Split(values[1], "/")
-			if len(products) != 3 {
-				return nil
-			}
-
-			val, err := strconv.ParseInt(products[0], 16, 32)
-			if err != nil {
-				return nil
-			}
-			u.Vendor = int(val)
-
-			val, err = strconv.ParseInt(products[1], 16, 32)
-			if err != nil {
-				return nil
-			}
-			u.Product = int(val)
-
-			val, err = strconv.ParseInt(products[2], 16, 32)
-			if err != nil {
-				return nil
-			}
-			u.BCD = int(val)
-		case "DEVNAME":
-			u.DevicePath = filepath.Join("/dev", values[1])
-		default:
-			fmt.Printf("Skipping unhandled line: %s\n", line)
-		}
-	}
-	return &u
-}
-
-func (h *Handler) ReconcileUSBDevices() {
-	err, usbDevices := deviceplugins.WalkUSBDevices()
+	storedUSBDevices, err := h.usbClient.List(metav1.ListOptions{})
 	if err != nil {
-		fmt.Println(usbDevices)
-		fmt.Println("========")
-		fmt.Println(err)
-		fmt.Println("========")
+		return fmt.Errorf("failed to list USB devices: %v", err)
 	}
 
-	for vendorId, usbDevices := range usbDevices {
-		for _, usbDevice := range usbDevices {
-			nodeName := os.Getenv("NODE_NAME")
-			devicePath := strings.Replace(usbDevice.DevicePath, "/dev/bus/usb/", "", -1)
-			devicePath = strings.Join(strings.Split(devicePath, "/"), "")
-			name := fmt.Sprintf("%s-%04x-%04x-%s", nodeName, vendorId, usbDevice.Product, devicePath)
+	mapStoredUSBDevices := make(map[string]*v1beta1.USBDevice)
+	for _, storedUSBDevice := range storedUSBDevices.Items {
+		mapStoredUSBDevices[storedUSBDevice.Status.DevicePath] = &storedUSBDevice
+	}
 
-			fmt.Println(fmt.Sprintf("%04x", usbDevice.Vendor))
-			fmt.Println(fmt.Sprintf("%04x", usbDevice.Product))
-			fmt.Println(fmt.Sprintf("kubevirt.io/%s", name))
-			fmt.Println(nodeName)
-			fmt.Println(usbDevice.DevicePath)
+	for vendorId, localDevices := range localUSBDevices {
+		for _, localUSBDevice := range localDevices {
+			if existed, ok := mapStoredUSBDevices[localUSBDevice.DevicePath]; !ok {
+				name := usbDeviceName(nodeName, localUSBDevice, vendorId)
+				newOne, err := h.usbClient.Create(&v1beta1.USBDevice{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: name,
+						Labels: map[string]string{
+							"nodename": nodeName,
+						},
+					},
+				})
 
-			if newOne, err := h.usbClient.Create(&v1beta1.USBDevice{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: name,
-				},
-			}); err != nil {
-				fmt.Println(err)
-			} else {
+				if err != nil {
+					return fmt.Errorf("failed to create USB device: %v", err)
+				}
+
 				newOne.Status = v1beta1.USBDeviceStatus{
-					VendorID:     fmt.Sprintf("%04x", usbDevice.Vendor),
-					ProductID:    fmt.Sprintf("%04x", usbDevice.Product),
+					VendorID:     fmt.Sprintf("%04x", localUSBDevice.Vendor),
+					ProductID:    fmt.Sprintf("%04x", localUSBDevice.Product),
 					ResourceName: fmt.Sprintf("kubevirt.io/%s", name),
 					NodeName:     nodeName,
-					DevicePath:   usbDevice.DevicePath,
+					DevicePath:   localUSBDevice.DevicePath,
 				}
+
 				fmt.Printf("USBDevice old: %#v\n", newOne)
 				newOne, err = h.usbClient.UpdateStatus(newOne)
+				if err != nil {
+					return fmt.Errorf("failed to update USB device status: %v", err)
+				}
 				fmt.Printf("USBDevice new: %#v\n", newOne)
+			} else {
+				if isStatusChanged(existed, localUSBDevice) {
+					existed.Status.VendorID = fmt.Sprintf("%04x", localUSBDevice.Vendor)
+					existed.Status.ProductID = fmt.Sprintf("%04x", localUSBDevice.Product)
+
+					existed, err = h.usbClient.UpdateStatus(existed)
+					if err != nil {
+						return fmt.Errorf("failed to update existed USB device status: %v", err)
+					}
+				} else {
+					delete(mapStoredUSBDevices, localUSBDevice.DevicePath)
+				}
 			}
 		}
 	}
+
+	for _, usbDevice := range mapStoredUSBDevices {
+		if err := h.usbClient.Delete(usbDevice.Name, &metav1.DeleteOptions{}); err != nil {
+			return fmt.Errorf("failed to delete USB device: %v", err)
+		}
+	}
+
+	return nil
+}
+
+func usbDeviceName(nodeName string, localUSBDevice *deviceplugins.USBDevice, vendorId int) string {
+	devicePath := strings.Replace(localUSBDevice.DevicePath, "/dev/bus/usb/", "", -1)
+	devicePath = strings.Join(strings.Split(devicePath, "/"), "")
+	name := fmt.Sprintf("%s-%04x-%04x-%s", nodeName, vendorId, localUSBDevice.Product, devicePath)
+	return name
+}
+
+func isStatusChanged(existed *v1beta1.USBDevice, localUSBDevice *deviceplugins.USBDevice) bool {
+	return existed.Status.VendorID != fmt.Sprintf("%04x", localUSBDevice.Vendor) ||
+		existed.Status.ProductID != fmt.Sprintf("%04x", localUSBDevice.Product)
 }

@@ -103,7 +103,9 @@ func (h *handler) reconcileNodeDevices(name string, node *v1beta1.Node) (*v1beta
 	}
 
 	usbHandler := usbdevice.NewHandler(h.usbCtl, h.virtClient)
-	usbHandler.ReconcileUSBDevices()
+	if err := usbHandler.ReconcileUSBDevices(h.nodeName); err != nil {
+		return nil, fmt.Errorf("error reconciling usb devices for node %s: %v", h.nodeName, err)
+	}
 
 	// additional steps for sriov reconcile
 	sriovHelper := sriovdevice.NewHandler(h.ctx, h.sriovCache, h.sriovClient, h.nodeName, h.coreNodeCache, h.vlanConfigCache)
