@@ -563,7 +563,7 @@ func parseSysUeventFile(path string) *USBDevice {
 	// Grab all details we are interested from uevent
 	file, err := os.Open(filepath.Join(path, "uevent"))
 	if err != nil {
-		fmt.Printf("Unable to access %s/%s\n", path, "uevent")
+		//fmt.Printf("Unable to access %s/%s\n", path, "uevent")
 		return nil
 	}
 	defer file.Close()
@@ -574,7 +574,7 @@ func parseSysUeventFile(path string) *USBDevice {
 		line := scanner.Text()
 		values := strings.Split(line, "=")
 		if len(values) != 2 {
-			fmt.Printf("Skipping %s due not being key=value\n", line)
+			//fmt.Printf("Skipping %s due not being key=value\n", line)
 			continue
 		}
 		switch values[0] {
@@ -616,7 +616,7 @@ func parseSysUeventFile(path string) *USBDevice {
 		case "DEVNAME":
 			u.DevicePath = filepath.Join("/dev", values[1])
 		default:
-			fmt.Printf("Skipping unhandled line: %s\n", line)
+			//fmt.Printf("Skipping unhandled line: %s\n", line)
 		}
 	}
 	return &u
@@ -639,8 +639,8 @@ func WalkUSBDevices() (error, map[int][]*USBDevice) {
 			return nil
 		}
 
-		fmt.Println(path)
-		fmt.Printf("%#v\n", info)
+		//fmt.Println(path)
+		//fmt.Printf("%#v\n", info)
 
 		// Get device information
 		if device := parseSysUeventFile(path); device != nil {

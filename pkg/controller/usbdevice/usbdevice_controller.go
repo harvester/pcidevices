@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"kubevirt.io/client-go/kubecli"
 
@@ -43,34 +44,34 @@ func NewHandler(usbClient ctlpcidevicerv1.USBDeviceController, virtClient kubecl
 func (h *Handler) ReconcileUSBDevices(nodeName string) error {
 	err, localUSBDevices := deviceplugins.WalkUSBDevices()
 	if err != nil {
-		return fmt.Errorf("failed to walk USB devices: %v", err)
+		logrus.Errorf("failed to walk USB devices: %v\n", err)
+		return err
 	}
 
 	storedUSBDevices, err := h.usbClient.List(metav1.ListOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to list USB devices: %v", err)
+		logrus.Errorf("failed to list USB devices: %v\n", err)
+		return err
 	}
 
-	mapStoredUSBDevices := make(map[string]*v1beta1.USBDevice)
+	mapStoredUSBDevices := make(map[string]v1beta1.USBDevice)
 	for _, storedUSBDevice := range storedUSBDevices.Items {
-		mapStoredUSBDevices[storedUSBDevice.Status.DevicePath] = &storedUSBDevice
+		mapStoredUSBDevices[storedUSBDevice.Status.DevicePath] = storedUSBDevice
 	}
 
-	for vendorId, localDevices := range localUSBDevices {
+	for _, localDevices := range localUSBDevices {
 		for _, localUSBDevice := range localDevices {
 			if existed, ok := mapStoredUSBDevices[localUSBDevice.DevicePath]; !ok {
-				name := usbDeviceName(nodeName, localUSBDevice, vendorId)
+				name := usbDeviceName(nodeName, localUSBDevice)
 				newOne, err := h.usbClient.Create(&v1beta1.USBDevice{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: name,
-						Labels: map[string]string{
-							"nodename": nodeName,
-						},
 					},
 				})
 
 				if err != nil {
-					return fmt.Errorf("failed to create USB device: %v", err)
+					logrus.Errorf("failed to create USB device: %v\n", err)
+					return err
 				}
 
 				newOne.Status = v1beta1.USBDeviceStatus{
@@ -81,20 +82,24 @@ func (h *Handler) ReconcileUSBDevices(nodeName string) error {
 					DevicePath:   localUSBDevice.DevicePath,
 				}
 
-				fmt.Printf("USBDevice old: %#v\n", newOne)
 				newOne, err = h.usbClient.UpdateStatus(newOne)
 				if err != nil {
-					return fmt.Errorf("failed to update USB device status: %v", err)
+					logrus.Errorf("failed to update USB device status: %v\n", err)
+					return err
 				}
-				fmt.Printf("USBDevice new: %#v\n", newOne)
 			} else {
-				if isStatusChanged(existed, localUSBDevice) {
-					existed.Status.VendorID = fmt.Sprintf("%04x", localUSBDevice.Vendor)
-					existed.Status.ProductID = fmt.Sprintf("%04x", localUSBDevice.Product)
+				existedCp := existed.DeepCopy()
 
-					existed, err = h.usbClient.UpdateStatus(existed)
+				if isStatusChanged(existedCp, localUSBDevice) {
+					existedCp.Status.VendorID = fmt.Sprintf("%04x", localUSBDevice.Vendor)
+					existedCp.Status.ProductID = fmt.Sprintf("%04x", localUSBDevice.Product)
+					existedCp.Status.ResourceName = fmt.Sprintf("kubevirt.io/%s", usbDeviceName(nodeName, localUSBDevice))
+					existedCp.Name = usbDeviceName(nodeName, localUSBDevice)
+
+					_, err = h.usbClient.UpdateStatus(existedCp)
 					if err != nil {
-						return fmt.Errorf("failed to update existed USB device status: %v", err)
+						logrus.Errorf("failed to update existed USB device status: %v\n", err)
+						return err
 					}
 				} else {
 					delete(mapStoredUSBDevices, localUSBDevice.DevicePath)
@@ -105,17 +110,18 @@ func (h *Handler) ReconcileUSBDevices(nodeName string) error {
 
 	for _, usbDevice := range mapStoredUSBDevices {
 		if err := h.usbClient.Delete(usbDevice.Name, &metav1.DeleteOptions{}); err != nil {
-			return fmt.Errorf("failed to delete USB device: %v", err)
+			logrus.Errorf("failed to delete USB device: %v\n", err)
+			return err
 		}
 	}
 
 	return nil
 }
 
-func usbDeviceName(nodeName string, localUSBDevice *deviceplugins.USBDevice, vendorId int) string {
+func usbDeviceName(nodeName string, localUSBDevice *deviceplugins.USBDevice) string {
 	devicePath := strings.Replace(localUSBDevice.DevicePath, "/dev/bus/usb/", "", -1)
 	devicePath = strings.Join(strings.Split(devicePath, "/"), "")
-	name := fmt.Sprintf("%s-%04x-%04x-%s", nodeName, vendorId, localUSBDevice.Product, devicePath)
+	name := fmt.Sprintf("%s-%04x-%04x-%s", nodeName, localUSBDevice.Vendor, localUSBDevice.Product, devicePath)
 	return name
 }
 
