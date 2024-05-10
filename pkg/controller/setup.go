@@ -81,7 +81,7 @@ func Setup(ctx context.Context, cfg *rest.Config, _ *runtime.Scheme) error {
 	pdCtl := pciFactory.Devices().V1beta1().PCIDevice()
 	pdcCtl := pciFactory.Devices().V1beta1().PCIDeviceClaim()
 	usbDeviceCtrl := pciFactory.Devices().V1beta1().USBDevice()
-	usbDeviceClaim := pciFactory.Devices().V1beta1().USBDeviceClaim()
+	usbDeviceClaimCtrl := pciFactory.Devices().V1beta1().USBDeviceClaim()
 	sriovCtl := pciFactory.Devices().V1beta1().SRIOVNetworkDevice()
 	nodeCtl := pciFactory.Devices().V1beta1().Node()
 	coreNodeCtl := coreFactory.Core().V1().Node()
@@ -98,12 +98,12 @@ func Setup(ctx context.Context, cfg *rest.Config, _ *runtime.Scheme) error {
 		return fmt.Errorf("error registering pcidevicclaim controllers :%v", err)
 	}
 
-	if err := usbdevice.Register(ctx, usbDeviceCtrl, usbDeviceClaim); err != nil {
+	if err := usbdevice.Register(ctx, usbDeviceCtrl, usbDeviceClaimCtrl); err != nil {
 		return fmt.Errorf("error registering usbdevice controllers :%v", err)
 	}
 
 	if err := nodes.Register(ctx, sriovCtl, pdCtl, nodeCtl, coreNodeCtl, vlanCtl.Cache(),
-		sriovNetworkDeviceCache, pdcCtl, vGPUCtl, sriovGPUCtl, usbDeviceCtrl, virtClient); err != nil {
+		sriovNetworkDeviceCache, pdcCtl, vGPUCtl, sriovGPUCtl, usbDeviceCtrl, usbDeviceClaimCtrl, virtClient); err != nil {
 		return fmt.Errorf("error registering node controller: %v", err)
 	}
 

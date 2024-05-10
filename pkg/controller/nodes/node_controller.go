@@ -46,6 +46,7 @@ type handler struct {
 	pciDeviceClaimController ctl.PCIDeviceClaimController
 	sriovGPUController       ctl.SRIOVGPUDeviceController
 	usbCtl                   ctl.USBDeviceController
+	usbClaimCtl              ctl.USBDeviceClaimController
 	virtClient               kubecli.KubevirtClient
 }
 
@@ -53,7 +54,7 @@ const (
 	reconcilePCIDevices = "reconcile-pcidevices"
 )
 
-func Register(ctx context.Context, sriovCtl ctl.SRIOVNetworkDeviceController, pciDeviceCtl ctl.PCIDeviceController, nodeCtl ctl.NodeController, coreNodeCtl ctlcorev1.NodeController, vlanConfigCache ctlnetworkv1beta1.VlanConfigCache, sriovNetworkDeviceCache ctl.SRIOVNetworkDeviceCache, pciDeviceClaimController ctl.PCIDeviceClaimController, vGPUController ctl.VGPUDeviceController, sriovGPUController ctl.SRIOVGPUDeviceController, usbCtl ctl.USBDeviceController, virtClient kubecli.KubevirtClient) error {
+func Register(ctx context.Context, sriovCtl ctl.SRIOVNetworkDeviceController, pciDeviceCtl ctl.PCIDeviceController, nodeCtl ctl.NodeController, coreNodeCtl ctlcorev1.NodeController, vlanConfigCache ctlnetworkv1beta1.VlanConfigCache, sriovNetworkDeviceCache ctl.SRIOVNetworkDeviceCache, pciDeviceClaimController ctl.PCIDeviceClaimController, vGPUController ctl.VGPUDeviceController, sriovGPUController ctl.SRIOVGPUDeviceController, usbCtl ctl.USBDeviceController, usbClaimCtl ctl.USBDeviceClaimController, virtClient kubecli.KubevirtClient) error {
 	nodeName := os.Getenv(v1beta1.NodeEnvVarName)
 	h := &handler{
 		ctx:                      ctx,
@@ -71,6 +72,7 @@ func Register(ctx context.Context, sriovCtl ctl.SRIOVNetworkDeviceController, pc
 		pciDeviceClaimController: pciDeviceClaimController,
 		sriovGPUController:       sriovGPUController,
 		usbCtl:                   usbCtl,
+		usbClaimCtl:              usbClaimCtl,
 		virtClient:               virtClient,
 	}
 
@@ -102,8 +104,8 @@ func (h *handler) reconcileNodeDevices(name string, node *v1beta1.Node) (*v1beta
 		return nil, fmt.Errorf("error reconciling pcidevices for node %s: %v", h.nodeName, err)
 	}
 
-	usbHandler := usbdevice.NewHandler(h.usbCtl, h.virtClient)
-	if err := usbHandler.ReconcileUSBDevices(h.nodeName); err != nil {
+	usbHandler := usbdevice.NewHandler(h.usbCtl, h.usbClaimCtl, h.virtClient)
+	if err := usbHandler.ReconcileUSBDevices(); err != nil {
 		return nil, fmt.Errorf("error reconciling usb devices for node %s: %v", h.nodeName, err)
 	}
 

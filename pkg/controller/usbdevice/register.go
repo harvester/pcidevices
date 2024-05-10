@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/rancher/wrangler/pkg/relatedresource"
 	"github.com/spf13/pflag"
 	"kubevirt.io/client-go/kubecli"
 
@@ -19,6 +20,10 @@ func Register(ctx context.Context, usbDeviceCtrl v1beta1gen.USBDeviceController,
 		fmt.Println(err)
 	}
 
+	setupCommonLabels()
+
+	handler := NewHandler(usbDeviceCtrl, usbDeviceClaimCtrl, virtClient)
+
 	usbDeviceClaimController := &ClaimHandler{
 		usbDeviceCache: usbDeviceCtrl.Cache(),
 		usbClaimClient: usbDeviceClaimCtrl,
@@ -29,6 +34,7 @@ func Register(ctx context.Context, usbDeviceCtrl v1beta1gen.USBDeviceController,
 
 	usbDeviceClaimCtrl.OnChange(ctx, "usbClaimClient-device-claim", usbDeviceClaimController.OnUSBDeviceClaimChanged)
 	usbDeviceClaimCtrl.OnRemove(ctx, "usbClaimClient-device-claim-remove", usbDeviceClaimController.OnRemove)
+	relatedresource.WatchClusterScoped(ctx, "USBDeviceToClaimReconcile", handler.OnDeviceChange, usbDeviceClaimCtrl, usbDeviceCtrl)
 
 	return nil
 }
