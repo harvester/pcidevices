@@ -24,6 +24,16 @@ type ClaimHandler struct {
 	devicePlugin   map[string]*deviceplugins.USBDevicePlugin
 }
 
+func NewClaimHandler(usbDeviceCache ctlpcidevicerv1.USBDeviceCache, usbClaimClient ctlpcidevicerv1.USBDeviceClaimController, virtClient kubecli.KubevirtClient) *ClaimHandler {
+	return &ClaimHandler{
+		usbDeviceCache: usbDeviceCache,
+		usbClaimClient: usbClaimClient,
+		virtClient:     virtClient,
+		lock:           &sync.Mutex{},
+		devicePlugin:   map[string]*deviceplugins.USBDevicePlugin{},
+	}
+}
+
 func (h *ClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1beta1.USBDeviceClaim) (*v1beta1.USBDeviceClaim, error) {
 	if usbDeviceClaim == nil {
 		return usbDeviceClaim, nil
@@ -32,7 +42,7 @@ func (h *ClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1beta1
 	usbDevice, err := h.usbDeviceCache.Get(usbDeviceClaim.Name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			fmt.Println("usb device not found")
+			logrus.Errorf("usb device %s not found", usbDeviceClaim.Name)
 			return usbDeviceClaim, nil
 		}
 		return usbDeviceClaim, err
@@ -41,7 +51,7 @@ func (h *ClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1beta1
 	h.lock.Lock()
 	defer h.lock.Unlock()
 
-	virt, err := h.virtClient.KubeVirt("harvester-system").Get("kubevirt", &metav1.GetOptions{})
+	virt, err := h.virtClient.KubeVirt(KubeVirtNamespace).Get(KubeVirtResource, &metav1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("failed to get kubevirt: %v", err)
 		return usbDeviceClaim, err
@@ -53,46 +63,47 @@ func (h *ClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1beta1
 		return usbDeviceClaim, err
 	}
 
-	// start device plugin if kubevirt is updated.
-	if _, ok := h.devicePlugin[usbDeviceClaim.Name]; !ok && newVirt != nil {
-		pluginDevices := deviceplugins.DiscoverAllowedUSBDevices(newVirt.Spec.Configuration.PermittedHostDevices.USB)
-		// same usbClient could have two more device with same resource name
+	// start device plugin if it's not started yet.
+	if _, ok := h.devicePlugin[usbDeviceClaim.Name]; ok {
+		return usbDeviceClaim, nil
+	}
 
-		fmt.Println("part3")
-		fmt.Println(len(pluginDevices))
-		var pluginDevice *deviceplugins.PluginDevices
+	pluginDevices := deviceplugins.DiscoverAllowedUSBDevices(newVirt.Spec.Configuration.PermittedHostDevices.USB)
 
-		for resourceName, devices := range pluginDevices {
-			fmt.Println(resourceName)
-			fmt.Println(len(devices))
-			for _, device := range devices {
-				fmt.Println("usbDevice.Status.DevicePath: ", usbDevice.Status.DevicePath)
-				fmt.Println("device.Devices[0].DevicePath: ", device.Devices[0].DevicePath)
-				if usbDevice.Status.DevicePath == device.Devices[0].DevicePath {
-					pluginDevice = device
-					break
-				}
-			}
-		}
-
-		fmt.Println("part4")
-		if pluginDevice != nil {
-			fmt.Println("Start device plugin: ", usbDevice.Name)
-			usbDevicePlugin := deviceplugins.NewUSBDevicePlugin(usbDevice.Status.ResourceName, []*deviceplugins.PluginDevices{pluginDevice})
-			h.devicePlugin[usbDeviceClaim.Name] = usbDevicePlugin
-			go func() {
-				fmt.Println("part6")
-				sp := make(chan struct{})
-				if err := usbDevicePlugin.Start(sp); err != nil {
-					logrus.Errorf("failed to start device plugin: %v", err)
-				}
-				<-sp
-			}()
-		}
-		fmt.Println("part5")
+	if pluginDevice := h.findDevicePlugin(pluginDevices, usbDevice); pluginDevice != nil {
+		usbDevicePlugin := deviceplugins.NewUSBDevicePlugin(usbDevice.Status.ResourceName, []*deviceplugins.PluginDevices{pluginDevice})
+		h.devicePlugin[usbDeviceClaim.Name] = usbDevicePlugin
+		go h.startDevicePlugin(usbDevicePlugin)
 	}
 
 	return usbDeviceClaim, nil
+}
+
+func (h *ClaimHandler) startDevicePlugin(usbDevicePlugin *deviceplugins.USBDevicePlugin) {
+	stop := make(chan struct{})
+	if err := usbDevicePlugin.Start(stop); err != nil {
+		logrus.Errorf("failed to start device plugin: %v", err)
+	}
+	<-stop
+}
+
+func (h *ClaimHandler) findDevicePlugin(pluginDevices map[string][]*deviceplugins.PluginDevices, usbDevice *v1beta1.USBDevice) *deviceplugins.PluginDevices {
+	var pluginDevice *deviceplugins.PluginDevices
+
+	for resourceName, devices := range pluginDevices {
+		for _, device := range devices {
+			device := device
+			for _, d := range device.Devices {
+				logrus.Debugf("resourceName: %s, device: %v", resourceName, d)
+				if usbDevice.Status.DevicePath == d.DevicePath {
+					pluginDevice = device
+					return pluginDevice
+				}
+			}
+		}
+	}
+
+	return pluginDevice
 }
 
 func (h *ClaimHandler) OnRemove(_ string, claim *v1beta1.USBDeviceClaim) (*v1beta1.USBDeviceClaim, error) {
@@ -112,7 +123,7 @@ func (h *ClaimHandler) OnRemove(_ string, claim *v1beta1.USBDeviceClaim) (*v1bet
 	h.lock.Lock()
 	defer h.lock.Unlock()
 
-	virt, err := h.virtClient.KubeVirt("harvester-system").Get("kubevirt", &metav1.GetOptions{})
+	virt, err := h.virtClient.KubeVirt(KubeVirtNamespace).Get(KubeVirtResource, &metav1.GetOptions{})
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
@@ -138,7 +149,7 @@ func (h *ClaimHandler) OnRemove(_ string, claim *v1beta1.USBDeviceClaim) (*v1bet
 	virtDp.Spec.Configuration.PermittedHostDevices.USB = usbs
 
 	if !reflect.DeepEqual(virt.Spec.Configuration.PermittedHostDevices.USB, virtDp.Spec.Configuration.PermittedHostDevices.USB) {
-		if _, err := h.virtClient.KubeVirt("harvester-system").Update(virtDp); err != nil {
+		if _, err := h.virtClient.KubeVirt(KubeVirtNamespace).Update(virtDp); err != nil {
 			return claim, nil
 		}
 	}
@@ -158,11 +169,9 @@ func (h *ClaimHandler) updateKubeVirt(virt *kubevirtv1.KubeVirt, usbDevice *v1be
 	virtDp := virt.DeepCopy()
 
 	if virtDp.Spec.Configuration.PermittedHostDevices == nil {
-		virtDp.Spec.Configuration.PermittedHostDevices = &kubevirtv1.PermittedHostDevices{}
-	}
-
-	if virtDp.Spec.Configuration.PermittedHostDevices.USB == nil {
-		virtDp.Spec.Configuration.PermittedHostDevices.USB = make([]kubevirtv1.USBHostDevice, 0)
+		virtDp.Spec.Configuration.PermittedHostDevices = &kubevirtv1.PermittedHostDevices{
+			USB: make([]kubevirtv1.USBHostDevice, 0),
+		}
 	}
 
 	usbs := virtDp.Spec.Configuration.PermittedHostDevices.USB
@@ -187,7 +196,7 @@ func (h *ClaimHandler) updateKubeVirt(virt *kubevirtv1.KubeVirt, usbDevice *v1be
 	})
 
 	if virt.Spec.Configuration.PermittedHostDevices == nil || !reflect.DeepEqual(virt.Spec.Configuration.PermittedHostDevices.USB, virtDp.Spec.Configuration.PermittedHostDevices.USB) {
-		newVirt, err := h.virtClient.KubeVirt("harvester-system").Update(virtDp)
+		newVirt, err := h.virtClient.KubeVirt(KubeVirtNamespace).Update(virtDp)
 		if err != nil {
 			logrus.Errorf("failed to update kubevirt: %v", err)
 			return virt, err

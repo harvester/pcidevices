@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	harvesternetworkv1beta1 "github.com/harvester/harvester-network-controller/pkg/apis/network.harvesterhci.io/v1beta1"
 	"github.com/rancher/wrangler/pkg/kubeconfig"
 	"github.com/rancher/wrangler/pkg/schemes"
 	"github.com/rancher/wrangler/pkg/signals"
@@ -15,6 +14,8 @@ import (
 	"k8s.io/client-go/rest"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
+
+	harvesternetworkv1beta1 "github.com/harvester/harvester-network-controller/pkg/apis/network.harvesterhci.io/v1beta1"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/controller"

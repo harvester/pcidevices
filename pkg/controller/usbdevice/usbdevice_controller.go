@@ -46,24 +46,29 @@ func NewHandler(usbClient ctlpcidevicerv1.USBDeviceController, usbClaimClient ct
 }
 
 func (h *Handler) OnDeviceChange(_ string, _ string, obj runtime.Object) ([]relatedresource.Key, error) {
-	if ud, ok := obj.(*v1beta1.USBDevice); ok {
-		logrus.Infof("USBDevice %s changed", ud.Name)
-		logrus.Infof(ud.Status.NodeName, cl.nodeName)
-		if ud.Status.NodeName == cl.nodeName {
-			udcList, err := h.usbClaimClient.List(metav1.ListOptions{LabelSelector: cl.selector()})
-			if err != nil {
-				logrus.Errorf("error listing USBDeviceClaims during device watch: %v", err)
-				return nil, err
-			}
-			var rr []relatedresource.Key
-			for _, v := range udcList.Items {
-				fmt.Println("****related resource key", v.Namespace, v.Name)
-				rr = append(rr, relatedresource.NewKey(v.Namespace, v.Name))
-			}
-			return rr, nil
-		}
-	} else {
+	ud, ok := obj.(*v1beta1.USBDevice)
+
+	if ud == nil {
+		return nil, nil
+	}
+
+	if !ok {
 		logrus.Errorf("error casting object to USBDevice: %v", obj)
+		return nil, nil
+	}
+
+	if ud.Status.NodeName == cl.nodeName {
+		udcList, err := h.usbClaimClient.List(metav1.ListOptions{LabelSelector: cl.selector()})
+		if err != nil {
+			logrus.Errorf("error listing USBDeviceClaims during device watch: %v", err)
+			return nil, err
+		}
+
+		var rr []relatedresource.Key
+		for _, v := range udcList.Items {
+			rr = append(rr, relatedresource.NewKey(v.Namespace, v.Name))
+		}
+		return rr, nil
 	}
 
 	return nil, nil
@@ -89,49 +94,40 @@ func (h *Handler) ReconcileUSBDevices() error {
 		mapStoredUSBDevices[storedUSBDevice.Status.DevicePath] = storedUSBDevice
 	}
 
+	var (
+		createList []*v1beta1.USBDevice
+		updateList []*v1beta1.USBDevice
+	)
+
 	for _, localDevices := range localUSBDevices {
 		for _, localUSBDevice := range localDevices {
 			if existed, ok := mapStoredUSBDevices[localUSBDevice.DevicePath]; !ok {
 				name := usbDeviceName(nodeName, localUSBDevice)
-				newOne, err := h.usbClient.Create(&v1beta1.USBDevice{
+				createdOne := &v1beta1.USBDevice{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:   name,
 						Labels: cl.labels(),
 					},
-				})
-
-				if err != nil {
-					logrus.Errorf("failed to create USB device: %v\n", err)
-					return err
+					Status: v1beta1.USBDeviceStatus{
+						VendorID:     fmt.Sprintf("%04x", localUSBDevice.Vendor),
+						ProductID:    fmt.Sprintf("%04x", localUSBDevice.Product),
+						ResourceName: resourceName(name),
+						NodeName:     nodeName,
+						DevicePath:   localUSBDevice.DevicePath,
+					},
 				}
-
-				newOne.Status = v1beta1.USBDeviceStatus{
-					VendorID:     fmt.Sprintf("%04x", localUSBDevice.Vendor),
-					ProductID:    fmt.Sprintf("%04x", localUSBDevice.Product),
-					ResourceName: fmt.Sprintf("kubevirt.io/%s", name),
-					NodeName:     nodeName,
-					DevicePath:   localUSBDevice.DevicePath,
-				}
-
-				newOne, err = h.usbClient.UpdateStatus(newOne)
-				if err != nil {
-					logrus.Errorf("failed to update USB device status: %v\n", err)
-					return err
-				}
+				createList = append(createList, createdOne)
 			} else {
 				existedCp := existed.DeepCopy()
-
 				if isStatusChanged(existedCp, localUSBDevice) {
-					existedCp.Status.VendorID = fmt.Sprintf("%04x", localUSBDevice.Vendor)
-					existedCp.Status.ProductID = fmt.Sprintf("%04x", localUSBDevice.Product)
-					existedCp.Status.ResourceName = fmt.Sprintf("kubevirt.io/%s", usbDeviceName(nodeName, localUSBDevice))
-					existedCp.Name = usbDeviceName(nodeName, localUSBDevice)
-
-					_, err = h.usbClient.UpdateStatus(existedCp)
-					if err != nil {
-						logrus.Errorf("failed to update existed USB device status: %v\n", err)
-						return err
+					existedCp.Status = v1beta1.USBDeviceStatus{
+						VendorID:     fmt.Sprintf("%04x", localUSBDevice.Vendor),
+						ProductID:    fmt.Sprintf("%04x", localUSBDevice.Product),
+						ResourceName: resourceName(usbDeviceName(nodeName, localUSBDevice)),
+						NodeName:     nodeName,
+						DevicePath:   localUSBDevice.DevicePath,
 					}
+					updateList = append(updateList, existedCp)
 				} else {
 					delete(mapStoredUSBDevices, localUSBDevice.DevicePath)
 				}
@@ -139,6 +135,35 @@ func (h *Handler) ReconcileUSBDevices() error {
 		}
 	}
 
+	for _, usbDevice := range createList {
+		createdOne := &v1beta1.USBDevice{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   usbDevice.Name,
+				Labels: usbDevice.Labels,
+			},
+		}
+
+		newOne, err := h.usbClient.Create(createdOne)
+		if err != nil {
+			logrus.Errorf("failed to create USB device: %v\n", err)
+			return err
+		}
+
+		newOne.Status = usbDevice.Status
+		if _, err = h.usbClient.UpdateStatus(newOne); err != nil {
+			logrus.Errorf("failed to update new created USB device status: %v\n", err)
+			return err
+		}
+	}
+
+	for _, usbDevice := range updateList {
+		if _, err := h.usbClient.UpdateStatus(usbDevice); err != nil {
+			logrus.Errorf("failed to update existed USB device status: %v\n", err)
+			return err
+		}
+	}
+
+	// The left devices in mapStoredUSBDevices are not found in localUSBDevices, so we should delete them.
 	for _, usbDevice := range mapStoredUSBDevices {
 		if err := h.usbClient.Delete(usbDevice.Name, &metav1.DeleteOptions{}); err != nil {
 			logrus.Errorf("failed to delete USB device: %v\n", err)
@@ -159,4 +184,8 @@ func usbDeviceName(nodeName string, localUSBDevice *deviceplugins.USBDevice) str
 func isStatusChanged(existed *v1beta1.USBDevice, localUSBDevice *deviceplugins.USBDevice) bool {
 	return existed.Status.VendorID != fmt.Sprintf("%04x", localUSBDevice.Vendor) ||
 		existed.Status.ProductID != fmt.Sprintf("%04x", localUSBDevice.Product)
+}
+
+func resourceName(name string) string {
+	return fmt.Sprintf("%s%s", KubeVirtResourcePrefix, name)
 }
