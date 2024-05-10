@@ -50,6 +50,30 @@ var (
 			Enabled: false,
 		},
 	}
+
+	oldDisabledVGPU = &devicesv1beta1.VGPUDevice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "vgpu1",
+		},
+		Spec: devicesv1beta1.VGPUDeviceSpec{
+			Enabled: false,
+		},
+		Status: devicesv1beta1.VGPUDeviceStatus{
+			AvailableTypes: map[string]string{
+				"GRID A100-8C":  "nvidia-470",
+				"GRID A100-10C": "nvidia-471",
+			},
+		},
+	}
+	newEnabledVGPU = &devicesv1beta1.VGPUDevice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "vgpu1",
+		},
+		Spec: devicesv1beta1.VGPUDeviceSpec{
+			Enabled: true,
+		},
+	}
+
 	vm1 = &kubevirtv1.VirtualMachine{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "vgpu-vm",
@@ -121,7 +145,7 @@ func Test_VGPUUpdates(t *testing.T) {
 		if v.expectError {
 			assert.Error(err, fmt.Sprintf("expected to find error for test case %s", v.name))
 		} else {
-			assert.NoError(err, fmt.Sprintf("expected to find no errorerror for test case %s", v.name))
+			assert.NoError(err, fmt.Sprintf("expected to find no error for test case %s", v.name))
 		}
 	}
 }
@@ -153,6 +177,45 @@ func Test_VGPUDeletion(t *testing.T) {
 			assert.Error(err, fmt.Sprintf("expected to find error for test case %s", v.name))
 		} else {
 			assert.NoError(err, fmt.Sprintf("expected to find no errorerror for test case %s", v.name))
+		}
+	}
+}
+
+func Test_validateVGPUProfile(t *testing.T) {
+	var testCases = []struct {
+		name        string
+		gpu         *devicesv1beta1.VGPUDevice
+		vGPUProfile string
+		expectError bool
+	}{
+		{
+			name:        "no vGPU Profile",
+			gpu:         oldDisabledVGPU,
+			expectError: true,
+		},
+		{
+			name:        "invalid vGPU Profile",
+			gpu:         newFreeVGPU,
+			vGPUProfile: "GRID A100-40C",
+			expectError: true,
+		},
+		{
+			name:        "valid vGPU Profile",
+			gpu:         newFreeVGPU,
+			vGPUProfile: "GRID A100-10C",
+			expectError: false,
+		},
+	}
+
+	assert := require.New(t)
+	for _, v := range testCases {
+		newEnabledVGPUCopy := newEnabledVGPU.DeepCopy()
+		newEnabledVGPUCopy.Spec.VGPUTypeName = v.vGPUProfile
+		err := validateVGPUProfiles(oldDisabledVGPU, newEnabledVGPUCopy)
+		if v.expectError {
+			assert.Error(err, fmt.Sprintf("expected to find error for test case: %s", v.name))
+		} else {
+			assert.NoError(err, fmt.Sprintf("expected to find no error for test case: %s", v.name))
 		}
 	}
 }
