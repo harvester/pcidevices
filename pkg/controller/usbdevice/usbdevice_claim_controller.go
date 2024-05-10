@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
@@ -42,52 +43,14 @@ func (h *ClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1beta1
 
 	virt, err := h.virtClient.KubeVirt("harvester-system").Get("kubevirt", &metav1.GetOptions{})
 	if err != nil {
-		fmt.Println(err)
-		return nil, err
+		logrus.Errorf("failed to get kubevirt: %v", err)
+		return usbDeviceClaim, err
 	}
 
-	virtDp := virt.DeepCopy()
-
-	if virtDp.Spec.Configuration.PermittedHostDevices == nil {
-		virtDp.Spec.Configuration.PermittedHostDevices = &kubevirtv1.PermittedHostDevices{}
-	}
-
-	if virtDp.Spec.Configuration.PermittedHostDevices.USB == nil {
-		virtDp.Spec.Configuration.PermittedHostDevices.USB = make([]kubevirtv1.USBHostDevice, 0)
-	}
-
-	usbs := virtDp.Spec.Configuration.PermittedHostDevices.USB
-
-	// check if the usb device is already added
-	for _, usb := range usbs {
-		// skip same resource name
-		if usb.ResourceName == usbDevice.Status.ResourceName {
-			return usbDeviceClaim, nil
-		}
-	}
-
-	virtDp.Spec.Configuration.PermittedHostDevices.USB = append(usbs, kubevirtv1.USBHostDevice{
-		Selectors: []kubevirtv1.USBSelector{
-			{
-				Vendor:  usbDevice.Status.VendorID,
-				Product: usbDevice.Status.ProductID,
-			},
-		},
-		ResourceName:             usbDevice.Status.ResourceName,
-		ExternalResourceProvider: true,
-	})
-
-	fmt.Println(virtDp.Spec.Configuration.PermittedHostDevices.USB)
-
-	var newVirt *kubevirtv1.KubeVirt
-
-	if virt.Spec.Configuration.PermittedHostDevices == nil || !reflect.DeepEqual(virt.Spec.Configuration.PermittedHostDevices.USB, virtDp.Spec.Configuration.PermittedHostDevices.USB) {
-		fmt.Println("part1")
-		newVirt, err = h.virtClient.KubeVirt("harvester-system").Update(virtDp)
-		if err != nil {
-			return usbDeviceClaim, err
-		}
-		fmt.Println("part2")
+	newVirt, err := h.updateKubeVirt(virt, usbDevice)
+	if err != nil {
+		logrus.Errorf("failed to update kubevirt: %v", err)
+		return usbDeviceClaim, err
 	}
 
 	// start device plugin if kubevirt is updated.
@@ -121,7 +84,7 @@ func (h *ClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1beta1
 				fmt.Println("part6")
 				sp := make(chan struct{})
 				if err := usbDevicePlugin.Start(sp); err != nil {
-					fmt.Println(err)
+					logrus.Errorf("failed to start device plugin: %v", err)
 				}
 				<-sp
 			}()
@@ -189,4 +152,49 @@ func (h *ClaimHandler) OnRemove(_ string, claim *v1beta1.USBDeviceClaim) (*v1bet
 	}
 
 	return claim, nil
+}
+
+func (h *ClaimHandler) updateKubeVirt(virt *kubevirtv1.KubeVirt, usbDevice *v1beta1.USBDevice) (*kubevirtv1.KubeVirt, error) {
+	virtDp := virt.DeepCopy()
+
+	if virtDp.Spec.Configuration.PermittedHostDevices == nil {
+		virtDp.Spec.Configuration.PermittedHostDevices = &kubevirtv1.PermittedHostDevices{}
+	}
+
+	if virtDp.Spec.Configuration.PermittedHostDevices.USB == nil {
+		virtDp.Spec.Configuration.PermittedHostDevices.USB = make([]kubevirtv1.USBHostDevice, 0)
+	}
+
+	usbs := virtDp.Spec.Configuration.PermittedHostDevices.USB
+
+	// check if the usb device is already added
+	for _, usb := range usbs {
+		// skip same resource name
+		if usb.ResourceName == usbDevice.Status.ResourceName {
+			return virt, nil
+		}
+	}
+
+	virtDp.Spec.Configuration.PermittedHostDevices.USB = append(usbs, kubevirtv1.USBHostDevice{
+		Selectors: []kubevirtv1.USBSelector{
+			{
+				Vendor:  usbDevice.Status.VendorID,
+				Product: usbDevice.Status.ProductID,
+			},
+		},
+		ResourceName:             usbDevice.Status.ResourceName,
+		ExternalResourceProvider: true,
+	})
+
+	if virt.Spec.Configuration.PermittedHostDevices == nil || !reflect.DeepEqual(virt.Spec.Configuration.PermittedHostDevices.USB, virtDp.Spec.Configuration.PermittedHostDevices.USB) {
+		newVirt, err := h.virtClient.KubeVirt("harvester-system").Update(virtDp)
+		if err != nil {
+			logrus.Errorf("failed to update kubevirt: %v", err)
+			return virt, err
+		}
+
+		return newVirt, nil
+	}
+
+	return virt, nil
 }

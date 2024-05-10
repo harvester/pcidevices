@@ -48,6 +48,7 @@ func NewHandler(usbClient ctlpcidevicerv1.USBDeviceController, usbClaimClient ct
 func (h *Handler) OnDeviceChange(_ string, _ string, obj runtime.Object) ([]relatedresource.Key, error) {
 	if ud, ok := obj.(*v1beta1.USBDevice); ok {
 		logrus.Infof("USBDevice %s changed", ud.Name)
+		logrus.Infof(ud.Status.NodeName, cl.nodeName)
 		if ud.Status.NodeName == cl.nodeName {
 			udcList, err := h.usbClaimClient.List(metav1.ListOptions{LabelSelector: cl.selector()})
 			if err != nil {
