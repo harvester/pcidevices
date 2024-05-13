@@ -13,6 +13,8 @@ import (
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/deviceplugins"
 	ctlpcidevicerv1 "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/util/gousb"
+	"github.com/harvester/pcidevices/pkg/util/gousb/usbid"
 )
 
 type Handler struct {
@@ -103,6 +105,7 @@ func (h *Handler) ReconcileUSBDevices() error {
 		for _, localUSBDevice := range localDevices {
 			if existed, ok := mapStoredUSBDevices[localUSBDevice.DevicePath]; !ok {
 				name := usbDeviceName(nodeName, localUSBDevice)
+
 				createdOne := &v1beta1.USBDevice{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:   name,
@@ -114,6 +117,7 @@ func (h *Handler) ReconcileUSBDevices() error {
 						ResourceName: resourceName(name),
 						NodeName:     nodeName,
 						DevicePath:   localUSBDevice.DevicePath,
+						Description:  usbid.DescribeWithVendorAndProduct(gousb.ID(localUSBDevice.Vendor), gousb.ID(localUSBDevice.Product)),
 					},
 				}
 				createList = append(createList, createdOne)
@@ -126,6 +130,7 @@ func (h *Handler) ReconcileUSBDevices() error {
 						ResourceName: resourceName(usbDeviceName(nodeName, localUSBDevice)),
 						NodeName:     nodeName,
 						DevicePath:   localUSBDevice.DevicePath,
+						Description:  usbid.DescribeWithVendorAndProduct(gousb.ID(localUSBDevice.Vendor), gousb.ID(localUSBDevice.Product)),
 					}
 					updateList = append(updateList, existedCp)
 				} else {

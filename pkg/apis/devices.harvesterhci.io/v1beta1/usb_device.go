@@ -20,4 +20,5 @@ type USBDeviceStatus struct {
 	NodeName     string `json:"nodeName"`
 	ResourceName string `json:"resourceName"`
 	DevicePath   string `json:"devicePath"`
+	Description  string `json:"description"`
 }

@@ -388,6 +388,9 @@ spec:
     - jsonPath: .status.nodeName
       name: Node Name
       type: string
+    - jsonPath: .status.Description
+      name: Description
+      type: string
     - jsonPath: .status.resourceName
       name: Resource Name
       type: string
@@ -397,6 +400,9 @@ spec:
         properties:
           status:
             properties:
+              description:
+                nullable: true
+                type: string
               devicePath:
                 nullable: true
                 type: string
@@ -833,6 +839,9 @@ spec:
   - JSONPath: .status.nodeName
     name: Node Name
     type: string
+  - JSONPath: .status.Description
+    name: Description
+    type: string
   - JSONPath: .status.resourceName
     name: Resource Name
     type: string
@@ -850,6 +859,9 @@ spec:
       properties:
         status:
           properties:
+            description:
+              nullable: true
+              type: string
             devicePath:
               nullable: true
               type: string
