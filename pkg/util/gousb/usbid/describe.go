@@ -52,7 +52,7 @@ func Describe(val interface{}) string {
 			}
 			return fmt.Sprintf("Unknown (%s)", v)
 		}
-		return fmt.Sprintf("Unknown %s:%s", val.Vendor, val.Product)
+		return fmt.Sprintf("Unknown %04x:%04x", val.Vendor, val.Product)
 	}
 	return fmt.Sprintf("Unknown (%T)", val)
 }
@@ -86,5 +86,5 @@ func Classify(val interface{}) string {
 		}
 		return fmt.Sprintf("%s", c)
 	}
-	return fmt.Sprintf("Unknown %s.%s.%s", class, sub, proto)
+	return fmt.Sprintf("Unknown %d.%d.%d", class, sub, proto)
 }
