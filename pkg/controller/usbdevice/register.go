@@ -9,6 +9,7 @@ import (
 	"kubevirt.io/client-go/kubecli"
 
 	v1beta1gen "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/util/gousb/usbid"
 )
 
 const (
@@ -18,6 +19,8 @@ const (
 )
 
 func Register(ctx context.Context, usbDeviceCtrl v1beta1gen.USBDeviceController, usbDeviceClaimCtrl v1beta1gen.USBDeviceClaimController) error {
+	usbid.Setup()
+
 	clientConfig := kubecli.DefaultClientConfig(&pflag.FlagSet{})
 	virtClient, err := kubecli.GetKubevirtClientFromClientConfig(clientConfig)
 	if err != nil {

@@ -57,6 +57,6 @@ func LoadFromURL(url string) error {
 	return nil
 }
 
-func init() {
+func Setup() {
 	_ = LoadFromURL(LinuxUsbDotOrg)
 }
