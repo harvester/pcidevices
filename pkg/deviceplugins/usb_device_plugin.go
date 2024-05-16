@@ -63,6 +63,7 @@ type USBDevice struct {
 	DeviceNumber int
 	Serial       string
 	DevicePath   string
+	PCIAddress   string
 }
 
 func (dev *USBDevice) GetID() string {
@@ -561,6 +562,11 @@ func NewUSBDevicePlugin(resourceName string, pluginDevices []*PluginDevices) *US
 }
 
 func parseSysUeventFile(path string) *USBDevice {
+	link, err := os.Readlink(path)
+	if err != nil {
+		return nil
+	}
+
 	// Grab all details we are interested from uevent
 	file, err := os.Open(filepath.Join(path, "uevent"))
 	if err != nil {
@@ -569,7 +575,10 @@ func parseSysUeventFile(path string) *USBDevice {
 	}
 	defer file.Close()
 
-	u := USBDevice{}
+	u := USBDevice{
+		PCIAddress: parseUSBSymLinkToPCIAddress(link),
+	}
+
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -655,4 +664,15 @@ func WalkUSBDevices() (error, map[int][]*USBDevice) {
 	}
 
 	return nil, usbDevices
+}
+
+func parseUSBSymLinkToPCIAddress(link string) string {
+	paths := strings.Split(link, "/")
+
+	if len(paths) < 3 {
+		return ""
+	}
+
+	pciAddress := paths[len(paths)-3 : len(paths)-2][0]
+	return pciAddress
 }

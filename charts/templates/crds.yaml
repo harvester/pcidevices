@@ -388,11 +388,14 @@ spec:
     - jsonPath: .status.nodeName
       name: Node Name
       type: string
-    - jsonPath: .status.Description
+    - jsonPath: .status.description
       name: Description
       type: string
     - jsonPath: .status.resourceName
       name: Resource Name
+      type: string
+    - jsonPath: .status.pciAddress
+      name: PCI Address
       type: string
     name: v1beta1
     schema:
@@ -407,6 +410,9 @@ spec:
                 nullable: true
                 type: string
               nodeName:
+                nullable: true
+                type: string
+              pciAddress:
                 nullable: true
                 type: string
               productID:
@@ -439,11 +445,30 @@ spec:
   preserveUnknownFields: false
   scope: Cluster
   versions:
-  - name: v1beta1
+  - additionalPrinterColumns:
+    - jsonPath: .status.nodeName
+      name: Node Name
+      type: string
+    - jsonPath: .status.pciAddress
+      name: PCI Address
+      type: string
+    name: v1beta1
     schema:
       openAPIV3Schema:
         properties:
           spec:
+            type: object
+          status:
+            properties:
+              claimedBy:
+                nullable: true
+                type: string
+              nodeName:
+                nullable: true
+                type: string
+              pciAddress:
+                nullable: true
+                type: string
             type: object
         type: object
     served: true
@@ -839,11 +864,14 @@ spec:
   - JSONPath: .status.nodeName
     name: Node Name
     type: string
-  - JSONPath: .status.Description
+  - JSONPath: .status.description
     name: Description
     type: string
   - JSONPath: .status.resourceName
     name: Resource Name
+    type: string
+  - JSONPath: .status.pciAddress
+    name: PCI Address
     type: string
   group: devices.harvesterhci.io
   names:
@@ -866,6 +894,9 @@ spec:
               nullable: true
               type: string
             nodeName:
+              nullable: true
+              type: string
+            pciAddress:
               nullable: true
               type: string
             productID:
@@ -891,6 +922,13 @@ kind: CustomResourceDefinition
 metadata:
   name: usbdeviceclaims.devices.harvesterhci.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.nodeName
+    name: Node Name
+    type: string
+  - JSONPath: .status.pciAddress
+    name: PCI Address
+    type: string
   group: devices.harvesterhci.io
   names:
     kind: USBDeviceClaim
@@ -904,6 +942,18 @@ spec:
     openAPIV3Schema:
       properties:
         spec:
+          type: object
+        status:
+          properties:
+            claimedBy:
+              nullable: true
+              type: string
+            nodeName:
+              nullable: true
+              type: string
+            pciAddress:
+              nullable: true
+              type: string
           type: object
       type: object
   version: v1beta1

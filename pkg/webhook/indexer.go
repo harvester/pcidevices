@@ -12,6 +12,7 @@ const (
 	VMByName                = "harvesterhci.io/vm-by-name"
 	PCIDeviceByResourceName = "harvesterhcio.io/pcidevice-by-resource-name"
 	IommuGroupByNode        = "pcidevice.harvesterhci.io/iommu-by-node"
+	USBDeviceByAddress      = "pcidevice.harvesterhci.io/usb-device-by-address"
 	VMByPCIDeviceClaim      = "harvesterhci.io/vm-by-pcideviceclaim"
 	VMByUSBDeviceClaim      = "harvesterhci.io/vm-by-usbdeviceclaim"
 	VMByVGPU                = "harvesterhci.io/vm-by-vgpu"
@@ -26,6 +27,8 @@ func RegisterIndexers(clients *Clients) {
 	deviceCache := clients.PCIFactory.Devices().V1beta1().PCIDevice().Cache()
 	deviceCache.AddIndexer(PCIDeviceByResourceName, pciDeviceByResourceName)
 	deviceCache.AddIndexer(IommuGroupByNode, iommuGroupByNodeName)
+	usbDeviceClaimCache := clients.PCIFactory.Devices().V1beta1().USBDeviceClaim().Cache()
+	usbDeviceClaimCache.AddIndexer(USBDeviceByAddress, usbDeviceClaimByAddress)
 }
 
 func vmByName(obj *kubevirtv1.VirtualMachine) ([]string, error) {
@@ -59,4 +62,8 @@ func vmByVGPUDevice(obj *kubevirtv1.VirtualMachine) ([]string, error) {
 		gpuNames = append(gpuNames, gpuDevice.Name)
 	}
 	return gpuNames, nil
+}
+
+func usbDeviceClaimByAddress(obj *v1beta1.USBDeviceClaim) ([]string, error) {
+	return []string{fmt.Sprintf("%s-%s", obj.Status.NodeName, obj.Status.PCIAddress)}, nil
 }

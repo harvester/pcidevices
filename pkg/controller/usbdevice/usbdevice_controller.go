@@ -118,6 +118,7 @@ func (h *Handler) ReconcileUSBDevices() error {
 						NodeName:     nodeName,
 						DevicePath:   localUSBDevice.DevicePath,
 						Description:  usbid.DescribeWithVendorAndProduct(gousb.ID(localUSBDevice.Vendor), gousb.ID(localUSBDevice.Product)),
+						PCIAddress:   localUSBDevice.PCIAddress,
 					},
 				}
 				createList = append(createList, createdOne)
@@ -131,6 +132,7 @@ func (h *Handler) ReconcileUSBDevices() error {
 						NodeName:     nodeName,
 						DevicePath:   localUSBDevice.DevicePath,
 						Description:  usbid.DescribeWithVendorAndProduct(gousb.ID(localUSBDevice.Vendor), gousb.ID(localUSBDevice.Product)),
+						PCIAddress:   localUSBDevice.PCIAddress,
 					}
 					updateList = append(updateList, existedCp)
 				} else {

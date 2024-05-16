@@ -25,7 +25,10 @@ import (
 	v1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/rancher/lasso/pkg/client"
 	"github.com/rancher/lasso/pkg/controller"
+	"github.com/rancher/wrangler/pkg/apply"
+	"github.com/rancher/wrangler/pkg/condition"
 	"github.com/rancher/wrangler/pkg/generic"
+	"github.com/rancher/wrangler/pkg/kv"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,7 +58,7 @@ type USBDeviceClaimController interface {
 type USBDeviceClaimClient interface {
 	Create(*v1beta1.USBDeviceClaim) (*v1beta1.USBDeviceClaim, error)
 	Update(*v1beta1.USBDeviceClaim) (*v1beta1.USBDeviceClaim, error)
-
+	UpdateStatus(*v1beta1.USBDeviceClaim) (*v1beta1.USBDeviceClaim, error)
 	Delete(name string, options *metav1.DeleteOptions) error
 	Get(name string, options metav1.GetOptions) (*v1beta1.USBDeviceClaim, error)
 	List(opts metav1.ListOptions) (*v1beta1.USBDeviceClaimList, error)
@@ -184,6 +187,11 @@ func (c *uSBDeviceClaimController) Update(obj *v1beta1.USBDeviceClaim) (*v1beta1
 	return result, c.client.Update(context.TODO(), "", obj, result, metav1.UpdateOptions{})
 }
 
+func (c *uSBDeviceClaimController) UpdateStatus(obj *v1beta1.USBDeviceClaim) (*v1beta1.USBDeviceClaim, error) {
+	result := &v1beta1.USBDeviceClaim{}
+	return result, c.client.UpdateStatus(context.TODO(), "", obj, result, metav1.UpdateOptions{})
+}
+
 func (c *uSBDeviceClaimController) Delete(name string, options *metav1.DeleteOptions) error {
 	if options == nil {
 		options = &metav1.DeleteOptions{}
@@ -253,4 +261,116 @@ func (c *uSBDeviceClaimCache) GetByIndex(indexName, key string) (result []*v1bet
 		result = append(result, obj.(*v1beta1.USBDeviceClaim))
 	}
 	return result, nil
+}
+
+type USBDeviceClaimStatusHandler func(obj *v1beta1.USBDeviceClaim, status v1beta1.USBDeviceClaimSpecStatus) (v1beta1.USBDeviceClaimSpecStatus, error)
+
+type USBDeviceClaimGeneratingHandler func(obj *v1beta1.USBDeviceClaim, status v1beta1.USBDeviceClaimSpecStatus) ([]runtime.Object, v1beta1.USBDeviceClaimSpecStatus, error)
+
+func RegisterUSBDeviceClaimStatusHandler(ctx context.Context, controller USBDeviceClaimController, condition condition.Cond, name string, handler USBDeviceClaimStatusHandler) {
+	statusHandler := &uSBDeviceClaimStatusHandler{
+		client:    controller,
+		condition: condition,
+		handler:   handler,
+	}
+	controller.AddGenericHandler(ctx, name, FromUSBDeviceClaimHandlerToHandler(statusHandler.sync))
+}
+
+func RegisterUSBDeviceClaimGeneratingHandler(ctx context.Context, controller USBDeviceClaimController, apply apply.Apply,
+	condition condition.Cond, name string, handler USBDeviceClaimGeneratingHandler, opts *generic.GeneratingHandlerOptions) {
+	statusHandler := &uSBDeviceClaimGeneratingHandler{
+		USBDeviceClaimGeneratingHandler: handler,
+		apply:                           apply,
+		name:                            name,
+		gvk:                             controller.GroupVersionKind(),
+	}
+	if opts != nil {
+		statusHandler.opts = *opts
+	}
+	controller.OnChange(ctx, name, statusHandler.Remove)
+	RegisterUSBDeviceClaimStatusHandler(ctx, controller, condition, name, statusHandler.Handle)
+}
+
+type uSBDeviceClaimStatusHandler struct {
+	client    USBDeviceClaimClient
+	condition condition.Cond
+	handler   USBDeviceClaimStatusHandler
+}
+
+func (a *uSBDeviceClaimStatusHandler) sync(key string, obj *v1beta1.USBDeviceClaim) (*v1beta1.USBDeviceClaim, error) {
+	if obj == nil {
+		return obj, nil
+	}
+
+	origStatus := obj.Status.DeepCopy()
+	obj = obj.DeepCopy()
+	newStatus, err := a.handler(obj, obj.Status)
+	if err != nil {
+		// Revert to old status on error
+		newStatus = *origStatus.DeepCopy()
+	}
+
+	if a.condition != "" {
+		if errors.IsConflict(err) {
+			a.condition.SetError(&newStatus, "", nil)
+		} else {
+			a.condition.SetError(&newStatus, "", err)
+		}
+	}
+	if !equality.Semantic.DeepEqual(origStatus, &newStatus) {
+		if a.condition != "" {
+			// Since status has changed, update the lastUpdatedTime
+			a.condition.LastUpdated(&newStatus, time.Now().UTC().Format(time.RFC3339))
+		}
+
+		var newErr error
+		obj.Status = newStatus
+		newObj, newErr := a.client.UpdateStatus(obj)
+		if err == nil {
+			err = newErr
+		}
+		if newErr == nil {
+			obj = newObj
+		}
+	}
+	return obj, err
+}
+
+type uSBDeviceClaimGeneratingHandler struct {
+	USBDeviceClaimGeneratingHandler
+	apply apply.Apply
+	opts  generic.GeneratingHandlerOptions
+	gvk   schema.GroupVersionKind
+	name  string
+}
+
+func (a *uSBDeviceClaimGeneratingHandler) Remove(key string, obj *v1beta1.USBDeviceClaim) (*v1beta1.USBDeviceClaim, error) {
+	if obj != nil {
+		return obj, nil
+	}
+
+	obj = &v1beta1.USBDeviceClaim{}
+	obj.Namespace, obj.Name = kv.RSplit(key, "/")
+	obj.SetGroupVersionKind(a.gvk)
+
+	return nil, generic.ConfigureApplyForObject(a.apply, obj, &a.opts).
+		WithOwner(obj).
+		WithSetID(a.name).
+		ApplyObjects()
+}
+
+func (a *uSBDeviceClaimGeneratingHandler) Handle(obj *v1beta1.USBDeviceClaim, status v1beta1.USBDeviceClaimSpecStatus) (v1beta1.USBDeviceClaimSpecStatus, error) {
+	if !obj.DeletionTimestamp.IsZero() {
+		return status, nil
+	}
+
+	objs, newStatus, err := a.USBDeviceClaimGeneratingHandler(obj, status)
+	if err != nil {
+		return newStatus, err
+	}
+
+	return newStatus, generic.ConfigureApplyForObject(a.apply, obj, &a.opts).
+		WithOwner(obj).
+		WithSetID(a.name).
+		ApplyObjects(objs...)
 }

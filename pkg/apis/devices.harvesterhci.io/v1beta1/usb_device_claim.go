@@ -11,8 +11,15 @@ type USBDeviceClaim struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec USBDeviceClaimSpec `json:"spec,omitempty"`
+	Spec   USBDeviceClaimSpec       `json:"spec,omitempty"`
+	Status USBDeviceClaimSpecStatus `json:"status,omitempty"`
 }
 
 type USBDeviceClaimSpec struct {
+}
+
+type USBDeviceClaimSpecStatus struct {
+	NodeName   string `json:"nodeName"`
+	PCIAddress string `json:"pciAddress"`
+	ClaimedBy  string `json:"claimedBy"`
 }

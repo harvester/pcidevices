@@ -76,7 +76,11 @@ func (h *ClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1beta1
 		go h.startDevicePlugin(usbDevicePlugin)
 	}
 
-	return usbDeviceClaim, nil
+	usbDeviceClaimCp := usbDeviceClaim.DeepCopy()
+	usbDeviceClaimCp.Status.PCIAddress = usbDevice.Status.PCIAddress
+	usbDeviceClaimCp.Status.NodeName = usbDevice.Status.NodeName
+
+	return h.usbClaimClient.UpdateStatus(usbDeviceClaimCp)
 }
 
 func (h *ClaimHandler) startDevicePlugin(usbDevicePlugin *deviceplugins.USBDevicePlugin) {
