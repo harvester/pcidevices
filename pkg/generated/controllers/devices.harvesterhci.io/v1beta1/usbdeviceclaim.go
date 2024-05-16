@@ -263,9 +263,9 @@ func (c *uSBDeviceClaimCache) GetByIndex(indexName, key string) (result []*v1bet
 	return result, nil
 }
 
-type USBDeviceClaimStatusHandler func(obj *v1beta1.USBDeviceClaim, status v1beta1.USBDeviceClaimSpecStatus) (v1beta1.USBDeviceClaimSpecStatus, error)
+type USBDeviceClaimStatusHandler func(obj *v1beta1.USBDeviceClaim, status v1beta1.USBDeviceClaimStatus) (v1beta1.USBDeviceClaimStatus, error)
 
-type USBDeviceClaimGeneratingHandler func(obj *v1beta1.USBDeviceClaim, status v1beta1.USBDeviceClaimSpecStatus) ([]runtime.Object, v1beta1.USBDeviceClaimSpecStatus, error)
+type USBDeviceClaimGeneratingHandler func(obj *v1beta1.USBDeviceClaim, status v1beta1.USBDeviceClaimStatus) ([]runtime.Object, v1beta1.USBDeviceClaimStatus, error)
 
 func RegisterUSBDeviceClaimStatusHandler(ctx context.Context, controller USBDeviceClaimController, condition condition.Cond, name string, handler USBDeviceClaimStatusHandler) {
 	statusHandler := &uSBDeviceClaimStatusHandler{
@@ -359,7 +359,7 @@ func (a *uSBDeviceClaimGeneratingHandler) Remove(key string, obj *v1beta1.USBDev
 		ApplyObjects()
 }
 
-func (a *uSBDeviceClaimGeneratingHandler) Handle(obj *v1beta1.USBDeviceClaim, status v1beta1.USBDeviceClaimSpecStatus) (v1beta1.USBDeviceClaimSpecStatus, error) {
+func (a *uSBDeviceClaimGeneratingHandler) Handle(obj *v1beta1.USBDeviceClaim, status v1beta1.USBDeviceClaimStatus) (v1beta1.USBDeviceClaimStatus, error) {
 	if !obj.DeletionTimestamp.IsZero() {
 		return status, nil
 	}

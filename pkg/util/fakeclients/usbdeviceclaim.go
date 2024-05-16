@@ -2,6 +2,7 @@ package fakeclients
 
 import (
 	"context"
+	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -12,6 +13,8 @@ import (
 	"github.com/harvester/pcidevices/pkg/generated/clientset/versioned/typed/devices.harvesterhci.io/v1beta1"
 	devicesv1beta1ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 )
+
+const USBDeviceByAddress = "pcidevice.harvesterhci.io/usb-device-by-address"
 
 type USBDeviceClaimsClient func() v1beta1.USBDeviceClaimInterface
 
@@ -54,13 +57,43 @@ func (p USBDeviceClaimsCache) Get(name string) (*devicev1beta1.USBDeviceClaim, e
 }
 
 func (p USBDeviceClaimsCache) List(labels.Selector) ([]*devicev1beta1.USBDeviceClaim, error) {
-	panic("implement me")
+	usbcs, err := p().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*devicev1beta1.USBDeviceClaim, 0, len(usbcs.Items))
+	for _, usb := range usbcs.Items {
+		usb := usb
+		result = append(result, &usb)
+	}
+
+	return result, nil
 }
 
 func (p USBDeviceClaimsCache) AddIndexer(_ string, _ devicesv1beta1ctl.USBDeviceClaimIndexer) {
 	panic("implement me")
 }
 
-func (p USBDeviceClaimsCache) GetByIndex(_, _ string) ([]*devicev1beta1.USBDeviceClaim, error) {
-	panic("implement me")
+func (p USBDeviceClaimsCache) GetByIndex(indexName, key string) ([]*devicev1beta1.USBDeviceClaim, error) {
+	switch indexName {
+	case USBDeviceByAddress:
+		var usbcs []*devicev1beta1.USBDeviceClaim
+
+		usbcList, err := p.List(labels.NewSelector())
+		if err != nil {
+			return nil, err
+		}
+
+		for _, usbc := range usbcList {
+			usbc := usbc
+			if fmt.Sprintf("%s-%s", usbc.Status.NodeName, usbc.Status.PCIAddress) == key {
+				usbcs = append(usbcs, usbc)
+			}
+		}
+
+		return usbcs, nil
+	default:
+		panic("implement me")
+	}
 }
