@@ -40,7 +40,7 @@ var (
 	Classes map[gousb.Class]*Class
 )
 
-func Setup() {
+func init() {
 	ids, cls, err := ParseIDs(strings.NewReader(usbIDListData))
 	if err != nil {
 		logrus.Errorf("Failed to parse USB ID list: %v", err)
