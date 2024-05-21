@@ -17,34 +17,12 @@
 
 package usbid
 
-import (
-	"strings"
+import "time"
 
-	"github.com/sirupsen/logrus"
+// LastUpdate stores the latest time that the library was updated.
+//
+// The baked-in data was last generated:
+//   {{.Generated}}
+var LastUpdate = time.Unix(0, {{.Generated.UnixNano}})
 
-	"github.com/harvester/pcidevices/pkg/util/gousb"
-)
-
-const (
-	// LinuxUsbDotOrg is one source of files in the format used by this package.
-	LinuxUsbDotOrg = "http://www.linux-usb.org/usb.ids"
-)
-
-var (
-	// Vendors stores the vendor and product ID mappings.
-	Vendors map[gousb.ID]*Vendor
-
-	// Classes stores the class, subclass and protocol mappings.
-	Classes map[gousb.Class]*Class
-)
-
-func Setup() {
-	ids, cls, err := ParseIDs(strings.NewReader(usbIDListData))
-	if err != nil {
-		logrus.Errorf("Failed to parse USB ID list: %v", err)
-		return
-	}
-
-	Vendors = ids
-	Classes = cls
-}
+const usbIDListData = `{{printf "%s" .Data}}`

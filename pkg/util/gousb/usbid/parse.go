@@ -1,3 +1,5 @@
+// Copy from https://github.com/google/gousb
+//
 // Copyright 2013 Google Inc.  All rights reserved.
 // Copyright 2016 the gousb Authors.  All rights reserved.
 //
