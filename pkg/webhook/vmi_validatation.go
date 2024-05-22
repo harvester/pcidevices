@@ -3,13 +3,13 @@ package webhook
 import (
 	"fmt"
 
+	"github.com/harvester/harvester/pkg/webhook/types"
 	"github.com/sirupsen/logrus"
 	admissionregv1 "k8s.io/api/admissionregistration/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 
-	"github.com/harvester/harvester/pkg/webhook/types"
 	"github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 )
 

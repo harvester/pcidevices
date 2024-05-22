@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	ctlnetwork "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io"
 	"github.com/rancher/lasso/pkg/cache"
 	"github.com/rancher/lasso/pkg/client"
 	"github.com/rancher/lasso/pkg/controller"
@@ -17,14 +18,12 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"kubevirt.io/client-go/kubecli"
 
-	ctlnetwork "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io"
-	"github.com/harvester/pcidevices/pkg/controller/usbdevice"
-
 	"github.com/harvester/pcidevices/pkg/controller/gpudevice"
 	"github.com/harvester/pcidevices/pkg/controller/nodecleanup"
 	"github.com/harvester/pcidevices/pkg/controller/nodes"
 	"github.com/harvester/pcidevices/pkg/controller/pcideviceclaim"
 	"github.com/harvester/pcidevices/pkg/controller/sriovdevice"
+	"github.com/harvester/pcidevices/pkg/controller/usbdevice"
 	"github.com/harvester/pcidevices/pkg/crd"
 	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
 	"github.com/harvester/pcidevices/pkg/webhook"

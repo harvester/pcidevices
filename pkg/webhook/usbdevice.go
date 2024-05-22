@@ -3,11 +3,11 @@ package webhook
 import (
 	"fmt"
 
+	"github.com/harvester/harvester/pkg/webhook/types"
 	"github.com/sirupsen/logrus"
 	admissionregv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/harvester/harvester/pkg/webhook/types"
 	devicesv1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 )
 

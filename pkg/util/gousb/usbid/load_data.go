@@ -24,8 +24,9 @@ import "time"
 // LastUpdate stores the latest time that the library was updated.
 //
 // The baked-in data was last generated:
-//   2024-05-22 16:38:38.612281 +0800 CST m=+1.944060751
-var LastUpdate = time.Unix(0, 1716367118612281000)
+//
+// 2024-05-22 17:59:32.168051 +0800 CST m=+1.146710792
+var LastUpdate = time.Unix(0, 1716371972168051000)
 
 const usbIDListData = `#
 #	List of USB ID's

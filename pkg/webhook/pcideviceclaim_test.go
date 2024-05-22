@@ -58,10 +58,9 @@ func Test_PCIDeviceClaimWithoutIommu(t *testing.T) {
 	assert := require.New(t)
 	fakeClient := fake.NewSimpleClientset(node1dev1, node1dev2, node1dev3, node2dev1, node1dev1Claim, node1NoIommuDev)
 	pciDeviceCache := fakeclients.PCIDevicesCache(fakeClient.DevicesV1beta1().PCIDevices)
+	usbDeviceClaimCache := fakeclients.USBDeviceClaimsCache(fakeClient.DevicesV1beta1().USBDeviceClaims)
 
-	pciValidator := &pciDeviceClaimValidator{
-		deviceCache: pciDeviceCache,
-	}
+	pciValidator := NewPCIDeviceClaimValidator(pciDeviceCache, nil, usbDeviceClaimCache)
 
 	err := pciValidator.Create(nil, node1NoIommuClaim)
 	assert.Error(err, "expected to find error")
@@ -70,11 +69,10 @@ func Test_PCIDeviceClaimWithoutIommu(t *testing.T) {
 func Test_PCIDeviceClaimWithIommu(t *testing.T) {
 	assert := require.New(t)
 	fakeClient := fake.NewSimpleClientset(node1dev1, node1dev2, node1dev3, node2dev1, node1NoIommuDev)
+	usbDeviceClaimCache := fakeclients.USBDeviceClaimsCache(fakeClient.DevicesV1beta1().USBDeviceClaims)
 	pciDeviceCache := fakeclients.PCIDevicesCache(fakeClient.DevicesV1beta1().PCIDevices)
 
-	pciValidator := &pciDeviceClaimValidator{
-		deviceCache: pciDeviceCache,
-	}
+	pciValidator := NewPCIDeviceClaimValidator(pciDeviceCache, nil, usbDeviceClaimCache)
 
 	err := pciValidator.Create(nil, node1dev1Claim)
 	assert.NoError(err, "expected to find no error")
@@ -84,12 +82,9 @@ func Test_CreatePCIDeviceClaimWhenUSBInUse(t *testing.T) {
 	assert := require.New(t)
 	fakeClient := fake.NewSimpleClientset(node1dev1, node1dev2, node1dev3, node2dev1, usbDeviceClaim1)
 	pciDeviceCache := fakeclients.PCIDevicesCache(fakeClient.DevicesV1beta1().PCIDevices)
-	usbDeviceCache := fakeclients.USBDeviceClaimsCache(fakeClient.DevicesV1beta1().USBDeviceClaims)
+	usbDeviceClaimCache := fakeclients.USBDeviceClaimsCache(fakeClient.DevicesV1beta1().USBDeviceClaims)
 
-	pciValidator := &pciDeviceClaimValidator{
-		deviceCache:         pciDeviceCache,
-		usbDeviceClaimCache: usbDeviceCache,
-	}
+	pciValidator := NewPCIDeviceClaimValidator(pciDeviceCache, nil, usbDeviceClaimCache)
 
 	err := pciValidator.Create(nil, node1dev1Claim)
 	assert.Error(err, "expected to get error")
@@ -100,11 +95,11 @@ func Test_DeletePCIDeviceClaimInUse(t *testing.T) {
 	fakeClient := fake.NewSimpleClientset(node1dev1, node1dev2, node1dev3, node2dev1)
 	harvesterfakeClient := harvesterfake.NewSimpleClientset(vmWithIommuDevice)
 	pciDeviceCache := fakeclients.PCIDevicesCache(fakeClient.DevicesV1beta1().PCIDevices)
+	usbDeviceClaimCache := fakeclients.USBDeviceClaimsCache(fakeClient.DevicesV1beta1().USBDeviceClaims)
 	vmCache := fakeclients.VirtualMachineCache(harvesterfakeClient.KubevirtV1().VirtualMachines)
-	pciValidator := &pciDeviceClaimValidator{
-		deviceCache:   pciDeviceCache,
-		kubevirtCache: vmCache,
-	}
+
+	pciValidator := NewPCIDeviceClaimValidator(pciDeviceCache, vmCache, usbDeviceClaimCache)
+
 	err := pciValidator.Delete(nil, node1dev1Claim)
 	assert.Error(err, "expected to get error")
 }
@@ -115,10 +110,10 @@ func Test_DeletePCIDeviceClaimNotInUse(t *testing.T) {
 	harvesterfakeClient := harvesterfake.NewSimpleClientset(vmWithoutValidDeviceName)
 	pciDeviceCache := fakeclients.PCIDevicesCache(fakeClient.DevicesV1beta1().PCIDevices)
 	vmCache := fakeclients.VirtualMachineCache(harvesterfakeClient.KubevirtV1().VirtualMachines)
-	pciValidator := &pciDeviceClaimValidator{
-		deviceCache:   pciDeviceCache,
-		kubevirtCache: vmCache,
-	}
+	usbDeviceClaimCache := fakeclients.USBDeviceClaimsCache(fakeClient.DevicesV1beta1().USBDeviceClaims)
+
+	pciValidator := NewPCIDeviceClaimValidator(pciDeviceCache, vmCache, usbDeviceClaimCache)
+
 	err := pciValidator.Delete(nil, node1dev1Claim)
 	assert.NoError(err, "expected no error during validation")
 }

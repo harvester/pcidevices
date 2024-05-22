@@ -3,11 +3,11 @@ package webhook
 import (
 	"testing"
 
+	harvesterfake "github.com/harvester/harvester/pkg/generated/clientset/versioned/fake"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 
-	harvesterfake "github.com/harvester/harvester/pkg/generated/clientset/versioned/fake"
 	devicesv1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/util/fakeclients"
 )

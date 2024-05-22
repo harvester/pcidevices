@@ -34,11 +34,11 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/util/rand"
 	v1 "kubevirt.io/api/core/v1"
 	"kubevirt.io/client-go/log"
-
 	"kubevirt.io/kubevirt/pkg/safepath"
 	"kubevirt.io/kubevirt/pkg/util"
 	pluginapi "kubevirt.io/kubevirt/pkg/virt-handler/device-manager/deviceplugin/v1beta1"
@@ -233,39 +233,22 @@ func (plugin *USBDevicePlugin) Start(stop <-chan struct{}) error {
 }
 
 func (plugin *USBDevicePlugin) healthCheck() error {
-	monitoredDevices := make(map[string]string)
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return fmt.Errorf("failed to creating a fsnotify watcher: %v", err)
 	}
 	defer watcher.Close()
 
-	watchedDirs := make(map[string]struct{})
-	for _, pd := range plugin.devices {
-		for _, usb := range pd.Devices {
-			usbDevicePath := filepath.Join(util.HostRootMount, usb.DevicePath)
-			usbDeviceDirPath := filepath.Dir(usbDevicePath)
-			if _, exists := watchedDirs[usbDeviceDirPath]; !exists {
-				if err := watcher.Add(usbDeviceDirPath); err != nil {
-					return fmt.Errorf("failed to watch device %s parent directory: %s", usbDevicePath, err)
-				}
-				watchedDirs[usbDeviceDirPath] = struct{}{}
-			}
-
-			if err := watcher.Add(usbDevicePath); err != nil {
-				return fmt.Errorf("failed to add the device %s to the watcher: %s", usbDevicePath, err)
-			} else if _, err := os.Stat(usbDevicePath); err != nil {
-				return fmt.Errorf("failed to validate device %s: %s", usbDevicePath, err)
-			}
-			monitoredDevices[usbDevicePath] = usb.GetID()
-		}
+	monitoredDevices, err := plugin.getMonitoredDevices(watcher)
+	if err != nil {
+		logrus.Errorf("failed to get monitored devices: %v", err)
+		return err
 	}
 
-	dirName := filepath.Dir(plugin.socketPath)
-	if err := watcher.Add(dirName); err != nil {
-		return fmt.Errorf("failed to add the device-plugin kubelet path to the watcher: %v", err)
-	} else if _, err = os.Stat(plugin.socketPath); err != nil {
-		return fmt.Errorf("failed to stat the device-plugin socket: %v", err)
+	err = plugin.addSocketPath(watcher)
+	if err != nil {
+		logrus.Errorf("failed to add socket path to watcher: %v", err)
+		return err
 	}
 
 	for {
@@ -291,6 +274,45 @@ func (plugin *USBDevicePlugin) healthCheck() error {
 			}
 		}
 	}
+}
+
+func (plugin *USBDevicePlugin) addSocketPath(watcher *fsnotify.Watcher) error {
+	dirName := filepath.Dir(plugin.socketPath)
+
+	if err := watcher.Add(dirName); err != nil {
+		return fmt.Errorf("failed to add the device-plugin kubelet path to the watcher: %v", err)
+	} else if _, err = os.Stat(plugin.socketPath); err != nil {
+		return fmt.Errorf("failed to stat the device-plugin socket: %v", err)
+	}
+
+	return nil
+}
+
+func (plugin *USBDevicePlugin) getMonitoredDevices(watcher *fsnotify.Watcher) (map[string]string, error) {
+	monitoredDevices := make(map[string]string)
+	watchedDirs := make(map[string]struct{})
+
+	for _, pd := range plugin.devices {
+		for _, usb := range pd.Devices {
+			usbDevicePath := filepath.Join(util.HostRootMount, usb.DevicePath)
+			usbDeviceDirPath := filepath.Dir(usbDevicePath)
+			if _, exists := watchedDirs[usbDeviceDirPath]; !exists {
+				if err := watcher.Add(usbDeviceDirPath); err != nil {
+					return nil, fmt.Errorf("failed to watch device %s parent directory: %s", usbDevicePath, err)
+				}
+				watchedDirs[usbDeviceDirPath] = struct{}{}
+			}
+
+			if err := watcher.Add(usbDevicePath); err != nil {
+				return nil, fmt.Errorf("failed to add the device %s to the watcher: %s", usbDevicePath, err)
+			} else if _, err := os.Stat(usbDevicePath); err != nil {
+				return nil, fmt.Errorf("failed to validate device %s: %s", usbDevicePath, err)
+			}
+			monitoredDevices[usbDevicePath] = usb.GetID()
+		}
+	}
+
+	return monitoredDevices, nil
 }
 
 func (plugin *USBDevicePlugin) cleanup() error {
@@ -329,7 +351,7 @@ func (plugin *USBDevicePlugin) register() error {
 	return nil
 }
 
-func (plugin *USBDevicePlugin) GetDevicePluginOptions(ctx context.Context, _ *pluginapi.Empty) (*pluginapi.DevicePluginOptions, error) {
+func (plugin *USBDevicePlugin) GetDevicePluginOptions(_ context.Context, _ *pluginapi.Empty) (*pluginapi.DevicePluginOptions, error) {
 	return &pluginapi.DevicePluginOptions{
 		PreStartRequired: false,
 	}, nil
@@ -377,7 +399,6 @@ func (plugin *USBDevicePlugin) Allocate(_ context.Context, allocRequest *plugina
 	allocResponse := new(pluginapi.AllocateResponse)
 	env := make(map[string]string)
 	for _, request := range allocRequest.ContainerRequests {
-		fmt.Println("request: ", request)
 		containerResponse := &pluginapi.ContainerAllocateResponse{}
 		for _, id := range request.DevicesIDs {
 			plugin.logger.V(2).Infof("usb device id: %s", id)
@@ -469,10 +490,11 @@ func (l *LocalDevices) remove(usbdevs []*USBDevice) {
 
 // return a list of USBDevices while removing it from the list of local devices
 func (l *LocalDevices) fetch(selectors []v1.USBSelector) ([]*USBDevice, bool) {
-	usbdevs := []*USBDevice{}
+	usbdevs := make([]*USBDevice, len(selectors))
 
 	// we have to find all devices under this resource name
 	for _, selector := range selectors {
+		selector := selector
 		vendor, product, err := parseSelector(&selector)
 		if err != nil {
 			log.Log.Reason(err).Warningf("Failed to convert selector: %+v", selector)
@@ -589,7 +611,7 @@ func parseSysUeventFile(path string) *USBDevice {
 	// Grab all details we are interested from uevent
 	file, err := os.Open(filepath.Join(path, "uevent"))
 	if err != nil {
-		//fmt.Printf("Unable to access %s/%s\n", path, "uevent")
+		logrus.Printf("Unable to access %s/%s\n", path, "uevent")
 		return nil
 	}
 	defer file.Close()
@@ -603,55 +625,66 @@ func parseSysUeventFile(path string) *USBDevice {
 		line := scanner.Text()
 		values := strings.Split(line, "=")
 		if len(values) != 2 {
-			//fmt.Printf("Skipping %s due not being key=value\n", line)
+			logrus.Printf("Skipping %s due not being key=value\n", line)
 			continue
 		}
-		switch values[0] {
-		case "BUSNUM":
-			val, err := strconv.ParseInt(values[1], 10, 32)
-			if err != nil {
-				return nil
-			}
-			u.Bus = int(val)
-		case "DEVNUM":
-			val, err := strconv.ParseInt(values[1], 10, 32)
-			if err != nil {
-				return nil
-			}
-			u.DeviceNumber = int(val)
-		case "PRODUCT":
-			products := strings.Split(values[1], "/")
-			if len(products) != 3 {
-				return nil
-			}
 
-			val, err := strconv.ParseInt(products[0], 16, 32)
-			if err != nil {
-				return nil
-			}
-			u.Vendor = int(val)
-
-			val, err = strconv.ParseInt(products[1], 16, 32)
-			if err != nil {
-				return nil
-			}
-			u.Product = int(val)
-
-			val, err = strconv.ParseInt(products[2], 16, 32)
-			if err != nil {
-				return nil
-			}
-			u.BCD = int(val)
-		case "DEVNAME":
-			u.DevicePath = filepath.Join("/dev", values[1])
-		default:
-			//fmt.Printf("Skipping unhandled line: %s\n", line)
+		key, value := values[0], values[1]
+		if !parseSysUeventKeyValue(key, value, &u) {
+			return nil
 		}
 	}
+
 	return &u
 }
 
-func WalkUSBDevices() (error, map[int][]*USBDevice) {
+func parseSysUeventKeyValue(key string, value string, u *USBDevice) bool {
+	switch key {
+	case "BUSNUM":
+		val, err := strconv.ParseInt(value, 10, 32)
+		if err != nil {
+			return false
+		}
+		u.Bus = int(val)
+	case "DEVNUM":
+		val, err := strconv.ParseInt(value, 10, 32)
+		if err != nil {
+			return false
+		}
+		u.DeviceNumber = int(val)
+	case "PRODUCT":
+		products := strings.Split(value, "/")
+		if len(products) != 3 {
+			return false
+		}
+
+		val, err := strconv.ParseInt(products[0], 16, 32)
+		if err != nil {
+			return false
+		}
+		u.Vendor = int(val)
+
+		val, err = strconv.ParseInt(products[1], 16, 32)
+		if err != nil {
+			return false
+		}
+		u.Product = int(val)
+
+		val, err = strconv.ParseInt(products[2], 16, 32)
+		if err != nil {
+			return false
+		}
+		u.BCD = int(val)
+	case "DEVNAME":
+		u.DevicePath = filepath.Join("/dev", value)
+	default:
+		logrus.Printf("Skipping unknown key=value %s=%s\n", key, value)
+	}
+
+	return true
+}
+
+func WalkUSBDevices() (map[int][]*USBDevice, error) {
 	usbDevices := make(map[int][]*USBDevice, 0)
 	err := filepath.Walk("/sys/bus/usb/devices", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -679,10 +712,10 @@ func WalkUSBDevices() (error, map[int][]*USBDevice) {
 	})
 
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 
-	return nil, usbDevices
+	return usbDevices, nil
 }
 
 func parseUSBSymLinkToPCIAddress(link string) string {

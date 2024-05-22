@@ -79,7 +79,7 @@ func (h *Handler) OnDeviceChange(_ string, _ string, obj runtime.Object) ([]rela
 func (h *Handler) ReconcileUSBDevices() error {
 	nodeName := cl.nodeName
 
-	err, localUSBDevices := deviceplugins.WalkUSBDevices()
+	localUSBDevices, err := deviceplugins.WalkUSBDevices()
 	if err != nil {
 		logrus.Errorf("failed to walk USB devices: %v\n", err)
 		return err
@@ -96,6 +96,62 @@ func (h *Handler) ReconcileUSBDevices() error {
 		mapStoredUSBDevices[storedUSBDevice.Status.DevicePath] = storedUSBDevice
 	}
 
+	createList, updateList := h.getList(localUSBDevices, mapStoredUSBDevices, nodeName)
+
+	err = h.handleList(createList, updateList, mapStoredUSBDevices)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (h *Handler) handleList(createList []*v1beta1.USBDevice, updateList []*v1beta1.USBDevice, mapStoredUSBDevices map[string]v1beta1.USBDevice) error {
+	for _, usbDevice := range createList {
+		createdOne := &v1beta1.USBDevice{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   usbDevice.Name,
+				Labels: usbDevice.Labels,
+			},
+		}
+
+		newOne, err := h.usbClient.Create(createdOne)
+		if err != nil {
+			logrus.Errorf("failed to create USB device: %v\n", err)
+			return err
+		}
+
+		newOne.Status = usbDevice.Status
+		if _, err = h.usbClient.UpdateStatus(newOne); err != nil {
+			logrus.Errorf("failed to update new created USB device status: %v\n", err)
+			return err
+		}
+	}
+
+	for _, usbDevice := range updateList {
+		if _, err := h.usbClient.UpdateStatus(usbDevice); err != nil {
+			logrus.Errorf("failed to update existed USB device status: %v\n", err)
+			return err
+		}
+	}
+
+	// The left devices in mapStoredUSBDevices are not found in localUSBDevices, so we should delete them.
+	for _, usbDevice := range mapStoredUSBDevices {
+		if usbDevice.Status.Enabled {
+			logrus.Warningf("USB device %s is still enabled, but it's not discovered in local usb devices. Please check your node could detect that usb device, skippping delete.\n", usbDevice.Name)
+			continue
+		}
+
+		if err := h.usbClient.Delete(usbDevice.Name, &metav1.DeleteOptions{}); err != nil {
+			logrus.Errorf("failed to delete USB device: %v\n", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (h *Handler) getList(localUSBDevices map[int][]*deviceplugins.USBDevice, mapStoredUSBDevices map[string]v1beta1.USBDevice, nodeName string) ([]*v1beta1.USBDevice, []*v1beta1.USBDevice) {
 	var (
 		createList []*v1beta1.USBDevice
 		updateList []*v1beta1.USBDevice
@@ -142,48 +198,7 @@ func (h *Handler) ReconcileUSBDevices() error {
 		}
 	}
 
-	for _, usbDevice := range createList {
-		createdOne := &v1beta1.USBDevice{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   usbDevice.Name,
-				Labels: usbDevice.Labels,
-			},
-		}
-
-		newOne, err := h.usbClient.Create(createdOne)
-		if err != nil {
-			logrus.Errorf("failed to create USB device: %v\n", err)
-			return err
-		}
-
-		newOne.Status = usbDevice.Status
-		if _, err = h.usbClient.UpdateStatus(newOne); err != nil {
-			logrus.Errorf("failed to update new created USB device status: %v\n", err)
-			return err
-		}
-	}
-
-	for _, usbDevice := range updateList {
-		if _, err := h.usbClient.UpdateStatus(usbDevice); err != nil {
-			logrus.Errorf("failed to update existed USB device status: %v\n", err)
-			return err
-		}
-	}
-
-	// The left devices in mapStoredUSBDevices are not found in localUSBDevices, so we should delete them.
-	for _, usbDevice := range mapStoredUSBDevices {
-		if usbDevice.Status.Enabled {
-			logrus.Warningf("USB device %s is still enabled, but it's not discovered in local usb devices. Please check your node could detect that usb device, skippping delete.\n", usbDevice.Name)
-			continue
-		}
-
-		if err := h.usbClient.Delete(usbDevice.Name, &metav1.DeleteOptions{}); err != nil {
-			logrus.Errorf("failed to delete USB device: %v\n", err)
-			return err
-		}
-	}
-
-	return nil
+	return createList, updateList
 }
 
 func usbDeviceName(nodeName string, localUSBDevice *deviceplugins.USBDevice) string {

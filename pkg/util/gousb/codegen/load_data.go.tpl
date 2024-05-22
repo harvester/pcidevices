@@ -24,7 +24,8 @@ import "time"
 // LastUpdate stores the latest time that the library was updated.
 //
 // The baked-in data was last generated:
-//   {{.Generated}}
+//
+// {{.Generated}}
 var LastUpdate = time.Unix(0, {{.Generated.UnixNano}})
 
 const usbIDListData = `{{printf "%s" .Data}}`
