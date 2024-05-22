@@ -134,7 +134,8 @@ func List() []crd.CRD {
 				WithColumn("Node Name", ".status.nodeName").
 				WithColumn("Description", ".status.description").
 				WithColumn("Resource Name", ".status.resourceName").
-				WithColumn("PCI Address", ".status.pciAddress")
+				WithColumn("PCI Address", ".status.pciAddress").
+				WithColumn("Enabled", ".status.enabled")
 		}),
 		newCRD(&devices.USBDeviceClaim{}, func(c crd.CRD) crd.CRD {
 			c.NonNamespace = true

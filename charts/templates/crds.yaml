@@ -397,6 +397,9 @@ spec:
     - jsonPath: .status.pciAddress
       name: PCI Address
       type: string
+    - jsonPath: .status.enabled
+      name: Enabled
+      type: string
     name: v1beta1
     schema:
       openAPIV3Schema:
@@ -409,6 +412,8 @@ spec:
               devicePath:
                 nullable: true
                 type: string
+              enabled:
+                type: boolean
               nodeName:
                 nullable: true
                 type: string
@@ -873,6 +878,9 @@ spec:
   - JSONPath: .status.pciAddress
     name: PCI Address
     type: string
+  - JSONPath: .status.enabled
+    name: Enabled
+    type: string
   group: devices.harvesterhci.io
   names:
     kind: USBDevice
@@ -893,6 +901,8 @@ spec:
             devicePath:
               nullable: true
               type: string
+            enabled:
+              type: boolean
             nodeName:
               nullable: true
               type: string

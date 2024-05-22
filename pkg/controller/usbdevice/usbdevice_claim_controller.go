@@ -18,16 +18,18 @@ import (
 
 type ClaimHandler struct {
 	usbClaimClient ctlpcidevicerv1.USBDeviceClaimController
+	usbClient      ctlpcidevicerv1.USBDeviceController
 	virtClient     kubecli.KubevirtClient
 	lock           *sync.Mutex
 	usbDeviceCache ctlpcidevicerv1.USBDeviceCache
 	devicePlugin   map[string]*deviceplugins.USBDevicePlugin
 }
 
-func NewClaimHandler(usbDeviceCache ctlpcidevicerv1.USBDeviceCache, usbClaimClient ctlpcidevicerv1.USBDeviceClaimController, virtClient kubecli.KubevirtClient) *ClaimHandler {
+func NewClaimHandler(usbDeviceCache ctlpcidevicerv1.USBDeviceCache, usbClaimClient ctlpcidevicerv1.USBDeviceClaimController, usbClient ctlpcidevicerv1.USBDeviceController, virtClient kubecli.KubevirtClient) *ClaimHandler {
 	return &ClaimHandler{
 		usbDeviceCache: usbDeviceCache,
 		usbClaimClient: usbClaimClient,
+		usbClient:      usbClient,
 		virtClient:     virtClient,
 		lock:           &sync.Mutex{},
 		devicePlugin:   map[string]*deviceplugins.USBDevicePlugin{},
@@ -37,6 +39,12 @@ func NewClaimHandler(usbDeviceCache ctlpcidevicerv1.USBDeviceCache, usbClaimClie
 func (h *ClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1beta1.USBDeviceClaim) (*v1beta1.USBDeviceClaim, error) {
 	if usbDeviceClaim == nil {
 		return usbDeviceClaim, nil
+	}
+
+	if usbDeviceClaim.OwnerReferences == nil {
+		err := fmt.Errorf("usb device claim %s has no owner reference", usbDeviceClaim.Name)
+		logrus.Error(err)
+		return usbDeviceClaim, err
 	}
 
 	usbDevice, err := h.usbDeviceCache.Get(usbDeviceClaim.Name)
@@ -74,6 +82,13 @@ func (h *ClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1beta1
 		usbDevicePlugin := deviceplugins.NewUSBDevicePlugin(usbDevice.Status.ResourceName, []*deviceplugins.PluginDevices{pluginDevice})
 		h.devicePlugin[usbDeviceClaim.Name] = usbDevicePlugin
 		go h.startDevicePlugin(usbDevicePlugin)
+	}
+
+	usbDeviceCp := usbDevice.DeepCopy()
+	usbDeviceCp.Status.Enabled = true
+	if _, err = h.usbClient.UpdateStatus(usbDeviceCp); err != nil {
+		logrus.Errorf("failed to enable usb device %s status: %v", usbDeviceCp.Name, err)
+		return usbDeviceClaim, err
 	}
 
 	usbDeviceClaimCp := usbDeviceClaim.DeepCopy()
@@ -164,6 +179,13 @@ func (h *ClaimHandler) OnRemove(_ string, claim *v1beta1.USBDeviceClaim) (*v1bet
 		}
 
 		delete(h.devicePlugin, claim.Name)
+	}
+
+	usbDeviceCp := usbDevice.DeepCopy()
+	usbDeviceCp.Status.Enabled = false
+	if _, err = h.usbClient.UpdateStatus(usbDeviceCp); err != nil {
+		logrus.Errorf("failed to disable usb device %s status: %v", usbDeviceCp.Name, err)
+		return claim, err
 	}
 
 	return claim, nil

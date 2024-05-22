@@ -20,6 +20,7 @@ func Validation(clients *Clients) (http.Handler, []types.Resource, error) {
 		NewSRIOVGPUValidator(clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()),
 		NewUSBDeviceClaimValidator(clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()),
 		NewDeviceHostValidation(clients.PCIFactory.Devices().V1beta1().USBDevice().Cache()),
+		NewUSBDeviceValidator(),
 	}
 
 	router := webhook.NewRouter()

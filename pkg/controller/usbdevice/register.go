@@ -28,7 +28,7 @@ func Register(ctx context.Context, usbDeviceCtrl v1beta1gen.USBDeviceController,
 	setupCommonLabels()
 
 	handler := NewHandler(usbDeviceCtrl, usbDeviceClaimCtrl, virtClient)
-	usbDeviceClaimController := NewClaimHandler(usbDeviceCtrl.Cache(), usbDeviceClaimCtrl, virtClient)
+	usbDeviceClaimController := NewClaimHandler(usbDeviceCtrl.Cache(), usbDeviceClaimCtrl, usbDeviceCtrl, virtClient)
 
 	usbDeviceClaimCtrl.OnChange(ctx, "usbClaimClient-device-claim", usbDeviceClaimController.OnUSBDeviceClaimChanged)
 	usbDeviceClaimCtrl.OnRemove(ctx, "usbClaimClient-device-claim-remove", usbDeviceClaimController.OnRemove)

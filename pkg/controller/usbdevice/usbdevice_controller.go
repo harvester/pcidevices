@@ -172,6 +172,11 @@ func (h *Handler) ReconcileUSBDevices() error {
 
 	// The left devices in mapStoredUSBDevices are not found in localUSBDevices, so we should delete them.
 	for _, usbDevice := range mapStoredUSBDevices {
+		if usbDevice.Status.Enabled {
+			logrus.Warningf("USB device %s is still enabled, but it's not discovered in local usb devices. Please check your node could detect that usb device, skippping delete.\n", usbDevice.Name)
+			continue
+		}
+
 		if err := h.usbClient.Delete(usbDevice.Name, &metav1.DeleteOptions{}); err != nil {
 			logrus.Errorf("failed to delete USB device: %v\n", err)
 			return err
