@@ -54,7 +54,7 @@ func Setup(ctx context.Context, cfg *rest.Config, _ *runtime.Scheme) error {
 		return err
 	}
 
-	pciFactory, err := ctl.NewFactoryFromConfigWithOptions(cfg, &generic.FactoryOptions{
+	deviceFactory, err := ctl.NewFactoryFromConfigWithOptions(cfg, &generic.FactoryOptions{
 		SharedControllerFactory: factory,
 	})
 
@@ -78,17 +78,17 @@ func Setup(ctx context.Context, cfg *rest.Config, _ *runtime.Scheme) error {
 		return fmt.Errorf("error building network controllers: %v", err)
 	}
 
-	pdCtl := pciFactory.Devices().V1beta1().PCIDevice()
-	pdcCtl := pciFactory.Devices().V1beta1().PCIDeviceClaim()
-	usbDeviceCtrl := pciFactory.Devices().V1beta1().USBDevice()
-	usbDeviceClaimCtrl := pciFactory.Devices().V1beta1().USBDeviceClaim()
-	sriovCtl := pciFactory.Devices().V1beta1().SRIOVNetworkDevice()
-	nodeCtl := pciFactory.Devices().V1beta1().Node()
+	pdCtl := deviceFactory.Devices().V1beta1().PCIDevice()
+	pdcCtl := deviceFactory.Devices().V1beta1().PCIDeviceClaim()
+	usbDeviceCtrl := deviceFactory.Devices().V1beta1().USBDevice()
+	usbDeviceClaimCtrl := deviceFactory.Devices().V1beta1().USBDeviceClaim()
+	sriovCtl := deviceFactory.Devices().V1beta1().SRIOVNetworkDevice()
+	nodeCtl := deviceFactory.Devices().V1beta1().Node()
 	coreNodeCtl := coreFactory.Core().V1().Node()
 	vlanCtl := networkFactory.Network().V1beta1().VlanConfig()
 	sriovNetworkDeviceCache := sriovCtl.Cache()
-	sriovGPUCtl := pciFactory.Devices().V1beta1().SRIOVGPUDevice()
-	vGPUCtl := pciFactory.Devices().V1beta1().VGPUDevice()
+	sriovGPUCtl := deviceFactory.Devices().V1beta1().SRIOVGPUDevice()
+	vGPUCtl := deviceFactory.Devices().V1beta1().VGPUDevice()
 	podCtl := coreFactory.Core().V1().Pod()
 	clientConfig := kubecli.DefaultClientConfig(&pflag.FlagSet{})
 	virtClient, err := kubecli.GetKubevirtClientFromClientConfig(clientConfig)
@@ -118,7 +118,7 @@ func Setup(ctx context.Context, cfg *rest.Config, _ *runtime.Scheme) error {
 	if err := gpudevice.Register(ctx, sriovGPUCtl, vGPUCtl, pdcCtl, podCtl, cfg); err != nil {
 		return fmt.Errorf("error registering gpudevice controller :%v", err)
 	}
-	if err := start.All(ctx, 2, coreFactory, networkFactory, pciFactory); err != nil {
+	if err := start.All(ctx, 2, coreFactory, networkFactory, deviceFactory); err != nil {
 		return fmt.Errorf("error starting controllers :%v", err)
 	}
 

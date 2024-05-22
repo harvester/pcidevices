@@ -24,10 +24,10 @@ func RegisterIndexers(clients *Clients) {
 	vmCache.AddIndexer(VMByPCIDeviceClaim, vmByHostDeviceName)
 	vmCache.AddIndexer(VMByUSBDeviceClaim, vmByHostDeviceName)
 	vmCache.AddIndexer(VMByVGPU, vmByVGPUDevice)
-	deviceCache := clients.PCIFactory.Devices().V1beta1().PCIDevice().Cache()
+	deviceCache := clients.DeviceFactory.Devices().V1beta1().PCIDevice().Cache()
 	deviceCache.AddIndexer(PCIDeviceByResourceName, pciDeviceByResourceName)
 	deviceCache.AddIndexer(IommuGroupByNode, iommuGroupByNodeName)
-	usbDeviceClaimCache := clients.PCIFactory.Devices().V1beta1().USBDeviceClaim().Cache()
+	usbDeviceClaimCache := clients.DeviceFactory.Devices().V1beta1().USBDeviceClaim().Cache()
 	usbDeviceClaimCache.AddIndexer(USBDeviceByAddress, usbDeviceClaimByAddress)
 }
 

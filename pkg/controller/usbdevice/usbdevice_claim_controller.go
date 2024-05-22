@@ -13,19 +13,19 @@ import (
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/deviceplugins"
-	ctlpcidevicerv1 "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
+	ctldevicerv1beta1 "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 )
 
 type ClaimHandler struct {
-	usbClaimClient ctlpcidevicerv1.USBDeviceClaimController
-	usbClient      ctlpcidevicerv1.USBDeviceController
+	usbClaimClient ctldevicerv1beta1.USBDeviceClaimController
+	usbClient      ctldevicerv1beta1.USBDeviceController
 	virtClient     kubecli.KubevirtClient
 	lock           *sync.Mutex
-	usbDeviceCache ctlpcidevicerv1.USBDeviceCache
+	usbDeviceCache ctldevicerv1beta1.USBDeviceCache
 	devicePlugin   map[string]*deviceplugins.USBDevicePlugin
 }
 
-func NewClaimHandler(usbDeviceCache ctlpcidevicerv1.USBDeviceCache, usbClaimClient ctlpcidevicerv1.USBDeviceClaimController, usbClient ctlpcidevicerv1.USBDeviceController, virtClient kubecli.KubevirtClient) *ClaimHandler {
+func NewClaimHandler(usbDeviceCache ctldevicerv1beta1.USBDeviceCache, usbClaimClient ctldevicerv1beta1.USBDeviceClaimController, usbClient ctldevicerv1beta1.USBDeviceController, virtClient kubecli.KubevirtClient) *ClaimHandler {
 	return &ClaimHandler{
 		usbDeviceCache: usbDeviceCache,
 		usbClaimClient: usbClaimClient,

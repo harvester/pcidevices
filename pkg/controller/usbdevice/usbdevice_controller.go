@@ -12,14 +12,14 @@ import (
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/deviceplugins"
-	ctlpcidevicerv1 "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
+	ctldevicerv1vbeta1 "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/util/gousb"
 	"github.com/harvester/pcidevices/pkg/util/gousb/usbid"
 )
 
 type Handler struct {
-	usbClient      ctlpcidevicerv1.USBDeviceController
-	usbClaimClient ctlpcidevicerv1.USBDeviceClaimController
+	usbClient      ctldevicerv1vbeta1.USBDeviceController
+	usbClaimClient ctldevicerv1vbeta1.USBDeviceClaimController
 	virtClient     kubecli.KubevirtClient
 }
 
@@ -39,7 +39,7 @@ func (dev *USBDevice) GetID() string {
 	return fmt.Sprintf("%04x:%04x-%02d:%02d", dev.Vendor, dev.Product, dev.Bus, dev.DeviceNumber)
 }
 
-func NewHandler(usbClient ctlpcidevicerv1.USBDeviceController, usbClaimClient ctlpcidevicerv1.USBDeviceClaimController, virtClient kubecli.KubevirtClient) *Handler {
+func NewHandler(usbClient ctldevicerv1vbeta1.USBDeviceController, usbClaimClient ctldevicerv1vbeta1.USBDeviceClaimController, virtClient kubecli.KubevirtClient) *Handler {
 	return &Handler{
 		usbClient:      usbClient,
 		usbClaimClient: usbClaimClient,
