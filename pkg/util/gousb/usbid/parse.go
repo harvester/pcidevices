@@ -75,136 +75,143 @@ func (s SubClass) String() string {
 	return s.Name
 }
 
+type Parser struct {
+	vendor   *Vendor
+	device   *Product
+	class    *Class
+	subclass *SubClass
+
+	vendors map[gousb.ID]*Vendor
+	classes map[gousb.Class]*Class
+}
+
+func NewParser() *Parser {
+	return &Parser{
+		vendor:   nil,
+		device:   nil,
+		class:    nil,
+		subclass: nil,
+
+		vendors: make(map[gousb.ID]*Vendor, 2800),
+		classes: make(map[gousb.Class]*Class), // TODO(kevlar): count
+	}
+}
+
+func (p *Parser) split(s string) (kind string, level int, id uint64, name string, err error) {
+	pieces := strings.SplitN(s, "  ", 2)
+	if len(pieces) != 2 {
+		err = fmt.Errorf("malformatted line %q", s)
+		return
+	}
+
+	// Save the name
+	name = pieces[1]
+
+	// Parse out the level
+	for len(pieces[0]) > 0 && pieces[0][0] == '\t' {
+		level, pieces[0] = level+1, pieces[0][1:]
+	}
+
+	// Parse the first piece to see if it has a kind
+	first := strings.SplitN(pieces[0], " ", 2)
+	if len(first) == 2 {
+		kind, pieces[0] = first[0], first[1]
+	}
+
+	// Parse the ID
+	i, err := strconv.ParseUint(pieces[0], 16, 16)
+	if err != nil {
+		err = fmt.Errorf("malformatted id %q: %s", pieces[0], err)
+		return
+	}
+	id = i
+
+	return
+}
+
+func (p *Parser) parseVendor(level int, raw uint64, name string) error {
+	id := gousb.ID(raw)
+
+	switch level {
+	case 0:
+		p.vendor = &Vendor{
+			Name: name,
+		}
+		p.vendors[id] = p.vendor
+
+	case 1:
+		if p.vendor == nil {
+			return fmt.Errorf("product line without vendor line")
+		}
+
+		p.device = &Product{
+			Name: name,
+		}
+		if p.vendor.Product == nil {
+			p.vendor.Product = make(map[gousb.ID]*Product)
+		}
+		p.vendor.Product[id] = p.device
+
+	case 2:
+		if p.device == nil {
+			return fmt.Errorf("interface line without device line")
+		}
+
+		if p.device.Interface == nil {
+			p.device.Interface = make(map[gousb.ID]string)
+		}
+		p.device.Interface[id] = name
+
+	default:
+		return fmt.Errorf("too many levels of nesting for vendor block")
+	}
+
+	return nil
+}
+
+func (p *Parser) parseClass(level int, id uint64, name string) error {
+	switch level {
+	case 0:
+		p.class = &Class{
+			Name: name,
+		}
+		p.classes[gousb.Class(id)] = p.class
+
+	case 1:
+		if p.class == nil {
+			return fmt.Errorf("subclass line without class line")
+		}
+
+		p.subclass = &SubClass{
+			Name: name,
+		}
+		if p.class.SubClass == nil {
+			p.class.SubClass = make(map[gousb.Class]*SubClass)
+		}
+		p.class.SubClass[gousb.Class(id)] = p.subclass
+
+	case 2:
+		if p.subclass == nil {
+			return fmt.Errorf("protocol line without subclass line")
+		}
+
+		if p.subclass.Protocol == nil {
+			p.subclass.Protocol = make(map[gousb.Protocol]string)
+		}
+		p.subclass.Protocol[gousb.Protocol(id)] = name
+
+	default:
+		return fmt.Errorf("too many levels of nesting for class")
+	}
+
+	return nil
+}
+
 // ParseIDs parses and returns mappings from the given reader.  In general, this
 // should not be necessary, as a set of mappings is already embedded in the library.
 // If a new or specialized file is obtained, this can be used to retrieve the mappings,
 // which can be stored in the global Vendors and Classes map.
-func ParseIDs(r io.Reader) (map[gousb.ID]*Vendor, map[gousb.Class]*Class, error) {
-	vendors := make(map[gousb.ID]*Vendor, 2800)
-	classes := make(map[gousb.Class]*Class) // TODO(kevlar): count
-
-	split := func(s string) (kind string, level int, id uint64, name string, err error) {
-		pieces := strings.SplitN(s, "  ", 2)
-		if len(pieces) != 2 {
-			err = fmt.Errorf("malformatted line %q", s)
-			return
-		}
-
-		// Save the name
-		name = pieces[1]
-
-		// Parse out the level
-		for len(pieces[0]) > 0 && pieces[0][0] == '\t' {
-			level, pieces[0] = level+1, pieces[0][1:]
-		}
-
-		// Parse the first piece to see if it has a kind
-		first := strings.SplitN(pieces[0], " ", 2)
-		if len(first) == 2 {
-			kind, pieces[0] = first[0], first[1]
-		}
-
-		// Parse the ID
-		i, err := strconv.ParseUint(pieces[0], 16, 16)
-		if err != nil {
-			err = fmt.Errorf("malformatted id %q: %s", pieces[0], err)
-			return
-		}
-		id = i
-
-		return
-	}
-
-	// Hold the interim values
-	var vendor *Vendor
-	var device *Product
-
-	parseVendor := func(level int, raw uint64, name string) error {
-		id := gousb.ID(raw)
-
-		switch level {
-		case 0:
-			vendor = &Vendor{
-				Name: name,
-			}
-			vendors[id] = vendor
-
-		case 1:
-			if vendor == nil {
-				return fmt.Errorf("product line without vendor line")
-			}
-
-			device = &Product{
-				Name: name,
-			}
-			if vendor.Product == nil {
-				vendor.Product = make(map[gousb.ID]*Product)
-			}
-			vendor.Product[id] = device
-
-		case 2:
-			if device == nil {
-				return fmt.Errorf("interface line without device line")
-			}
-
-			if device.Interface == nil {
-				device.Interface = make(map[gousb.ID]string)
-			}
-			device.Interface[id] = name
-
-		default:
-			return fmt.Errorf("too many levels of nesting for vendor block")
-		}
-
-		return nil
-	}
-
-	// Hold the interim values
-	var class *Class
-	var subclass *SubClass
-
-	parseClass := func(level int, id uint64, name string) error {
-		switch level {
-		case 0:
-			class = &Class{
-				Name: name,
-			}
-			classes[gousb.Class(id)] = class
-
-		case 1:
-			if class == nil {
-				return fmt.Errorf("subclass line without class line")
-			}
-
-			subclass = &SubClass{
-				Name: name,
-			}
-			if class.SubClass == nil {
-				class.SubClass = make(map[gousb.Class]*SubClass)
-			}
-			class.SubClass[gousb.Class(id)] = subclass
-
-		case 2:
-			if subclass == nil {
-				return fmt.Errorf("protocol line without subclass line")
-			}
-
-			if subclass.Protocol == nil {
-				subclass.Protocol = make(map[gousb.Protocol]string)
-			}
-			subclass.Protocol[gousb.Protocol(id)] = name
-
-		default:
-			return fmt.Errorf("too many levels of nesting for class")
-		}
-
-		return nil
-	}
-
-	// TODO(kevlar): Parse class information, etc
-	//var class *Class
-	//var subclass *SubClass
-
+func (p *Parser) ParseIDs(r io.Reader) (map[gousb.ID]*Vendor, map[gousb.Class]*Class, error) {
 	var kind string
 
 	lines := bufio.NewReaderSize(r, 512)
@@ -225,7 +232,7 @@ parseLines:
 			continue
 		}
 
-		k, level, id, name, err := split(line)
+		k, level, id, name, err := p.split(line)
 		if err != nil {
 			return nil, nil, fmt.Errorf("line %d: %s", lineno, err)
 		}
@@ -235,14 +242,14 @@ parseLines:
 
 		switch kind {
 		case "":
-			err = parseVendor(level, id, name)
+			err = p.parseVendor(level, id, name)
 		case "C":
-			err = parseClass(level, id, name)
+			err = p.parseClass(level, id, name)
 		}
 		if err != nil {
 			return nil, nil, fmt.Errorf("line %d: %s", lineno, err)
 		}
 	}
 
-	return vendors, classes, nil
+	return p.vendors, p.classes, nil
 }

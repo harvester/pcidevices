@@ -25,8 +25,8 @@ import "time"
 //
 // The baked-in data was last generated:
 //
-// 2024-05-22 17:59:32.168051 +0800 CST m=+1.146710792
-var LastUpdate = time.Unix(0, 1716371972168051000)
+// 2024-05-23 10:35:50.641558 +0800 CST m=+1.188489792
+var LastUpdate = time.Unix(0, 1716431750641558000)
 
 const usbIDListData = `#
 #	List of USB ID's

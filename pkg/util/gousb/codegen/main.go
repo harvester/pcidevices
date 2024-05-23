@@ -59,7 +59,7 @@ func main() {
 		logrus.Fatalf("failed to read %q: %s", *remote, err)
 	}
 
-	ids, cls, err := usbid.ParseIDs(bytes.NewReader(data))
+	ids, cls, err := usbid.NewParser().ParseIDs(bytes.NewReader(data))
 	if err != nil {
 		logrus.Fatalf("failed to parse %q: %s", *remote, err)
 	}

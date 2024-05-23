@@ -41,7 +41,7 @@ var (
 )
 
 func init() {
-	ids, cls, err := ParseIDs(strings.NewReader(usbIDListData))
+	ids, cls, err := NewParser().ParseIDs(strings.NewReader(usbIDListData))
 	if err != nil {
 		logrus.Errorf("Failed to parse USB ID list: %v", err)
 		return
