@@ -13,8 +13,7 @@
 	"issues": {
 		"exclude-files": [
 			"/zz_generated_",
-			"_generated",
-			"load_data.go"
+			"_generated"
 		],
 		"exclude-dirs": [
 			"generated"
