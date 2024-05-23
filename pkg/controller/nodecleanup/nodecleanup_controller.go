@@ -9,6 +9,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/harvester/pcidevices/pkg/config"
 	"github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 )
 
@@ -70,11 +71,11 @@ func (h *Handler) OnRemove(_ string, node *v1.Node) (*v1.Node, error) {
 	return node, nil
 }
 
-func Register(
-	ctx context.Context,
-	pdcClient v1beta1.PCIDeviceClaimController,
-	pdClient v1beta1.PCIDeviceController,
-	nodeClient corecontrollers.NodeController) error {
+func Register(ctx context.Context, management *config.FactoryManager) error {
+	pdcClient := management.DeviceFactory.Devices().V1beta1().PCIDeviceClaim()
+	pdClient := management.DeviceFactory.Devices().V1beta1().PCIDevice()
+	nodeClient := management.CoreFactory.Core().V1().Node()
+
 	handler := &Handler{
 		pdcClient:  pdcClient,
 		pdClient:   pdClient,

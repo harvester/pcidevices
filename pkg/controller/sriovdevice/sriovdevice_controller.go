@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/config"
 	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/util/nichelper"
 )
@@ -42,10 +43,12 @@ func NewHandler(ctx context.Context, sriovCache ctl.SRIOVNetworkDeviceCache, sri
 	}
 }
 
-func Register(ctx context.Context, sriovDeviceController ctl.SRIOVNetworkDeviceController,
-	nodeCache ctlcorev1.NodeCache, vlanConfigCache ctlnetworkv1beta1.VlanConfigCache) error {
-
+func Register(ctx context.Context, management *config.FactoryManager) error {
+	sriovDeviceController := management.DeviceFactory.Devices().V1beta1().SRIOVNetworkDevice()
+	nodeCache := management.CoreFactory.Core().V1().Node().Cache()
+	vlanConfigCache := management.NetworkFactory.Network().V1beta1().VlanConfig().Cache()
 	nodeName := os.Getenv(v1beta1.NodeEnvVarName)
+
 	h := NewHandler(ctx, sriovDeviceController.Cache(), sriovDeviceController, nodeName,
 		nodeCache, vlanConfigCache)
 	sriovDeviceController.OnChange(ctx, reconcileSriovDevice, h.reconcileSriovDevice)

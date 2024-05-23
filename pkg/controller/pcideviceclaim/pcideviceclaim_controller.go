@@ -21,6 +21,7 @@ import (
 	"kubevirt.io/client-go/kubecli"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/config"
 	"github.com/harvester/pcidevices/pkg/deviceplugins"
 	v1beta1gen "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 )
@@ -59,11 +60,10 @@ type Handler struct {
 	devicePlugins map[string]*deviceplugins.PCIDevicePlugin
 }
 
-func Register(
-	ctx context.Context,
-	pdcClient v1beta1gen.PCIDeviceClaimController,
-	pdClient v1beta1gen.PCIDeviceController,
-) error {
+func Register(ctx context.Context, management *config.FactoryManager) error {
+	pdcClient := management.DeviceFactory.Devices().V1beta1().PCIDeviceClaim()
+	pdClient := management.DeviceFactory.Devices().V1beta1().PCIDevice()
+
 	logrus.Info("Registering PCI Device Claims controller")
 	nodeName := os.Getenv(v1beta1.NodeEnvVarName)
 	clientConfig := kubecli.DefaultClientConfig(&pflag.FlagSet{})

@@ -18,6 +18,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"kubevirt.io/client-go/kubecli"
 
+	"github.com/harvester/pcidevices/pkg/config"
 	"github.com/harvester/pcidevices/pkg/controller/gpudevice"
 	"github.com/harvester/pcidevices/pkg/controller/nodecleanup"
 	"github.com/harvester/pcidevices/pkg/controller/nodes"
@@ -25,7 +26,7 @@ import (
 	"github.com/harvester/pcidevices/pkg/controller/sriovdevice"
 	"github.com/harvester/pcidevices/pkg/controller/usbdevice"
 	"github.com/harvester/pcidevices/pkg/crd"
-	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
+	ctldevices "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
 	"github.com/harvester/pcidevices/pkg/webhook"
 )
 
@@ -49,11 +50,8 @@ func Setup(ctx context.Context, cfg *rest.Config, _ *runtime.Scheme) error {
 		DefaultRateLimiter: rateLimit,
 		DefaultWorkers:     2,
 	})
-	if err != nil {
-		return err
-	}
 
-	deviceFactory, err := ctl.NewFactoryFromConfigWithOptions(cfg, &generic.FactoryOptions{
+	deviceFactory, err := ctldevices.NewFactoryFromConfigWithOptions(cfg, &generic.FactoryOptions{
 		SharedControllerFactory: factory,
 	})
 
@@ -77,46 +75,37 @@ func Setup(ctx context.Context, cfg *rest.Config, _ *runtime.Scheme) error {
 		return fmt.Errorf("error building network controllers: %v", err)
 	}
 
-	pdCtl := deviceFactory.Devices().V1beta1().PCIDevice()
-	pdcCtl := deviceFactory.Devices().V1beta1().PCIDeviceClaim()
-	usbDeviceCtrl := deviceFactory.Devices().V1beta1().USBDevice()
-	usbDeviceClaimCtrl := deviceFactory.Devices().V1beta1().USBDeviceClaim()
-	sriovCtl := deviceFactory.Devices().V1beta1().SRIOVNetworkDevice()
-	nodeCtl := deviceFactory.Devices().V1beta1().Node()
-	coreNodeCtl := coreFactory.Core().V1().Node()
-	vlanCtl := networkFactory.Network().V1beta1().VlanConfig()
-	sriovNetworkDeviceCache := sriovCtl.Cache()
-	sriovGPUCtl := deviceFactory.Devices().V1beta1().SRIOVGPUDevice()
-	vGPUCtl := deviceFactory.Devices().V1beta1().VGPUDevice()
-	podCtl := coreFactory.Core().V1().Pod()
 	clientConfig := kubecli.DefaultClientConfig(&pflag.FlagSet{})
 	virtClient, err := kubecli.GetKubevirtClientFromClientConfig(clientConfig)
+
+	management := config.NewFactoryManager(
+		deviceFactory,
+		coreFactory,
+		networkFactory,
+		virtClient,
+		cfg,
+	)
+
+	nodeCtl := deviceFactory.Devices().V1beta1().Node()
+	sriovNetworkDeviceCache := deviceFactory.Devices().V1beta1().SRIOVNetworkDevice().Cache()
+
 	RegisterIndexers(sriovNetworkDeviceCache)
 
-	if err := pcideviceclaim.Register(ctx, pdcCtl, pdCtl); err != nil {
-		return fmt.Errorf("error registering pcidevicclaim controllers :%v", err)
+	registers := []func(context.Context, *config.FactoryManager) error{
+		pcideviceclaim.Register,
+		usbdevice.Register,
+		nodes.Register,
+		sriovdevice.Register,
+		nodecleanup.Register,
+		gpudevice.Register,
 	}
 
-	if err := usbdevice.Register(ctx, usbDeviceCtrl, usbDeviceClaimCtrl); err != nil {
-		return fmt.Errorf("error registering usbdevice controllers :%v", err)
+	for _, register := range registers {
+		if err := register(ctx, management); err != nil {
+			return fmt.Errorf("error registering controller: %v", err)
+		}
 	}
 
-	if err := nodes.Register(ctx, sriovCtl, pdCtl, nodeCtl, coreNodeCtl, vlanCtl.Cache(),
-		sriovNetworkDeviceCache, pdcCtl, vGPUCtl, sriovGPUCtl, usbDeviceCtrl, usbDeviceClaimCtrl, virtClient); err != nil {
-		return fmt.Errorf("error registering node controller: %v", err)
-	}
-
-	if err := sriovdevice.Register(ctx, sriovCtl, coreNodeCtl.Cache(), vlanCtl.Cache()); err != nil {
-		return fmt.Errorf("error registering sriovdevice controller: %v", err)
-	}
-
-	if err := nodecleanup.Register(ctx, pdcCtl, pdCtl, coreNodeCtl); err != nil {
-		return fmt.Errorf("error registering nodecleanup controller: %v", err)
-	}
-
-	if err := gpudevice.Register(ctx, sriovGPUCtl, vGPUCtl, pdcCtl, podCtl, cfg); err != nil {
-		return fmt.Errorf("error registering gpudevice controller :%v", err)
-	}
 	if err := start.All(ctx, 2, coreFactory, networkFactory, deviceFactory); err != nil {
 		return fmt.Errorf("error starting controllers :%v", err)
 	}

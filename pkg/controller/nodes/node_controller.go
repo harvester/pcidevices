@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"kubevirt.io/client-go/kubecli"
 
+	"github.com/harvester/pcidevices/pkg/config"
 	"github.com/harvester/pcidevices/pkg/controller/gpudevice"
 	"github.com/harvester/pcidevices/pkg/controller/usbdevice"
 
@@ -54,8 +55,20 @@ const (
 	reconcilePCIDevices = "reconcile-pcidevices"
 )
 
-func Register(ctx context.Context, sriovCtl ctl.SRIOVNetworkDeviceController, pciDeviceCtl ctl.PCIDeviceController, nodeCtl ctl.NodeController, coreNodeCtl ctlcorev1.NodeController, vlanConfigCache ctlnetworkv1beta1.VlanConfigCache, sriovNetworkDeviceCache ctl.SRIOVNetworkDeviceCache, pciDeviceClaimController ctl.PCIDeviceClaimController, vGPUController ctl.VGPUDeviceController, sriovGPUController ctl.SRIOVGPUDeviceController, usbCtl ctl.USBDeviceController, usbClaimCtl ctl.USBDeviceClaimController, virtClient kubecli.KubevirtClient) error {
+func Register(ctx context.Context, management *config.FactoryManager) error {
+	sriovCtl := management.DeviceFactory.Devices().V1beta1().SRIOVNetworkDevice()
+	pciDeviceCtl := management.DeviceFactory.Devices().V1beta1().PCIDevice()
+	coreNodeCtl := management.CoreFactory.Core().V1().Node()
+	vlanConfigCache := management.NetworkFactory.Network().V1beta1().VlanConfig().Cache()
+	nodeCtl := management.DeviceFactory.Devices().V1beta1().Node()
+	vGPUController := management.DeviceFactory.Devices().V1beta1().VGPUDevice()
+	pciDeviceClaimController := management.DeviceFactory.Devices().V1beta1().PCIDeviceClaim()
+	sriovGPUController := management.DeviceFactory.Devices().V1beta1().SRIOVGPUDevice()
+	usbCtl := management.DeviceFactory.Devices().V1beta1().USBDevice()
+	usbClaimCtl := management.DeviceFactory.Devices().V1beta1().USBDeviceClaim()
+	virtClient := management.KubevirtClient
 	nodeName := os.Getenv(v1beta1.NodeEnvVarName)
+
 	h := &handler{
 		ctx:                      ctx,
 		sriovCache:               sriovCtl.Cache(),
@@ -67,7 +80,7 @@ func Register(ctx context.Context, sriovCtl ctl.SRIOVNetworkDeviceController, pc
 		coreNodeCtl:              coreNodeCtl,
 		vlanConfigCache:          vlanConfigCache,
 		nodeCtl:                  nodeCtl,
-		sriovNetworkDeviceCache:  sriovNetworkDeviceCache,
+		sriovNetworkDeviceCache:  sriovCtl.Cache(),
 		vGPUController:           vGPUController,
 		pciDeviceClaimController: pciDeviceClaimController,
 		sriovGPUController:       sriovGPUController,

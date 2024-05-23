@@ -4,11 +4,8 @@ import (
 	"context"
 
 	"github.com/rancher/wrangler/pkg/relatedresource"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/pflag"
-	"kubevirt.io/client-go/kubecli"
 
-	v1beta1gen "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/config"
 )
 
 const (
@@ -17,13 +14,10 @@ const (
 	KubeVirtResourcePrefix = "kubevirt.io/"
 )
 
-func Register(ctx context.Context, usbDeviceCtrl v1beta1gen.USBDeviceController, usbDeviceClaimCtrl v1beta1gen.USBDeviceClaimController) error {
-	clientConfig := kubecli.DefaultClientConfig(&pflag.FlagSet{})
-	virtClient, err := kubecli.GetKubevirtClientFromClientConfig(clientConfig)
-	if err != nil {
-		logrus.Errorf("failed to get kubevirt client: %v", err)
-		return err
-	}
+func Register(ctx context.Context, management *config.FactoryManager) error {
+	usbDeviceCtrl := management.DeviceFactory.Devices().V1beta1().USBDevice()
+	usbDeviceClaimCtrl := management.DeviceFactory.Devices().V1beta1().USBDeviceClaim()
+	virtClient := management.KubevirtClient
 
 	setupCommonLabels()
 
