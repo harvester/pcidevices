@@ -27,6 +27,7 @@ import (
 	"github.com/harvester/pcidevices/pkg/controller/usbdevice"
 	"github.com/harvester/pcidevices/pkg/crd"
 	ctldevices "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
+	ctlkubevirt "github.com/harvester/pcidevices/pkg/generated/controllers/kubevirt.io"
 	"github.com/harvester/pcidevices/pkg/webhook"
 )
 
@@ -75,6 +76,10 @@ func Setup(ctx context.Context, cfg *rest.Config, _ *runtime.Scheme) error {
 		return fmt.Errorf("error building network controllers: %v", err)
 	}
 
+	kubevirtFactory, err := ctlkubevirt.NewFactoryFromConfigWithOptions(cfg, &ctlkubevirt.FactoryOptions{
+		SharedControllerFactory: factory,
+	})
+
 	clientConfig := kubecli.DefaultClientConfig(&pflag.FlagSet{})
 	virtClient, err := kubecli.GetKubevirtClientFromClientConfig(clientConfig)
 
@@ -82,6 +87,7 @@ func Setup(ctx context.Context, cfg *rest.Config, _ *runtime.Scheme) error {
 		deviceFactory,
 		coreFactory,
 		networkFactory,
+		kubevirtFactory,
 		virtClient,
 		cfg,
 	)

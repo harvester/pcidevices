@@ -135,7 +135,7 @@ var _ = BeforeSuite(func() {
 
 	Expect(err).NotTo(HaveOccurred())
 
-	management := config.NewFactoryManager(factory, coreFactory, nil, nil, nil)
+	management := config.NewFactoryManager(factory, coreFactory, nil, nil, nil, nil)
 
 	err = nodecleanup.Register(ctx, management)
 	Expect(err).NotTo(HaveOccurred())

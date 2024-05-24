@@ -447,32 +447,6 @@ func (plugin *USBDevicePlugin) PreStartContainer(context.Context, *pluginapi.Pre
 	return &pluginapi.PreStartContainerResponse{}, nil
 }
 
-// return a list of USBDevices while removing it from the list of local devices
-func (l *LocalDevices) fetch(selectors []v1.USBSelector) ([]*USBDevice, bool) {
-	usbdevs := make([]*USBDevice, len(selectors))
-
-	// we have to find all devices under this resource name
-	for _, selector := range selectors {
-		selector := selector
-		vendor, product, err := parseSelector(&selector)
-		if err != nil {
-			log.Log.Reason(err).Warningf("Failed to convert selector: %+v", selector)
-			return nil, false
-		}
-
-		local := l.find(vendor, product)
-		if local == nil {
-			return nil, false
-		}
-
-		usbdevs = append(usbdevs, local)
-	}
-
-	// To avoid mapping the same usb device to different k8s plugins
-	l.remove(usbdevs)
-	return usbdevs, true
-}
-
 func NewUSBDevicePlugin(resourceName string, pluginDevices []*PluginDevices) *USBDevicePlugin {
 	s := strings.Split(resourceName, "/")
 	resourceID := s[0]

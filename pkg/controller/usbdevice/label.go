@@ -13,7 +13,7 @@ type commonLabel struct {
 
 var cl *commonLabel
 
-func setupCommonLabels() {
+func init() {
 	cl = &commonLabel{
 		nodeName: os.Getenv(v1beta1.NodeEnvVarName),
 	}

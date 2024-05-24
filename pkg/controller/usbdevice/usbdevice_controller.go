@@ -8,7 +8,6 @@ import (
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"kubevirt.io/client-go/kubecli"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/deviceplugins"
@@ -18,10 +17,11 @@ import (
 )
 
 type Handler struct {
-	usbClient      ctldevicerv1vbeta1.USBDeviceController
-	usbClaimClient ctldevicerv1vbeta1.USBDeviceClaimController
-	virtClient     kubecli.KubevirtClient
+	usbClient      ctldevicerv1vbeta1.USBDeviceClient
+	usbClaimClient ctldevicerv1vbeta1.USBDeviceClaimClient
 }
+
+var walkUSBDevices = deviceplugins.WalkUSBDevices
 
 type USBDevice struct {
 	Name         string
@@ -39,11 +39,10 @@ func (dev *USBDevice) GetID() string {
 	return fmt.Sprintf("%04x:%04x-%02d:%02d", dev.Vendor, dev.Product, dev.Bus, dev.DeviceNumber)
 }
 
-func NewHandler(usbClient ctldevicerv1vbeta1.USBDeviceController, usbClaimClient ctldevicerv1vbeta1.USBDeviceClaimController, virtClient kubecli.KubevirtClient) *Handler {
+func NewHandler(usbClient ctldevicerv1vbeta1.USBDeviceClient, usbClaimClient ctldevicerv1vbeta1.USBDeviceClaimClient) *Handler {
 	return &Handler{
 		usbClient:      usbClient,
 		usbClaimClient: usbClaimClient,
-		virtClient:     virtClient,
 	}
 }
 
@@ -79,7 +78,7 @@ func (h *Handler) OnDeviceChange(_ string, _ string, obj runtime.Object) ([]rela
 func (h *Handler) ReconcileUSBDevices() error {
 	nodeName := cl.nodeName
 
-	localUSBDevices, err := deviceplugins.WalkUSBDevices()
+	localUSBDevices, err := walkUSBDevices()
 	if err != nil {
 		logrus.Errorf("failed to walk USB devices: %v\n", err)
 		return err

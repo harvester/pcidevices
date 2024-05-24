@@ -1,5 +1,10 @@
 package deviceplugins
 
+import (
+	"github.com/sirupsen/logrus"
+	v1 "kubevirt.io/api/core/v1"
+)
+
 type LocalDevices struct {
 	// For quicker indexing, map devices based on vendor string
 	devices map[int][]*USBDevice
@@ -37,4 +42,30 @@ func (l *LocalDevices) remove(usbdevs []*USBDevice) {
 			delete(l.devices, dev.Vendor)
 		}
 	}
+}
+
+// return a list of USBDevices while removing it from the list of local devices
+func (l *LocalDevices) fetch(selectors []v1.USBSelector) ([]*USBDevice, bool) {
+	usbdevs := make([]*USBDevice, 0, len(selectors))
+
+	// we have to find all devices under this resource name
+	for _, selector := range selectors {
+		selector := selector
+		vendor, product, err := parseSelector(&selector)
+		if err != nil {
+			logrus.Warningf("Failed to convert selector: %+v", selector)
+			return nil, false
+		}
+
+		local := l.find(vendor, product)
+		if local == nil {
+			return nil, false
+		}
+
+		usbdevs = append(usbdevs, local)
+	}
+
+	// To avoid mapping the same usb device to different k8s plugins
+	l.remove(usbdevs)
+	return usbdevs, true
 }

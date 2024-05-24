@@ -117,7 +117,7 @@ func (h *handler) reconcileNodeDevices(name string, node *v1beta1.Node) (*v1beta
 		return nil, fmt.Errorf("error reconciling pcidevices for node %s: %v", h.nodeName, err)
 	}
 
-	usbHandler := usbdevice.NewHandler(h.usbCtl, h.usbClaimCtl, h.virtClient)
+	usbHandler := usbdevice.NewHandler(h.usbCtl, h.usbClaimCtl)
 	if err := usbHandler.ReconcileUSBDevices(); err != nil {
 		return nil, fmt.Errorf("error reconciling usb devices for node %s: %v", h.nodeName, err)
 	}

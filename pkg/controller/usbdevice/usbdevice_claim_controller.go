@@ -9,23 +9,23 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubevirtv1 "kubevirt.io/api/core/v1"
-	"kubevirt.io/client-go/kubecli"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/deviceplugins"
 	ctldevicerv1beta1 "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
+	ctlkubevirtv1 "github.com/harvester/pcidevices/pkg/generated/controllers/kubevirt.io/v1"
 )
 
 type ClaimHandler struct {
-	usbClaimClient ctldevicerv1beta1.USBDeviceClaimController
-	usbClient      ctldevicerv1beta1.USBDeviceController
-	virtClient     kubecli.KubevirtClient
+	usbClaimClient ctldevicerv1beta1.USBDeviceClaimClient
+	usbClient      ctldevicerv1beta1.USBDeviceClient
+	virtClient     ctlkubevirtv1.KubeVirtClient
 	lock           *sync.Mutex
 	usbDeviceCache ctldevicerv1beta1.USBDeviceCache
 	devicePlugin   map[string]*deviceplugins.USBDevicePlugin
 }
 
-func NewClaimHandler(usbDeviceCache ctldevicerv1beta1.USBDeviceCache, usbClaimClient ctldevicerv1beta1.USBDeviceClaimController, usbClient ctldevicerv1beta1.USBDeviceController, virtClient kubecli.KubevirtClient) *ClaimHandler {
+func NewClaimHandler(usbDeviceCache ctldevicerv1beta1.USBDeviceCache, usbClaimClient ctldevicerv1beta1.USBDeviceClaimClient, usbClient ctldevicerv1beta1.USBDeviceClient, virtClient ctlkubevirtv1.KubeVirtClient) *ClaimHandler {
 	return &ClaimHandler{
 		usbDeviceCache: usbDeviceCache,
 		usbClaimClient: usbClaimClient,
@@ -59,7 +59,7 @@ func (h *ClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1beta1
 	h.lock.Lock()
 	defer h.lock.Unlock()
 
-	virt, err := h.virtClient.KubeVirt(KubeVirtNamespace).Get(KubeVirtResource, &metav1.GetOptions{})
+	virt, err := h.virtClient.Get(KubeVirtNamespace, KubeVirtResource, metav1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("failed to get kubevirt: %v", err)
 		return usbDeviceClaim, err
@@ -142,7 +142,7 @@ func (h *ClaimHandler) OnRemove(_ string, claim *v1beta1.USBDeviceClaim) (*v1bet
 	h.lock.Lock()
 	defer h.lock.Unlock()
 
-	virt, err := h.virtClient.KubeVirt(KubeVirtNamespace).Get(KubeVirtResource, &metav1.GetOptions{})
+	virt, err := h.virtClient.Get(KubeVirtNamespace, KubeVirtResource, metav1.GetOptions{})
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
@@ -168,7 +168,7 @@ func (h *ClaimHandler) OnRemove(_ string, claim *v1beta1.USBDeviceClaim) (*v1bet
 	virtDp.Spec.Configuration.PermittedHostDevices.USB = usbs
 
 	if !reflect.DeepEqual(virt.Spec.Configuration.PermittedHostDevices.USB, virtDp.Spec.Configuration.PermittedHostDevices.USB) {
-		if _, err := h.virtClient.KubeVirt(KubeVirtNamespace).Update(virtDp); err != nil {
+		if _, err := h.virtClient.Update(virtDp); err != nil {
 			return claim, nil
 		}
 	}
@@ -222,7 +222,7 @@ func (h *ClaimHandler) updateKubeVirt(virt *kubevirtv1.KubeVirt, usbDevice *v1be
 	})
 
 	if virt.Spec.Configuration.PermittedHostDevices == nil || !reflect.DeepEqual(virt.Spec.Configuration.PermittedHostDevices.USB, virtDp.Spec.Configuration.PermittedHostDevices.USB) {
-		newVirt, err := h.virtClient.KubeVirt(KubeVirtNamespace).Update(virtDp)
+		newVirt, err := h.virtClient.Update(virtDp)
 		if err != nil {
 			logrus.Errorf("failed to update kubevirt: %v", err)
 			return virt, err
