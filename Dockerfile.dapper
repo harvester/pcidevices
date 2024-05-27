@@ -3,7 +3,7 @@ FROM registry.suse.com/bci/golang:1.21
 ARG DAPPER_HOST_ARCH
 ENV ARCH $DAPPER_HOST_ARCH
 
-RUN zypper -n ar  https://download.opensuse.org/repositories/hardware/15.4/hardware.repo && \
+RUN zypper -n ar  https://download.opensuse.org/repositories/hardware/15.5/hardware.repo && \
     zypper -n --gpg-auto-import-keys refresh && \
     zypper -n install bash git gcc docker vim less file curl wget ca-certificates pciutils umockdev
 RUN go install golang.org/x/lint/golint@latest
