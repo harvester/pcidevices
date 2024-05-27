@@ -16,23 +16,43 @@ import (
 	ctlkubevirtv1 "github.com/harvester/pcidevices/pkg/generated/controllers/kubevirt.io/v1"
 )
 
+var (
+	discoverAllowedUSBDevices = deviceplugins.DiscoverAllowedUSBDevices
+)
+
 type ClaimHandler struct {
-	usbClaimClient ctldevicerv1beta1.USBDeviceClaimClient
-	usbClient      ctldevicerv1beta1.USBDeviceClient
-	virtClient     ctlkubevirtv1.KubeVirtClient
-	lock           *sync.Mutex
-	usbDeviceCache ctldevicerv1beta1.USBDeviceCache
-	devicePlugin   map[string]*deviceplugins.USBDevicePlugin
+	usbClaimClient        ctldevicerv1beta1.USBDeviceClaimClient
+	usbClient             ctldevicerv1beta1.USBDeviceClient
+	virtClient            ctlkubevirtv1.KubeVirtClient
+	lock                  *sync.Mutex
+	usbDeviceCache        ctldevicerv1beta1.USBDeviceCache
+	devicePlugin          map[string]*deviceController
+	devicePluginConvertor devicePluginConvertor
 }
 
-func NewClaimHandler(usbDeviceCache ctldevicerv1beta1.USBDeviceCache, usbClaimClient ctldevicerv1beta1.USBDeviceClaimClient, usbClient ctldevicerv1beta1.USBDeviceClient, virtClient ctlkubevirtv1.KubeVirtClient) *ClaimHandler {
+type deviceController struct {
+	device  deviceplugins.USBDevicePluginInterface
+	stop    chan struct{}
+	started bool
+}
+
+type devicePluginConvertor func(resourceName string, devices []*deviceplugins.PluginDevices) deviceplugins.USBDevicePluginInterface
+
+func NewClaimHandler(
+	usbDeviceCache ctldevicerv1beta1.USBDeviceCache,
+	usbClaimClient ctldevicerv1beta1.USBDeviceClaimClient,
+	usbClient ctldevicerv1beta1.USBDeviceClient,
+	virtClient ctlkubevirtv1.KubeVirtClient,
+	devicePluginHelper devicePluginConvertor,
+) *ClaimHandler {
 	return &ClaimHandler{
-		usbDeviceCache: usbDeviceCache,
-		usbClaimClient: usbClaimClient,
-		usbClient:      usbClient,
-		virtClient:     virtClient,
-		lock:           &sync.Mutex{},
-		devicePlugin:   map[string]*deviceplugins.USBDevicePlugin{},
+		usbDeviceCache:        usbDeviceCache,
+		usbClaimClient:        usbClaimClient,
+		usbClient:             usbClient,
+		virtClient:            virtClient,
+		lock:                  &sync.Mutex{},
+		devicePlugin:          map[string]*deviceController{},
+		devicePluginConvertor: devicePluginHelper,
 	}
 }
 
@@ -76,12 +96,15 @@ func (h *ClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1beta1
 		return usbDeviceClaim, nil
 	}
 
-	pluginDevices := deviceplugins.DiscoverAllowedUSBDevices(newVirt.Spec.Configuration.PermittedHostDevices.USB)
+	pluginDevices := discoverAllowedUSBDevices(newVirt.Spec.Configuration.PermittedHostDevices.USB)
 
 	if pluginDevice := h.findDevicePlugin(pluginDevices, usbDevice); pluginDevice != nil {
-		usbDevicePlugin := deviceplugins.NewUSBDevicePlugin(usbDevice.Status.ResourceName, []*deviceplugins.PluginDevices{pluginDevice})
-		h.devicePlugin[usbDeviceClaim.Name] = usbDevicePlugin
-		go h.startDevicePlugin(usbDevicePlugin)
+		usbDevicePlugin := h.devicePluginConvertor(usbDevice.Status.ResourceName, []*deviceplugins.PluginDevices{pluginDevice})
+		deviceHan := &deviceController{
+			device: usbDevicePlugin,
+		}
+		h.devicePlugin[usbDeviceClaim.Name] = deviceHan
+		h.startDevicePlugin(deviceHan)
 	}
 
 	usbDeviceCp := usbDevice.DeepCopy()
@@ -98,12 +121,37 @@ func (h *ClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1beta1
 	return h.usbClaimClient.UpdateStatus(usbDeviceClaimCp)
 }
 
-func (h *ClaimHandler) startDevicePlugin(usbDevicePlugin *deviceplugins.USBDevicePlugin) {
-	stop := make(chan struct{})
-	if err := usbDevicePlugin.Start(stop); err != nil {
-		logrus.Errorf("failed to start device plugin: %v", err)
+func (h *ClaimHandler) startDevicePlugin(deviceHan *deviceController) {
+	if deviceHan.started {
+		return
 	}
-	<-stop
+
+	deviceHan.stop = make(chan struct{})
+
+	go func() {
+		if err := deviceHan.device.Start(deviceHan.stop); err != nil {
+			logrus.Errorf("failed to start device plugin: %v", err)
+		}
+		<-deviceHan.stop
+	}()
+
+	deviceHan.started = true
+}
+
+func (h *ClaimHandler) stopDevicePlugin(deviceHan *deviceController) error {
+	if !deviceHan.started {
+		return nil
+	}
+
+	close(deviceHan.stop)
+	deviceHan.started = false
+
+	if err := deviceHan.device.StopDevicePlugin(); err != nil {
+		logrus.Errorf("failed to start device plugin: %v", err)
+		return err
+	}
+
+	return nil
 }
 
 func (h *ClaimHandler) findDevicePlugin(pluginDevices map[string][]*deviceplugins.PluginDevices, usbDevice *v1beta1.USBDevice) *deviceplugins.PluginDevices {
@@ -173,8 +221,8 @@ func (h *ClaimHandler) OnRemove(_ string, claim *v1beta1.USBDeviceClaim) (*v1bet
 		}
 	}
 
-	if dp, ok := h.devicePlugin[claim.Name]; ok {
-		if err := dp.StopDevicePlugin(); err != nil {
+	if handler, ok := h.devicePlugin[claim.Name]; ok {
+		if err := h.stopDevicePlugin(handler); err != nil {
 			return claim, err
 		}
 

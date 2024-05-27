@@ -83,6 +83,11 @@ type USBDevice struct {
 	PCIAddress   string
 }
 
+type USBDevicePluginInterface interface {
+	Start(stop <-chan struct{}) error
+	StopDevicePlugin() error
+}
+
 func (dev *USBDevice) GetID() string {
 	return fmt.Sprintf("%04x:%04x-%02d:%02d", dev.Vendor, dev.Product, dev.Bus, dev.DeviceNumber)
 }
@@ -447,7 +452,7 @@ func (plugin *USBDevicePlugin) PreStartContainer(context.Context, *pluginapi.Pre
 	return &pluginapi.PreStartContainerResponse{}, nil
 }
 
-func NewUSBDevicePlugin(resourceName string, pluginDevices []*PluginDevices) *USBDevicePlugin {
+func NewUSBDevicePlugin(resourceName string, pluginDevices []*PluginDevices) USBDevicePluginInterface {
 	s := strings.Split(resourceName, "/")
 	resourceID := s[0]
 	if len(s) > 1 {

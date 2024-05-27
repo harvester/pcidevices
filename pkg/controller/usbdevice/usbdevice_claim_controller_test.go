@@ -9,9 +9,15 @@ import (
 	kubevirtv1 "kubevirt.io/api/core/v1"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/deviceplugins"
 	"github.com/harvester/pcidevices/pkg/generated/clientset/versioned/fake"
 	"github.com/harvester/pcidevices/pkg/util/fakeclients"
 )
+
+type mockUSBDevicePlugin struct{}
+
+func (m *mockUSBDevicePlugin) Start(_ <-chan struct{}) error { return nil }
+func (m *mockUSBDevicePlugin) StopDevicePlugin() error       { return nil }
 
 var (
 	mockUsbDevice1 = &v1beta1.USBDevice{
@@ -55,18 +61,39 @@ var (
 			NodeName: "test-node",
 		},
 	}
+	mockUSBDevicePluginHelper = func(_ string, _ []*deviceplugins.PluginDevices) deviceplugins.USBDevicePluginInterface {
+		return &mockUSBDevicePlugin{}
+	}
 )
 
 func Test_OnUSBDeviceClaimChanged(t *testing.T) {
 	client := fake.NewSimpleClientset(mockUsbDevice1, mockUsbDeviceClaim1, mockKubeVirt)
+	discoverAllowedUSBDevices = func(_ []kubevirtv1.USBHostDevice) map[string][]*deviceplugins.PluginDevices {
+		m := map[string][]*deviceplugins.PluginDevices{}
+		m[mockUsbDevice1.Status.ResourceName] = []*deviceplugins.PluginDevices{
+			{
+				ID: "test",
+				Devices: []*deviceplugins.USBDevice{
+					{
+						Vendor:     2385,
+						Product:    5734,
+						DevicePath: "/dev/bus/usb/001/002",
+					},
+				},
+			},
+		}
+		return m
+	}
 
 	handler := NewClaimHandler(
 		fakeclients.USBDeviceCache(client.DevicesV1beta1().USBDevices),
 		fakeclients.USBDeviceClaimsClient(client.DevicesV1beta1().USBDeviceClaims),
 		fakeclients.USBDevicesClient(client.DevicesV1beta1().USBDevices),
 		fakeclients.KubeVirtClient(client.KubevirtV1().KubeVirts),
+		mockUSBDevicePluginHelper,
 	)
 
+	// Test claim created
 	_, err := handler.OnUSBDeviceClaimChanged("", mockUsbDeviceClaim1)
 	assert.NoError(t, err)
 
@@ -93,38 +120,11 @@ func Test_OnUSBDeviceClaimChanged(t *testing.T) {
 	usbDevice, err := client.DevicesV1beta1().USBDevices().Get(context.Background(), mockUsbDevice1.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, true, usbDevice.Status.Enabled)
-}
 
-func Test_OnUSBDeviceClaimRemove(t *testing.T) {
-	mockUsbDevice1.Status.Enabled = true
-	mockKubeVirt.Spec.Configuration = kubevirtv1.KubeVirtConfiguration{
-		PermittedHostDevices: &kubevirtv1.PermittedHostDevices{
-			USB: []kubevirtv1.USBHostDevice{
-				{
-					ResourceName:             mockUsbDevice1.Status.ResourceName,
-					ExternalResourceProvider: true,
-					Selectors: []kubevirtv1.USBSelector{
-						{
-							Vendor:  "0951",
-							Product: "1666",
-						},
-					},
-				},
-			},
-		},
-	}
-	client := fake.NewSimpleClientset(mockUsbDevice1, mockKubeVirt)
-
-	handler := NewClaimHandler(
-		fakeclients.USBDeviceCache(client.DevicesV1beta1().USBDevices),
-		fakeclients.USBDeviceClaimsClient(client.DevicesV1beta1().USBDeviceClaims),
-		fakeclients.USBDevicesClient(client.DevicesV1beta1().USBDevices),
-		fakeclients.KubeVirtClient(client.KubevirtV1().KubeVirts),
-	)
-
-	_, err := handler.OnRemove("", mockUsbDeviceClaim1)
+	// Test claim removed
+	_, err = handler.OnRemove("", mockUsbDeviceClaim1)
 	assert.NoError(t, err)
-	usbDevice, err := client.DevicesV1beta1().USBDevices().Get(context.Background(), mockUsbDevice1.Name, metav1.GetOptions{})
+	usbDevice, err = client.DevicesV1beta1().USBDevices().Get(context.Background(), mockUsbDevice1.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, false, usbDevice.Status.Enabled)
 	kubeVirt, err := client.KubevirtV1().KubeVirts(mockKubeVirt.Namespace).Get(context.Background(), mockKubeVirt.Name, metav1.GetOptions{})
