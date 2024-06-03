@@ -126,7 +126,10 @@ func Test_OnUSBDeviceClaimChanged(t *testing.T) {
 				assert.Equal(t, true, usbDevice.Status.Enabled)
 
 				// Test claim removed
+				mockUsbDeviceClaim1.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+
 				_, err = handler.OnRemove("", mockUsbDeviceClaim1)
+
 				assert.NoError(t, err)
 				usbDevice, err = client.DevicesV1beta1().USBDevices().Get(context.Background(), mockUsbDevice1.Name, metav1.GetOptions{})
 				assert.NoError(t, err)
@@ -136,6 +139,8 @@ func Test_OnUSBDeviceClaimChanged(t *testing.T) {
 				assert.Equal(t, 0, len(kubeVirt.Spec.Configuration.PermittedHostDevices.USB))
 				time.Sleep(1 * time.Second)
 				assert.Equal(t, 1, mockObj.stopTimes)
+
+				mockUsbDeviceClaim1.DeletionTimestamp = nil
 			},
 			description: "General case to create claim and remove claim",
 		},
