@@ -93,9 +93,8 @@ func Setup(ctx context.Context, cfg *rest.Config, _ *runtime.Scheme) error {
 	)
 
 	nodeCtl := deviceFactory.Devices().V1beta1().Node()
-	sriovNetworkDeviceCache := deviceFactory.Devices().V1beta1().SRIOVNetworkDevice().Cache()
 
-	RegisterIndexers(sriovNetworkDeviceCache)
+	RegisterIndexers(management)
 
 	registers := []func(context.Context, *config.FactoryManager) error{
 		pcideviceclaim.Register,

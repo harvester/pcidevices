@@ -23,3 +23,7 @@ type USBDeviceClaimStatus struct {
 	PCIAddress string `json:"pciAddress"`
 	UserName   string `json:"userName"`
 }
+
+const (
+	USBDevicePCIAddress = "usb-device-pci-address"
+)

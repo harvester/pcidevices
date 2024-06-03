@@ -69,7 +69,7 @@ func (h *DevHandler) OnDeviceChange(_ string, _ string, obj runtime.Object) ([]r
 	}
 
 	if ud.Status.NodeName == cl.nodeName {
-		udcList, err := h.usbClaimCache.List(labels.SelectorFromSet(cl.labels()))
+		udcList, err := h.usbClaimCache.GetByIndex(v1beta1.USBDevicePCIAddress, ud.Status.PCIAddress)
 		if err != nil {
 			logrus.Errorf("error listing USBDeviceClaims during device watch: %v", err)
 			return nil, err
@@ -77,9 +77,7 @@ func (h *DevHandler) OnDeviceChange(_ string, _ string, obj runtime.Object) ([]r
 
 		var rr []relatedresource.Key
 		for _, v := range udcList {
-			if v.Status.PCIAddress == ud.Status.PCIAddress {
-				rr = append(rr, relatedresource.NewKey(v.Namespace, v.Name))
-			}
+			rr = append(rr, relatedresource.NewKey(v.Namespace, v.Name))
 		}
 		return rr, nil
 	}
