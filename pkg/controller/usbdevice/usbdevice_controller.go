@@ -7,6 +7,7 @@ import (
 	"github.com/rancher/wrangler/pkg/relatedresource"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
@@ -19,6 +20,8 @@ import (
 type DevHandler struct {
 	usbClient      ctldevicerv1vbeta1.USBDeviceClient
 	usbClaimClient ctldevicerv1vbeta1.USBDeviceClaimClient
+	usbCache       ctldevicerv1vbeta1.USBDeviceCache
+	usbClaimCache  ctldevicerv1vbeta1.USBDeviceClaimCache
 }
 
 var walkUSBDevices = deviceplugins.WalkUSBDevices
@@ -39,10 +42,17 @@ func (dev *USBDevice) GetID() string {
 	return fmt.Sprintf("%04x:%04x-%02d:%02d", dev.Vendor, dev.Product, dev.Bus, dev.DeviceNumber)
 }
 
-func NewHandler(usbClient ctldevicerv1vbeta1.USBDeviceClient, usbClaimClient ctldevicerv1vbeta1.USBDeviceClaimClient) *DevHandler {
+func NewHandler(
+	usbClient ctldevicerv1vbeta1.USBDeviceClient,
+	usbClaimClient ctldevicerv1vbeta1.USBDeviceClaimClient,
+	usbCache ctldevicerv1vbeta1.USBDeviceCache,
+	usbClaimCache ctldevicerv1vbeta1.USBDeviceClaimCache,
+) *DevHandler {
 	return &DevHandler{
 		usbClient:      usbClient,
 		usbClaimClient: usbClaimClient,
+		usbCache:       usbCache,
+		usbClaimCache:  usbClaimCache,
 	}
 }
 
@@ -59,14 +69,14 @@ func (h *DevHandler) OnDeviceChange(_ string, _ string, obj runtime.Object) ([]r
 	}
 
 	if ud.Status.NodeName == cl.nodeName {
-		udcList, err := h.usbClaimClient.List(metav1.ListOptions{LabelSelector: cl.selector()})
+		udcList, err := h.usbClaimCache.List(labels.SelectorFromSet(cl.labels()))
 		if err != nil {
 			logrus.Errorf("error listing USBDeviceClaims during device watch: %v", err)
 			return nil, err
 		}
 
 		var rr []relatedresource.Key
-		for _, v := range udcList.Items {
+		for _, v := range udcList {
 			rr = append(rr, relatedresource.NewKey(v.Namespace, v.Name))
 		}
 		return rr, nil
@@ -84,14 +94,15 @@ func (h *DevHandler) ReconcileUSBDevices() error {
 		return err
 	}
 
-	storedUSBDevices, err := h.usbClient.List(metav1.ListOptions{})
+	storedUSBDevices, err := h.usbCache.List(labels.SelectorFromSet(cl.labels()))
 	if err != nil {
 		logrus.Errorf("failed to list USB devices: %v\n", err)
 		return err
 	}
 
-	mapStoredUSBDevices := make(map[string]v1beta1.USBDevice)
-	for _, storedUSBDevice := range storedUSBDevices.Items {
+	mapStoredUSBDevices := make(map[string]*v1beta1.USBDevice)
+	for _, storedUSBDevice := range storedUSBDevices {
+		storedUSBDevice := storedUSBDevice
 		mapStoredUSBDevices[storedUSBDevice.Status.DevicePath] = storedUSBDevice
 	}
 
@@ -105,7 +116,7 @@ func (h *DevHandler) ReconcileUSBDevices() error {
 	return nil
 }
 
-func (h *DevHandler) handleList(createList []*v1beta1.USBDevice, updateList []*v1beta1.USBDevice, mapStoredUSBDevices map[string]v1beta1.USBDevice) error {
+func (h *DevHandler) handleList(createList []*v1beta1.USBDevice, updateList []*v1beta1.USBDevice, mapStoredUSBDevices map[string]*v1beta1.USBDevice) error {
 	for _, usbDevice := range createList {
 		createdOne := &v1beta1.USBDevice{
 			ObjectMeta: metav1.ObjectMeta{
@@ -150,7 +161,7 @@ func (h *DevHandler) handleList(createList []*v1beta1.USBDevice, updateList []*v
 	return nil
 }
 
-func (h *DevHandler) getList(localUSBDevices map[int][]*deviceplugins.USBDevice, mapStoredUSBDevices map[string]v1beta1.USBDevice, nodeName string) ([]*v1beta1.USBDevice, []*v1beta1.USBDevice) {
+func (h *DevHandler) getList(localUSBDevices map[int][]*deviceplugins.USBDevice, mapStoredUSBDevices map[string]*v1beta1.USBDevice, nodeName string) ([]*v1beta1.USBDevice, []*v1beta1.USBDevice) {
 	var (
 		createList []*v1beta1.USBDevice
 		updateList []*v1beta1.USBDevice

@@ -21,5 +21,5 @@ type USBDeviceClaimSpec struct {
 type USBDeviceClaimStatus struct {
 	NodeName   string `json:"nodeName"`
 	PCIAddress string `json:"pciAddress"`
-	ClaimedBy  string `json:"claimedBy"`
+	UserName   string `json:"userName"`
 }

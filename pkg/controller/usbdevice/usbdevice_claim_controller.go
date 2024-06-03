@@ -57,7 +57,7 @@ func NewClaimHandler(
 }
 
 func (h *DevClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1beta1.USBDeviceClaim) (*v1beta1.USBDeviceClaim, error) {
-	if usbDeviceClaim == nil {
+	if usbDeviceClaim == nil || usbDeviceClaim.DeletionTimestamp != nil {
 		return usbDeviceClaim, nil
 	}
 
@@ -174,7 +174,7 @@ func (h *DevClaimHandler) findDevicePlugin(pluginDevices map[string][]*deviceplu
 }
 
 func (h *DevClaimHandler) OnRemove(_ string, claim *v1beta1.USBDeviceClaim) (*v1beta1.USBDeviceClaim, error) {
-	if claim == nil {
+	if claim == nil || claim.DeletionTimestamp == nil {
 		return claim, nil
 	}
 

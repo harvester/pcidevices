@@ -20,7 +20,7 @@ func Register(ctx context.Context, management *config.FactoryManager) error {
 	usbDeviceClaimCtrl := management.DeviceFactory.Devices().V1beta1().USBDeviceClaim()
 	virtClient := management.KubevirtFactory.Kubevirt().V1().KubeVirt()
 
-	handler := NewHandler(usbDeviceCtrl, usbDeviceClaimCtrl)
+	handler := NewHandler(usbDeviceCtrl, usbDeviceClaimCtrl, usbDeviceCtrl.Cache(), usbDeviceClaimCtrl.Cache())
 	usbDeviceClaimController := NewClaimHandler(usbDeviceCtrl.Cache(), usbDeviceClaimCtrl, usbDeviceCtrl, virtClient, deviceplugins.NewUSBDevicePlugin)
 
 	usbDeviceClaimCtrl.OnChange(ctx, "usbClaimClient-device-claim", usbDeviceClaimController.OnUSBDeviceClaimChanged)

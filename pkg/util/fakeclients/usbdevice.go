@@ -53,8 +53,23 @@ func (p USBDeviceCache) Get(name string) (*devicev1beta1.USBDevice, error) {
 	return p().Get(context.TODO(), name, metav1.GetOptions{})
 }
 
-func (p USBDeviceCache) List(labels.Selector) ([]*devicev1beta1.USBDevice, error) {
-	panic("implement me")
+func (p USBDeviceCache) List(selector labels.Selector) ([]*devicev1beta1.USBDevice, error) {
+	devices, err := p().List(context.TODO(), metav1.ListOptions{
+		LabelSelector: selector.String(),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*devicev1beta1.USBDevice, 0, len(devices.Items))
+
+	for _, device := range devices.Items {
+		obj := device
+		result = append(result, &obj)
+	}
+
+	return result, nil
 }
 
 func (p USBDeviceCache) AddIndexer(_ string, _ devicesv1beta1ctl.USBDeviceIndexer) {

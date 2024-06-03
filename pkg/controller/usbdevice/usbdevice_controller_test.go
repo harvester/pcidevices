@@ -40,6 +40,8 @@ func Test_ReconcileUSBDevices(t *testing.T) {
 	usbHandler := NewHandler(
 		fakeclients.USBDevicesClient(client.DevicesV1beta1().USBDevices),
 		fakeclients.USBDeviceClaimsClient(client.DevicesV1beta1().USBDeviceClaims),
+		fakeclients.USBDeviceCache(client.DevicesV1beta1().USBDevices),
+		fakeclients.USBDeviceClaimsCache(client.DevicesV1beta1().USBDeviceClaims),
 	)
 
 	err := usbHandler.ReconcileUSBDevices()

@@ -141,7 +141,8 @@ func List() []crd.CRD {
 			c.NonNamespace = true
 			return c.
 				WithColumn("Node Name", ".status.nodeName").
-				WithColumn("PCI Address", ".status.pciAddress")
+				WithColumn("PCI Address", ".status.pciAddress").
+				WithColumn("User Name", ".status.userName")
 		}),
 	}
 }
