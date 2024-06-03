@@ -424,17 +424,14 @@ func (h *Handler) startDevicePlugin(
 	if dp.Started() {
 		return nil
 	}
-	// Start the plugin
-	stop := make(chan struct{})
+
 	go func() {
-		err := dp.Start(stop)
+		err := dp.Start()
 		if err != nil {
 			logrus.Errorf("error starting %s device plugin: %s", dp.GetDeviceName(), err)
 		}
-		// TODO: test if deleting this stops the DevicePlugin
-		<-stop
 	}()
-	dp.SetStarted(stop)
+	dp.SetStarted()
 	return nil
 }
 
