@@ -189,7 +189,7 @@ func DiscoverAllowedUSBDevices(usbs []v1.USBHostDevice) map[string][]*PluginDevi
 		resourceName := usbConfig.ResourceName
 		// only accept ExternalResourceProvider: true for USB devices
 		if !usbConfig.ExternalResourceProvider {
-			logrus.Errorf("Skipping discovery of %s. To be handled by external device-plugin",
+			logrus.Errorf("Skipping discovery of %s. To be handled by kubevirt internally",
 				resourceName)
 			continue
 		}
