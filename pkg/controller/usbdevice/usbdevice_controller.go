@@ -16,7 +16,7 @@ import (
 	"github.com/harvester/pcidevices/pkg/util/gousb/usbid"
 )
 
-type Handler struct {
+type DevHandler struct {
 	usbClient      ctldevicerv1vbeta1.USBDeviceClient
 	usbClaimClient ctldevicerv1vbeta1.USBDeviceClaimClient
 }
@@ -39,14 +39,14 @@ func (dev *USBDevice) GetID() string {
 	return fmt.Sprintf("%04x:%04x-%02d:%02d", dev.Vendor, dev.Product, dev.Bus, dev.DeviceNumber)
 }
 
-func NewHandler(usbClient ctldevicerv1vbeta1.USBDeviceClient, usbClaimClient ctldevicerv1vbeta1.USBDeviceClaimClient) *Handler {
-	return &Handler{
+func NewHandler(usbClient ctldevicerv1vbeta1.USBDeviceClient, usbClaimClient ctldevicerv1vbeta1.USBDeviceClaimClient) *DevHandler {
+	return &DevHandler{
 		usbClient:      usbClient,
 		usbClaimClient: usbClaimClient,
 	}
 }
 
-func (h *Handler) OnDeviceChange(_ string, _ string, obj runtime.Object) ([]relatedresource.Key, error) {
+func (h *DevHandler) OnDeviceChange(_ string, _ string, obj runtime.Object) ([]relatedresource.Key, error) {
 	ud, ok := obj.(*v1beta1.USBDevice)
 
 	if ud == nil {
@@ -75,7 +75,7 @@ func (h *Handler) OnDeviceChange(_ string, _ string, obj runtime.Object) ([]rela
 	return nil, nil
 }
 
-func (h *Handler) ReconcileUSBDevices() error {
+func (h *DevHandler) ReconcileUSBDevices() error {
 	nodeName := cl.nodeName
 
 	localUSBDevices, err := walkUSBDevices()
@@ -105,7 +105,7 @@ func (h *Handler) ReconcileUSBDevices() error {
 	return nil
 }
 
-func (h *Handler) handleList(createList []*v1beta1.USBDevice, updateList []*v1beta1.USBDevice, mapStoredUSBDevices map[string]v1beta1.USBDevice) error {
+func (h *DevHandler) handleList(createList []*v1beta1.USBDevice, updateList []*v1beta1.USBDevice, mapStoredUSBDevices map[string]v1beta1.USBDevice) error {
 	for _, usbDevice := range createList {
 		createdOne := &v1beta1.USBDevice{
 			ObjectMeta: metav1.ObjectMeta{
@@ -150,7 +150,7 @@ func (h *Handler) handleList(createList []*v1beta1.USBDevice, updateList []*v1be
 	return nil
 }
 
-func (h *Handler) getList(localUSBDevices map[int][]*deviceplugins.USBDevice, mapStoredUSBDevices map[string]v1beta1.USBDevice, nodeName string) ([]*v1beta1.USBDevice, []*v1beta1.USBDevice) {
+func (h *DevHandler) getList(localUSBDevices map[int][]*deviceplugins.USBDevice, mapStoredUSBDevices map[string]v1beta1.USBDevice, nodeName string) ([]*v1beta1.USBDevice, []*v1beta1.USBDevice) {
 	var (
 		createList []*v1beta1.USBDevice
 		updateList []*v1beta1.USBDevice

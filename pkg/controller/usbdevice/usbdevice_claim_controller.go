@@ -20,7 +20,7 @@ var (
 	discoverAllowedUSBDevices = deviceplugins.DiscoverAllowedUSBDevices
 )
 
-type ClaimHandler struct {
+type DevClaimHandler struct {
 	usbClaimClient        ctldevicerv1beta1.USBDeviceClaimClient
 	usbClient             ctldevicerv1beta1.USBDeviceClient
 	virtClient            ctlkubevirtv1.KubeVirtClient
@@ -44,8 +44,8 @@ func NewClaimHandler(
 	usbClient ctldevicerv1beta1.USBDeviceClient,
 	virtClient ctlkubevirtv1.KubeVirtClient,
 	devicePluginHelper devicePluginConvertor,
-) *ClaimHandler {
-	return &ClaimHandler{
+) *DevClaimHandler {
+	return &DevClaimHandler{
 		usbDeviceCache:        usbDeviceCache,
 		usbClaimClient:        usbClaimClient,
 		usbClient:             usbClient,
@@ -56,7 +56,7 @@ func NewClaimHandler(
 	}
 }
 
-func (h *ClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1beta1.USBDeviceClaim) (*v1beta1.USBDeviceClaim, error) {
+func (h *DevClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1beta1.USBDeviceClaim) (*v1beta1.USBDeviceClaim, error) {
 	if usbDeviceClaim == nil {
 		return usbDeviceClaim, nil
 	}
@@ -121,7 +121,7 @@ func (h *ClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1beta1
 	return h.usbClaimClient.UpdateStatus(usbDeviceClaimCp)
 }
 
-func (h *ClaimHandler) startDevicePlugin(deviceHan *deviceController) {
+func (h *DevClaimHandler) startDevicePlugin(deviceHan *deviceController) {
 	if deviceHan.started {
 		return
 	}
@@ -138,7 +138,7 @@ func (h *ClaimHandler) startDevicePlugin(deviceHan *deviceController) {
 	deviceHan.started = true
 }
 
-func (h *ClaimHandler) stopDevicePlugin(deviceHan *deviceController) error {
+func (h *DevClaimHandler) stopDevicePlugin(deviceHan *deviceController) error {
 	if !deviceHan.started {
 		return nil
 	}
@@ -154,7 +154,7 @@ func (h *ClaimHandler) stopDevicePlugin(deviceHan *deviceController) error {
 	return nil
 }
 
-func (h *ClaimHandler) findDevicePlugin(pluginDevices map[string][]*deviceplugins.PluginDevices, usbDevice *v1beta1.USBDevice) *deviceplugins.PluginDevices {
+func (h *DevClaimHandler) findDevicePlugin(pluginDevices map[string][]*deviceplugins.PluginDevices, usbDevice *v1beta1.USBDevice) *deviceplugins.PluginDevices {
 	var pluginDevice *deviceplugins.PluginDevices
 
 	for resourceName, devices := range pluginDevices {
@@ -173,7 +173,7 @@ func (h *ClaimHandler) findDevicePlugin(pluginDevices map[string][]*deviceplugin
 	return pluginDevice
 }
 
-func (h *ClaimHandler) OnRemove(_ string, claim *v1beta1.USBDeviceClaim) (*v1beta1.USBDeviceClaim, error) {
+func (h *DevClaimHandler) OnRemove(_ string, claim *v1beta1.USBDeviceClaim) (*v1beta1.USBDeviceClaim, error) {
 	if claim == nil {
 		return claim, nil
 	}
@@ -239,7 +239,7 @@ func (h *ClaimHandler) OnRemove(_ string, claim *v1beta1.USBDeviceClaim) (*v1bet
 	return claim, nil
 }
 
-func (h *ClaimHandler) updateKubeVirt(virt *kubevirtv1.KubeVirt, usbDevice *v1beta1.USBDevice) (*kubevirtv1.KubeVirt, error) {
+func (h *DevClaimHandler) updateKubeVirt(virt *kubevirtv1.KubeVirt, usbDevice *v1beta1.USBDevice) (*kubevirtv1.KubeVirt, error) {
 	virtDp := virt.DeepCopy()
 
 	if virtDp.Spec.Configuration.PermittedHostDevices == nil {
