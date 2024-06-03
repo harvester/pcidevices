@@ -77,7 +77,9 @@ func (h *DevHandler) OnDeviceChange(_ string, _ string, obj runtime.Object) ([]r
 
 		var rr []relatedresource.Key
 		for _, v := range udcList {
-			rr = append(rr, relatedresource.NewKey(v.Namespace, v.Name))
+			if v.Status.PCIAddress == ud.Status.PCIAddress {
+				rr = append(rr, relatedresource.NewKey(v.Namespace, v.Name))
+			}
 		}
 		return rr, nil
 	}
