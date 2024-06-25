@@ -125,14 +125,15 @@ func WalkUSBDevices() (map[int][]*USBDevice, error) {
 }
 
 func parseUSBSymLinkToPCIAddress(link string) string {
-	paths := strings.Split(link, "/")
+	paths := strings.Split(link, "/usb")
 
-	if len(paths) < 3 {
+	if len(paths) < 2 {
 		return ""
 	}
 
-	pciAddress := paths[len(paths)-3 : len(paths)-2][0]
-	return pciAddress
+	paths = strings.Split(paths[0], "/")
+
+	return paths[len(paths)-1]
 }
 
 func discoverPluggedUSBDevices() *LocalDevices {
