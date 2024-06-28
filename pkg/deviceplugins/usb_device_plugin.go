@@ -85,7 +85,6 @@ type USBDevice struct {
 
 type USBDevicePluginInterface interface {
 	Start(stop <-chan struct{}) error
-	StopDevicePlugin() error
 }
 
 func (dev *USBDevice) GetID() string {

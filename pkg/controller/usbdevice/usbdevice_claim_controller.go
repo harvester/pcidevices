@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -92,28 +93,32 @@ func (h *DevClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1be
 	}
 
 	// start device plugin if it's not started yet.
-	if _, ok := h.devicePlugin[usbDeviceClaim.Name]; ok {
-		return usbDeviceClaim, nil
-	}
+	if _, ok := h.devicePlugin[usbDeviceClaim.Name]; !ok {
+		pluginDevices := discoverAllowedUSBDevices(newVirt.Spec.Configuration.PermittedHostDevices.USB)
 
-	pluginDevices := discoverAllowedUSBDevices(newVirt.Spec.Configuration.PermittedHostDevices.USB)
-
-	if pluginDevice := h.findDevicePlugin(pluginDevices, usbDevice); pluginDevice != nil {
-		usbDevicePlugin := h.devicePluginConvertor(usbDevice.Status.ResourceName, []*deviceplugins.PluginDevices{pluginDevice})
-		deviceHan := &deviceController{
-			device: usbDevicePlugin,
+		if pluginDevice := h.findDevicePlugin(pluginDevices, usbDevice); pluginDevice != nil {
+			usbDevicePlugin := h.devicePluginConvertor(usbDevice.Status.ResourceName, []*deviceplugins.PluginDevices{pluginDevice})
+			deviceHan := &deviceController{
+				device: usbDevicePlugin,
+			}
+			h.devicePlugin[usbDeviceClaim.Name] = deviceHan
+			h.startDevicePlugin(deviceHan, usbDeviceClaim.Name)
+		} else {
+			logrus.Errorf("failed to find device plugin for usb device %s", usbDevice.Name)
+			return usbDeviceClaim, err
 		}
-		h.devicePlugin[usbDeviceClaim.Name] = deviceHan
-		h.startDevicePlugin(deviceHan)
 	}
 
-	usbDeviceCp := usbDevice.DeepCopy()
-	usbDeviceCp.Status.Enabled = true
-	if _, err = h.usbClient.UpdateStatus(usbDeviceCp); err != nil {
-		logrus.Errorf("failed to enable usb device %s status: %v", usbDeviceCp.Name, err)
-		return usbDeviceClaim, err
+	if !usbDevice.Status.Enabled {
+		usbDeviceCp := usbDevice.DeepCopy()
+		usbDeviceCp.Status.Enabled = true
+		if _, err = h.usbClient.UpdateStatus(usbDeviceCp); err != nil {
+			logrus.Errorf("failed to enable usb device %s status: %v", usbDeviceCp.Name, err)
+			return usbDeviceClaim, err
+		}
 	}
 
+	// just sync usb device pci address to usb device claim
 	usbDeviceClaimCp := usbDeviceClaim.DeepCopy()
 	usbDeviceClaimCp.Status.PCIAddress = usbDevice.Status.PCIAddress
 	usbDeviceClaimCp.Status.NodeName = usbDevice.Status.NodeName
@@ -121,7 +126,7 @@ func (h *DevClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1be
 	return h.usbClaimClient.UpdateStatus(usbDeviceClaimCp)
 }
 
-func (h *DevClaimHandler) startDevicePlugin(deviceHan *deviceController) {
+func (h *DevClaimHandler) startDevicePlugin(deviceHan *deviceController, deviceName string) {
 	if deviceHan.started {
 		return
 	}
@@ -129,29 +134,32 @@ func (h *DevClaimHandler) startDevicePlugin(deviceHan *deviceController) {
 	deviceHan.stop = make(chan struct{})
 
 	go func() {
-		if err := deviceHan.device.Start(deviceHan.stop); err != nil {
-			logrus.Errorf("failed to start device plugin: %v", err)
+		for {
+			// This will be blocked by a channel read inside function
+			if err := deviceHan.device.Start(deviceHan.stop); err != nil {
+				logrus.Errorf("Error starting %s device plugin", deviceName)
+			}
+
+			select {
+			case <-deviceHan.stop:
+				return
+			case <-time.After(5 * time.Second):
+				// try to start device plugin again when getting error
+				continue
+			}
 		}
-		<-deviceHan.stop
 	}()
 
 	deviceHan.started = true
 }
 
-func (h *DevClaimHandler) stopDevicePlugin(deviceHan *deviceController) error {
+func (h *DevClaimHandler) stopDevicePlugin(deviceHan *deviceController) {
 	if !deviceHan.started {
-		return nil
+		return
 	}
 
 	close(deviceHan.stop)
 	deviceHan.started = false
-
-	if err := deviceHan.device.StopDevicePlugin(); err != nil {
-		logrus.Errorf("failed to start device plugin: %v", err)
-		return err
-	}
-
-	return nil
 }
 
 func (h *DevClaimHandler) findDevicePlugin(pluginDevices map[string][]*deviceplugins.PluginDevices, usbDevice *v1beta1.USBDevice) *deviceplugins.PluginDevices {
@@ -222,10 +230,7 @@ func (h *DevClaimHandler) OnRemove(_ string, claim *v1beta1.USBDeviceClaim) (*v1
 	}
 
 	if handler, ok := h.devicePlugin[claim.Name]; ok {
-		if err := h.stopDevicePlugin(handler); err != nil {
-			return claim, err
-		}
-
+		h.stopDevicePlugin(handler)
 		delete(h.devicePlugin, claim.Name)
 	}
 

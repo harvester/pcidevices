@@ -17,15 +17,10 @@ import (
 
 type mockUSBDevicePlugin struct {
 	startTimes int // used to test how many startTimes the Start is called
-	stopTimes  int // used to test how many stopTimes the Stop is called
 }
 
 func (m *mockUSBDevicePlugin) Start(_ <-chan struct{}) error {
 	m.startTimes++
-	return nil
-}
-func (m *mockUSBDevicePlugin) StopDevicePlugin() error {
-	m.stopTimes++
 	return nil
 }
 
@@ -137,8 +132,6 @@ func Test_OnUSBDeviceClaimChanged(t *testing.T) {
 				kubeVirt, err := client.KubevirtV1().KubeVirts(mockKubeVirt.Namespace).Get(context.Background(), mockKubeVirt.Name, metav1.GetOptions{})
 				assert.NoError(t, err)
 				assert.Equal(t, 0, len(kubeVirt.Spec.Configuration.PermittedHostDevices.USB))
-				time.Sleep(1 * time.Second)
-				assert.Equal(t, 1, mockObj.stopTimes)
 
 				mockUsbDeviceClaim1.DeletionTimestamp = nil
 			},
