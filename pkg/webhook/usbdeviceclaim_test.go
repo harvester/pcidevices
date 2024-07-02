@@ -30,7 +30,6 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "usbdevice1",
 		},
-		Spec: devicesv1beta1.USBDeviceClaimSpec{},
 	}
 
 	vmWithValidUSBDeviceName = &kubevirtv1.VirtualMachine{

@@ -46,7 +46,6 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "usbdeviceclaim1",
 		},
-		Spec: devicesv1beta1.USBDeviceClaimSpec{},
 		Status: devicesv1beta1.USBDeviceClaimStatus{
 			NodeName:   "node1",
 			PCIAddress: "0000:04:10.0",
