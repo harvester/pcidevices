@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"strings"
 
-	ctlcorev1 "github.com/rancher/wrangler/pkg/generated/controllers/core/v1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvpci"
@@ -20,6 +19,7 @@ import (
 	"kubevirt.io/client-go/kubecli"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/config"
 	"github.com/harvester/pcidevices/pkg/deviceplugins"
 	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/util/executor"
@@ -72,13 +72,18 @@ func NewHandler(ctx context.Context, sriovGPUController ctl.SRIOVGPUDeviceContro
 }
 
 // Register setups up handlers for SRIOVGPUDevices and VGPUDevices
-func Register(ctx context.Context, sriovGPUController ctl.SRIOVGPUDeviceController, vGPUController ctl.VGPUDeviceController, pciDeviceClaimController ctl.PCIDeviceClaimController, podController ctlcorev1.PodController, cfg *rest.Config) error {
+func Register(ctx context.Context, management *config.FactoryManager) error {
+	sriovGPUController := management.DeviceFactory.Devices().V1beta1().SRIOVGPUDevice()
+	vGPUController := management.DeviceFactory.Devices().V1beta1().VGPUDevice()
+	pciDeviceClaimController := management.DeviceFactory.Devices().V1beta1().PCIDeviceClaim()
+	podController := management.CoreFactory.Core().V1().Pod()
+
 	clientConfig := kubecli.DefaultClientConfig(&pflag.FlagSet{})
 	virtClient, err := kubecli.GetKubevirtClientFromClientConfig(clientConfig)
 	if err != nil {
 		return err
 	}
-	h, err := NewHandler(ctx, sriovGPUController, vGPUController, pciDeviceClaimController, virtClient, nil, cfg)
+	h, err := NewHandler(ctx, sriovGPUController, vGPUController, pciDeviceClaimController, virtClient, nil, management.Cfg)
 	if err != nil {
 		return err
 	}

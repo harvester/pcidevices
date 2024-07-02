@@ -22,6 +22,8 @@ import (
 	clientset "github.com/harvester/pcidevices/pkg/generated/clientset/versioned"
 	devicesv1beta1 "github.com/harvester/pcidevices/pkg/generated/clientset/versioned/typed/devices.harvesterhci.io/v1beta1"
 	fakedevicesv1beta1 "github.com/harvester/pcidevices/pkg/generated/clientset/versioned/typed/devices.harvesterhci.io/v1beta1/fake"
+	kubevirtv1 "github.com/harvester/pcidevices/pkg/generated/clientset/versioned/typed/kubevirt.io/v1"
+	fakekubevirtv1 "github.com/harvester/pcidevices/pkg/generated/clientset/versioned/typed/kubevirt.io/v1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -82,4 +84,9 @@ var (
 // DevicesV1beta1 retrieves the DevicesV1beta1Client
 func (c *Clientset) DevicesV1beta1() devicesv1beta1.DevicesV1beta1Interface {
 	return &fakedevicesv1beta1.FakeDevicesV1beta1{Fake: &c.Fake}
+}
+
+// KubevirtV1 retrieves the KubevirtV1Client
+func (c *Clientset) KubevirtV1() kubevirtv1.KubevirtV1Interface {
+	return &fakekubevirtv1.FakeKubevirtV1{Fake: &c.Fake}
 }

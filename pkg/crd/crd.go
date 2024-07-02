@@ -126,6 +126,24 @@ func List() []crd.CRD {
 				WithColumn("VGPUType", ".status.configureVGPUTypeName").
 				WithColumn("ParentGPUDevice", ".spec.parentGPUDeviceAddress")
 		}),
+		newCRD(&devices.USBDevice{}, func(c crd.CRD) crd.CRD {
+			c.NonNamespace = true
+			return c.
+				WithColumn("Vendor ID", ".status.vendorID").
+				WithColumn("Product ID", ".status.productID").
+				WithColumn("Node Name", ".status.nodeName").
+				WithColumn("Description", ".status.description").
+				WithColumn("Resource Name", ".status.resourceName").
+				WithColumn("PCI Address", ".status.pciAddress").
+				WithColumn("Enabled", ".status.enabled")
+		}),
+		newCRD(&devices.USBDeviceClaim{}, func(c crd.CRD) crd.CRD {
+			c.NonNamespace = true
+			return c.
+				WithColumn("Node Name", ".status.nodeName").
+				WithColumn("PCI Address", ".status.pciAddress").
+				WithColumn("User Name", ".status.userName")
+		}),
 	}
 }
 

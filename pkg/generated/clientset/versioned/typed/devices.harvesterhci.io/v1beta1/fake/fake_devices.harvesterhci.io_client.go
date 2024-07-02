@@ -48,6 +48,14 @@ func (c *FakeDevicesV1beta1) SRIOVNetworkDevices() v1beta1.SRIOVNetworkDeviceInt
 	return &FakeSRIOVNetworkDevices{c}
 }
 
+func (c *FakeDevicesV1beta1) USBDevices() v1beta1.USBDeviceInterface {
+	return &FakeUSBDevices{c}
+}
+
+func (c *FakeDevicesV1beta1) USBDeviceClaims() v1beta1.USBDeviceClaimInterface {
+	return &FakeUSBDeviceClaims{c}
+}
+
 func (c *FakeDevicesV1beta1) VGPUDevices() v1beta1.VGPUDeviceInterface {
 	return &FakeVGPUDevices{c}
 }

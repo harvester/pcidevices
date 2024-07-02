@@ -111,6 +111,40 @@ func NewSRIOVNetworkDevice(namespace, name string, obj SRIOVNetworkDevice) *SRIO
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
+// USBDeviceList is a list of USBDevice resources
+type USBDeviceList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+
+	Items []USBDevice `json:"items"`
+}
+
+func NewUSBDevice(namespace, name string, obj USBDevice) *USBDevice {
+	obj.APIVersion, obj.Kind = SchemeGroupVersion.WithKind("USBDevice").ToAPIVersionAndKind()
+	obj.Name = name
+	obj.Namespace = namespace
+	return &obj
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// USBDeviceClaimList is a list of USBDeviceClaim resources
+type USBDeviceClaimList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+
+	Items []USBDeviceClaim `json:"items"`
+}
+
+func NewUSBDeviceClaim(namespace, name string, obj USBDeviceClaim) *USBDeviceClaim {
+	obj.APIVersion, obj.Kind = SchemeGroupVersion.WithKind("USBDeviceClaim").ToAPIVersionAndKind()
+	obj.Name = name
+	obj.Namespace = namespace
+	return &obj
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
 // VGPUDeviceList is a list of VGPUDevice resources
 type VGPUDeviceList struct {
 	metav1.TypeMeta `json:",inline"`

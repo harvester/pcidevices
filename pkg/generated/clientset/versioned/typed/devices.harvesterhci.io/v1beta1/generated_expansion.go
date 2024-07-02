@@ -28,4 +28,8 @@ type SRIOVGPUDeviceExpansion interface{}
 
 type SRIOVNetworkDeviceExpansion interface{}
 
+type USBDeviceExpansion interface{}
+
+type USBDeviceClaimExpansion interface{}
+
 type VGPUDeviceExpansion interface{}

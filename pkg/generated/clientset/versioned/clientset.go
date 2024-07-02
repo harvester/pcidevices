@@ -23,6 +23,7 @@ import (
 	"net/http"
 
 	devicesv1beta1 "github.com/harvester/pcidevices/pkg/generated/clientset/versioned/typed/devices.harvesterhci.io/v1beta1"
+	kubevirtv1 "github.com/harvester/pcidevices/pkg/generated/clientset/versioned/typed/kubevirt.io/v1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -31,17 +32,24 @@ import (
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
 	DevicesV1beta1() devicesv1beta1.DevicesV1beta1Interface
+	KubevirtV1() kubevirtv1.KubevirtV1Interface
 }
 
 // Clientset contains the clients for groups.
 type Clientset struct {
 	*discovery.DiscoveryClient
 	devicesV1beta1 *devicesv1beta1.DevicesV1beta1Client
+	kubevirtV1     *kubevirtv1.KubevirtV1Client
 }
 
 // DevicesV1beta1 retrieves the DevicesV1beta1Client
 func (c *Clientset) DevicesV1beta1() devicesv1beta1.DevicesV1beta1Interface {
 	return c.devicesV1beta1
+}
+
+// KubevirtV1 retrieves the KubevirtV1Client
+func (c *Clientset) KubevirtV1() kubevirtv1.KubevirtV1Interface {
+	return c.kubevirtV1
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -92,6 +100,10 @@ func NewForConfigAndClient(c *rest.Config, httpClient *http.Client) (*Clientset,
 	if err != nil {
 		return nil, err
 	}
+	cs.kubevirtV1, err = kubevirtv1.NewForConfigAndClient(&configShallowCopy, httpClient)
+	if err != nil {
+		return nil, err
+	}
 
 	cs.DiscoveryClient, err = discovery.NewDiscoveryClientForConfigAndClient(&configShallowCopy, httpClient)
 	if err != nil {
@@ -114,6 +126,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
 	cs.devicesV1beta1 = devicesv1beta1.New(c)
+	cs.kubevirtV1 = kubevirtv1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

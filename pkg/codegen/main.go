@@ -7,6 +7,7 @@ import (
 	controllergen "github.com/rancher/wrangler/pkg/controller-gen"
 	"github.com/rancher/wrangler/pkg/controller-gen/args"
 	_ "github.com/rancher/wrangler/pkg/generated/controllers/apiextensions.k8s.io/v1"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 
 	"github.com/harvester/pcidevices/pkg/crd"
 )
@@ -31,6 +32,13 @@ func main() {
 						"./pkg/apis/devices.harvesterhci.io/v1beta1",
 					},
 					GenerateTypes:   true,
+					GenerateClients: true,
+				},
+				kubevirtv1.SchemeGroupVersion.Group: {
+					Types: []interface{}{
+						kubevirtv1.KubeVirt{},
+					},
+					GenerateTypes:   false,
 					GenerateClients: true,
 				},
 			},

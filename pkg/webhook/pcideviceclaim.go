@@ -2,12 +2,14 @@ package webhook
 
 import (
 	"fmt"
+	"strings"
 
-	kubevirtctl "github.com/harvester/harvester/pkg/generated/controllers/kubevirt.io/v1"
-	"github.com/harvester/harvester/pkg/webhook/types"
 	"github.com/sirupsen/logrus"
 	admissionregv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	kubevirtctl "github.com/harvester/harvester/pkg/generated/controllers/kubevirt.io/v1"
+	"github.com/harvester/harvester/pkg/webhook/types"
 
 	devicesv1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
@@ -15,14 +17,16 @@ import (
 
 type pciDeviceClaimValidator struct {
 	types.DefaultValidator
-	deviceCache   v1beta1.PCIDeviceCache
-	kubevirtCache kubevirtctl.VirtualMachineCache
+	deviceCache         v1beta1.PCIDeviceCache
+	kubevirtCache       kubevirtctl.VirtualMachineCache
+	usbDeviceClaimCache v1beta1.USBDeviceClaimCache
 }
 
-func NewPCIDeviceClaimValidator(deviceCache v1beta1.PCIDeviceCache, kubevirtCache kubevirtctl.VirtualMachineCache) types.Validator {
+func NewPCIDeviceClaimValidator(deviceCache v1beta1.PCIDeviceCache, kubevirtCache kubevirtctl.VirtualMachineCache, usbDeviceClaimCache v1beta1.USBDeviceClaimCache) types.Validator {
 	return &pciDeviceClaimValidator{
-		deviceCache:   deviceCache,
-		kubevirtCache: kubevirtCache,
+		deviceCache:         deviceCache,
+		usbDeviceClaimCache: usbDeviceClaimCache,
+		kubevirtCache:       kubevirtCache,
 	}
 }
 
@@ -50,6 +54,22 @@ func (pdc *pciDeviceClaimValidator) Create(_ *types.Request, newObj runtime.Obje
 	if pciDev.Status.IOMMUGroup == "" {
 		logrus.Errorf("pcidevice %s has no iommuGroup available", pciDev.Name)
 		return fmt.Errorf("pcidevice %s has no iommuGroup available", pciDev.Name)
+	}
+
+	key := fmt.Sprintf("%s-%s", pciDev.Status.NodeName, pciDev.Status.Address)
+	usbClaimDevs, err := pdc.usbDeviceClaimCache.GetByIndex(USBDeviceByAddress, key)
+	if err != nil {
+		return err
+	}
+
+	if len(usbClaimDevs) != 0 {
+		var used []string
+		for _, usbDev := range usbClaimDevs {
+			used = append(used, usbDev.Name)
+		}
+		err = fmt.Errorf("usbdeviceclaim [%s] is used, so its pcidevice %s can't be claimed", strings.Join(used, ","), pciDev.Name)
+		logrus.Errorf(err.Error())
+		return err
 	}
 
 	return nil

@@ -33,6 +33,8 @@ var (
 	PCIDeviceClaimResourceName     = "pcideviceclaims"
 	SRIOVGPUDeviceResourceName     = "sriovgpudevices"
 	SRIOVNetworkDeviceResourceName = "sriovnetworkdevices"
+	USBDeviceResourceName          = "usbdevices"
+	USBDeviceClaimResourceName     = "usbdeviceclaims"
 	VGPUDeviceResourceName         = "vgpudevices"
 )
 
@@ -67,6 +69,10 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&SRIOVGPUDeviceList{},
 		&SRIOVNetworkDevice{},
 		&SRIOVNetworkDeviceList{},
+		&USBDevice{},
+		&USBDeviceList{},
+		&USBDeviceClaim{},
+		&USBDeviceClaimList{},
 		&VGPUDevice{},
 		&VGPUDeviceList{},
 	)
