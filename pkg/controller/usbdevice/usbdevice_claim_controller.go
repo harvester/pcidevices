@@ -86,7 +86,7 @@ func (h *DevClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1be
 		return usbDeviceClaim, err
 	}
 
-	newVirt, err := h.updateKubeVirt(virt, usbDevice)
+	_, err = h.updateKubeVirt(virt, usbDevice)
 	if err != nil {
 		logrus.Errorf("failed to update kubevirt: %v", err)
 		return usbDeviceClaim, err
@@ -94,7 +94,7 @@ func (h *DevClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1be
 
 	// start device plugin if it's not started yet.
 	if _, ok := h.devicePlugin[usbDeviceClaim.Name]; !ok {
-		pluginDevices := discoverAllowedUSBDevices(newVirt.Spec.Configuration.PermittedHostDevices.USB)
+		pluginDevices := discoverAllowedUSBDevices(convertToKubeVirtUSBFormat(usbDevice))
 
 		if pluginDevice := h.findDevicePlugin(pluginDevices, usbDevice); pluginDevice != nil {
 			usbDevicePlugin := h.devicePluginConvertor(usbDevice.Status.ResourceName, []*deviceplugins.PluginDevices{pluginDevice})
@@ -285,4 +285,19 @@ func (h *DevClaimHandler) updateKubeVirt(virt *kubevirtv1.KubeVirt, usbDevice *v
 	}
 
 	return virt, nil
+}
+
+func convertToKubeVirtUSBFormat(ub *v1beta1.USBDevice) []kubevirtv1.USBHostDevice {
+	return []kubevirtv1.USBHostDevice{
+		{
+			Selectors: []kubevirtv1.USBSelector{
+				{
+					Vendor:  ub.Status.VendorID,
+					Product: ub.Status.ProductID,
+				},
+			},
+			ResourceName:             ub.Status.ResourceName,
+			ExternalResourceProvider: true,
+		},
+	}
 }
