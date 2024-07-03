@@ -77,6 +77,11 @@ func (h *DevClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1be
 		return usbDeviceClaim, err
 	}
 
+	if usbDevice.Status.NodeName != cl.nodeName {
+		logrus.Infof("usbdevice %s is not in the node %s", usbDevice.Name, cl.nodeName)
+		return usbDeviceClaim, nil
+	}
+
 	h.lock.Lock()
 	defer h.lock.Unlock()
 
@@ -193,6 +198,11 @@ func (h *DevClaimHandler) OnRemove(_ string, claim *v1beta1.USBDeviceClaim) (*v1
 			return claim, nil
 		}
 		return claim, err
+	}
+
+	if usbDevice.Status.NodeName != cl.nodeName {
+		logrus.Infof("usbdevice %s is not in the node %s", usbDevice.Name, cl.nodeName)
+		return claim, nil
 	}
 
 	h.lock.Lock()

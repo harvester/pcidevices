@@ -57,7 +57,7 @@ var (
 				{
 					APIVersion: "devices.harvesterhci.io/v1beta1",
 					Kind:       "USBDevice",
-					Name:       "test-node-0951-1666-001002",
+					Name:       "test-node",
 					UID:        "test-uid",
 				},
 			},
@@ -72,6 +72,7 @@ var (
 )
 
 func Test_OnUSBDeviceClaimChanged(t *testing.T) {
+	cl.nodeName = "test-node"
 	testcases := []struct {
 		fun         func(t *testing.T)
 		description string
