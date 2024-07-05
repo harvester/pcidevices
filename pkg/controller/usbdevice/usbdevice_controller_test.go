@@ -44,7 +44,7 @@ func Test_ReconcileUSBDevices(t *testing.T) {
 		fakeclients.USBDeviceClaimsCache(client.DevicesV1beta1().USBDeviceClaims),
 	)
 
-	err := usbHandler.ReconcileUSBDevices()
+	err := usbHandler.reconcile()
 	assert.NoError(t, err)
 
 	list, err := client.DevicesV1beta1().USBDevices().List(context.Background(), metav1.ListOptions{})
@@ -62,7 +62,7 @@ func Test_ReconcileUSBDevices(t *testing.T) {
 	// detect no usb device after few minutes, delete existing USBDevice CR
 	walkUSBDevices = func() (map[int][]*deviceplugins.USBDevice, error) { return map[int][]*deviceplugins.USBDevice{}, nil }
 
-	err = usbHandler.ReconcileUSBDevices()
+	err = usbHandler.reconcile()
 	assert.NoError(t, err)
 
 	list, err = client.DevicesV1beta1().USBDevices().List(context.Background(), metav1.ListOptions{})

@@ -1,9 +1,13 @@
 package usbdevice
 
 import (
+	"context"
 	"fmt"
+	"io/fs"
+	"path/filepath"
 	"strings"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/rancher/wrangler/pkg/relatedresource"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,22 +29,6 @@ type DevHandler struct {
 }
 
 var walkUSBDevices = deviceplugins.WalkUSBDevices
-
-type USBDevice struct {
-	Name         string
-	Manufacturer string
-	Vendor       int
-	Product      int
-	BCD          int
-	Bus          int
-	DeviceNumber int
-	Serial       string
-	DevicePath   string
-}
-
-func (dev *USBDevice) GetID() string {
-	return fmt.Sprintf("%04x:%04x-%02d:%02d", dev.Vendor, dev.Product, dev.Bus, dev.DeviceNumber)
-}
 
 func NewHandler(
 	usbClient ctldevicerv1vbeta1.USBDeviceClient,
@@ -85,7 +73,57 @@ func (h *DevHandler) OnDeviceChange(_ string, _ string, obj runtime.Object) ([]r
 	return nil, nil
 }
 
-func (h *DevHandler) ReconcileUSBDevices() error {
+func (h *DevHandler) WatchUSBDevices(ctx context.Context) error {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return fmt.Errorf("failed to creating a fsnotify watcher: %v", err)
+	}
+
+	if err := filepath.WalkDir("/dev/bus/usb/", func(path string, info fs.DirEntry, err error) error {
+		if err != nil {
+			return fmt.Errorf("failed to walk /dev/bus/usb: %v", err)
+		}
+		if info.IsDir() {
+			if err := watcher.Add(path); err != nil {
+				return fmt.Errorf("failed to watch device %s parent directory: %s", path, err)
+			}
+		}
+
+		return nil
+	}); err != nil {
+		return fmt.Errorf("failed to walk /dev/bus/usb: %v", err)
+	}
+
+	go func() {
+		defer watcher.Close()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case _, ok := <-watcher.Events:
+				if !ok {
+					return
+				}
+
+				// we need reconcile whatever there is a change in /dev/bus/usb/xxx
+				if err := h.reconcile(); err != nil {
+					logrus.Errorf("failed to reconcile USB devices: %v", err)
+				}
+			case err, ok := <-watcher.Errors:
+				if !ok {
+					return
+				}
+
+				logrus.Errorf("fsnotify watcher error: %v", err)
+			}
+		}
+	}()
+
+	return nil
+}
+
+func (h *DevHandler) reconcile() error {
 	nodeName := cl.nodeName
 
 	localUSBDevices, err := walkUSBDevices()
