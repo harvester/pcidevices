@@ -2,14 +2,31 @@ package deviceplugins
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/sirupsen/logrus"
-	v1 "kubevirt.io/api/core/v1"
 )
+
+type USBDevice struct {
+	Name         string
+	Manufacturer string
+	Vendor       int
+	Product      int
+	BCD          int
+	Bus          int
+	DeviceNumber int
+	Serial       string
+	DevicePath   string
+	PCIAddress   string
+}
+
+func (dev *USBDevice) GetID() string {
+	return fmt.Sprintf("%04x:%04x-%02d:%02d", dev.Vendor, dev.Product, dev.Bus, dev.DeviceNumber)
+}
 
 func parseSysUeventFile(path string) *USBDevice {
 	link, err := os.Readlink(path)
@@ -95,7 +112,7 @@ func parseSysUeventKeyValue(key string, value string, u *USBDevice) bool {
 
 func WalkUSBDevices() (map[int][]*USBDevice, error) {
 	usbDevices := make(map[int][]*USBDevice, 0)
-	err := filepath.Walk("/sys/bus/usb/devices", func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(pathToUSBDevices, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -134,75 +151,4 @@ func parseUSBSymLinkToPCIAddress(link string) string {
 	paths = strings.Split(paths[0], "/")
 
 	return paths[len(paths)-1]
-}
-
-func discoverPluggedUSBDevices() *LocalDevices {
-	usbDevices := make(map[int][]*USBDevice, 0)
-	err := filepath.Walk(pathToUSBDevices, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		// Ignore named usb controllers
-		if strings.HasPrefix(info.Name(), "usb") {
-			return nil
-		}
-		// We are interested in actual USB devices information that
-		// contains idVendor and idProduct. We can skip all others.
-		if _, err := os.Stat(filepath.Join(path, "idVendor")); err != nil {
-			return nil
-		}
-
-		// Get device information
-		if device := parseSysUeventFile(path); device != nil {
-			usbDevices[device.Vendor] = append(usbDevices[device.Vendor], device)
-		}
-		return nil
-	})
-
-	if err != nil {
-		logrus.Error("Failed when walking usb devices tree")
-	}
-	return &LocalDevices{devices: usbDevices}
-}
-
-func parseSelector(s *v1.USBSelector) (int, int, error) {
-	val, err := strconv.ParseInt(s.Vendor, 16, 32)
-	if err != nil {
-		return -1, -1, err
-	}
-	vendor := int(val)
-
-	val, err = strconv.ParseInt(s.Product, 16, 32)
-	if err != nil {
-		return -1, -1, err
-	}
-	product := int(val)
-
-	return vendor, product, nil
-}
-
-func DiscoverAllowedUSBDevices(usbs []v1.USBHostDevice) map[string][]*PluginDevices {
-	// The return value: USB USBDevice Plugins found and permitted to be exposed
-	plugins := make(map[string][]*PluginDevices)
-	// All USB devices found plugged in the Node
-	localDevices := discoverLocalUSBDevicesFunc()
-	for _, usbConfig := range usbs {
-		resourceName := usbConfig.ResourceName
-		// only accept ExternalResourceProvider: true for USB devices
-		if !usbConfig.ExternalResourceProvider {
-			logrus.Errorf("Skipping discovery of %s. To be handled by kubevirt internally",
-				resourceName)
-			continue
-		}
-		index := 0
-		usbdevs, foundAll := localDevices.fetch(usbConfig.Selectors)
-		for foundAll {
-			// Create new USB USBDevice Plugin with found USB Devices for this resource name
-			pluginDevices := newPluginDevices(resourceName, index, usbdevs)
-			plugins[resourceName] = append(plugins[resourceName], pluginDevices)
-			index++
-			usbdevs, foundAll = localDevices.fetch(usbConfig.Selectors)
-		}
-	}
-	return plugins
 }

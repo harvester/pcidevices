@@ -17,43 +17,34 @@ import (
 	ctlkubevirtv1 "github.com/harvester/pcidevices/pkg/generated/controllers/kubevirt.io/v1"
 )
 
-var (
-	discoverAllowedUSBDevices = deviceplugins.DiscoverAllowedUSBDevices
-)
-
 type DevClaimHandler struct {
-	usbClaimClient        ctldevicerv1beta1.USBDeviceClaimClient
-	usbClient             ctldevicerv1beta1.USBDeviceClient
-	virtClient            ctlkubevirtv1.KubeVirtClient
-	lock                  *sync.Mutex
-	usbDeviceCache        ctldevicerv1beta1.USBDeviceCache
-	devicePlugin          map[string]*deviceController
-	devicePluginConvertor devicePluginConvertor
+	usbClaimClient ctldevicerv1beta1.USBDeviceClaimClient
+	usbClient      ctldevicerv1beta1.USBDeviceClient
+	virtClient     ctlkubevirtv1.KubeVirtClient
+	lock           *sync.Mutex
+	usbDeviceCache ctldevicerv1beta1.USBDeviceCache
+	devicePlugin   map[string]*deviceController
 }
 
 type deviceController struct {
-	device  deviceplugins.USBDevicePluginInterface
+	device  *deviceplugins.USBDevicePlugin
 	stop    chan struct{}
 	started bool
 }
-
-type devicePluginConvertor func(resourceName string, devices []*deviceplugins.PluginDevices) deviceplugins.USBDevicePluginInterface
 
 func NewClaimHandler(
 	usbDeviceCache ctldevicerv1beta1.USBDeviceCache,
 	usbClaimClient ctldevicerv1beta1.USBDeviceClaimClient,
 	usbClient ctldevicerv1beta1.USBDeviceClient,
 	virtClient ctlkubevirtv1.KubeVirtClient,
-	devicePluginHelper devicePluginConvertor,
 ) *DevClaimHandler {
 	return &DevClaimHandler{
-		usbDeviceCache:        usbDeviceCache,
-		usbClaimClient:        usbClaimClient,
-		usbClient:             usbClient,
-		virtClient:            virtClient,
-		lock:                  &sync.Mutex{},
-		devicePlugin:          map[string]*deviceController{},
-		devicePluginConvertor: devicePluginHelper,
+		usbDeviceCache: usbDeviceCache,
+		usbClaimClient: usbClaimClient,
+		usbClient:      usbClient,
+		virtClient:     virtClient,
+		lock:           &sync.Mutex{},
+		devicePlugin:   map[string]*deviceController{},
 	}
 }
 
@@ -97,21 +88,25 @@ func (h *DevClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1be
 		return usbDeviceClaim, err
 	}
 
-	// start device plugin if it's not started yet.
-	if _, ok := h.devicePlugin[usbDeviceClaim.Name]; !ok {
-		pluginDevices := discoverAllowedUSBDevices(convertToKubeVirtUSBFormat(usbDevice))
+	deviceHandler, ok := h.devicePlugin[usbDeviceClaim.Name]
 
-		if pluginDevice := h.findDevicePlugin(pluginDevices, usbDevice); pluginDevice != nil {
-			usbDevicePlugin := h.devicePluginConvertor(usbDevice.Status.ResourceName, []*deviceplugins.PluginDevices{pluginDevice})
-			deviceHan := &deviceController{
-				device: usbDevicePlugin,
-			}
-			h.devicePlugin[usbDeviceClaim.Name] = deviceHan
-			h.startDevicePlugin(deviceHan, usbDeviceClaim.Name)
-		} else {
-			logrus.Errorf("failed to find device plugin for usb device %s", usbDevice.Name)
+	if !ok {
+		usbDevicePlugin, err := deviceplugins.NewUSBDevicePlugin(*usbDevice)
+
+		if err != nil {
+			logrus.Errorf("failed to create usb device plugin: %v", err)
 			return usbDeviceClaim, err
 		}
+
+		deviceHan := &deviceController{
+			device: usbDevicePlugin,
+		}
+		h.devicePlugin[usbDeviceClaim.Name] = deviceHan
+		deviceHandler = deviceHan
+	}
+
+	if !deviceHandler.started {
+		h.startDevicePlugin(deviceHandler, usbDeviceClaim.Name)
 	}
 
 	if !usbDevice.Status.Enabled {
@@ -165,25 +160,6 @@ func (h *DevClaimHandler) stopDevicePlugin(deviceHan *deviceController) {
 
 	close(deviceHan.stop)
 	deviceHan.started = false
-}
-
-func (h *DevClaimHandler) findDevicePlugin(pluginDevices map[string][]*deviceplugins.PluginDevices, usbDevice *v1beta1.USBDevice) *deviceplugins.PluginDevices {
-	var pluginDevice *deviceplugins.PluginDevices
-
-	for resourceName, devices := range pluginDevices {
-		for _, device := range devices {
-			device := device
-			for _, d := range device.Devices {
-				logrus.Debugf("resourceName: %s, device: %v", resourceName, d)
-				if usbDevice.Status.DevicePath == d.DevicePath {
-					pluginDevice = device
-					return pluginDevice
-				}
-			}
-		}
-	}
-
-	return pluginDevice
 }
 
 func (h *DevClaimHandler) OnRemove(_ string, claim *v1beta1.USBDeviceClaim) (*v1beta1.USBDeviceClaim, error) {
@@ -295,19 +271,4 @@ func (h *DevClaimHandler) updateKubeVirt(virt *kubevirtv1.KubeVirt, usbDevice *v
 	}
 
 	return virt, nil
-}
-
-func convertToKubeVirtUSBFormat(ub *v1beta1.USBDevice) []kubevirtv1.USBHostDevice {
-	return []kubevirtv1.USBHostDevice{
-		{
-			Selectors: []kubevirtv1.USBSelector{
-				{
-					Vendor:  ub.Status.VendorID,
-					Product: ub.Status.ProductID,
-				},
-			},
-			ResourceName:             ub.Status.ResourceName,
-			ExternalResourceProvider: true,
-		},
-	}
 }

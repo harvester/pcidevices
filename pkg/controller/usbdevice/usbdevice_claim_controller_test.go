@@ -10,19 +10,9 @@ import (
 	kubevirtv1 "kubevirt.io/api/core/v1"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
-	"github.com/harvester/pcidevices/pkg/deviceplugins"
 	"github.com/harvester/pcidevices/pkg/generated/clientset/versioned/fake"
 	"github.com/harvester/pcidevices/pkg/util/fakeclients"
 )
-
-type mockUSBDevicePlugin struct {
-	startTimes int // used to test how many startTimes the Start is called
-}
-
-func (m *mockUSBDevicePlugin) Start(_ <-chan struct{}) error {
-	m.startTimes++
-	return nil
-}
 
 var (
 	mockUsbDevice1 = &v1beta1.USBDevice{
@@ -66,9 +56,6 @@ var (
 			NodeName: "test-node",
 		},
 	}
-	mockUSBDevicePluginHelper = func(_ string, _ []*deviceplugins.PluginDevices) deviceplugins.USBDevicePluginInterface {
-		return &mockUSBDevicePlugin{}
-	}
 )
 
 func Test_OnUSBDeviceClaimChanged(t *testing.T) {
@@ -79,23 +66,18 @@ func Test_OnUSBDeviceClaimChanged(t *testing.T) {
 	}{
 		{
 			fun: func(t *testing.T) {
-				client := generateClient()
-				mockObj := &mockUSBDevicePlugin{}
+				client := fake.NewSimpleClientset(mockUsbDevice1, mockUsbDeviceClaim1, mockKubeVirt)
 				handler := NewClaimHandler(
 					fakeclients.USBDeviceCache(client.DevicesV1beta1().USBDevices),
 					fakeclients.USBDeviceClaimsClient(client.DevicesV1beta1().USBDeviceClaims),
 					fakeclients.USBDevicesClient(client.DevicesV1beta1().USBDevices),
 					fakeclients.KubeVirtClient(client.KubevirtV1().KubeVirts),
-					func(_ string, _ []*deviceplugins.PluginDevices) deviceplugins.USBDevicePluginInterface {
-						return mockObj
-					},
 				)
 
 				// Test claim created
 				_, err := handler.OnUSBDeviceClaimChanged("", mockUsbDeviceClaim1)
 				assert.NoError(t, err)
 				time.Sleep(1 * time.Second)
-				assert.Equal(t, 1, mockObj.startTimes)
 
 				kubevirt, err := client.KubevirtV1().KubeVirts(mockKubeVirt.Namespace).Get(context.Background(), mockKubeVirt.Name, metav1.GetOptions{})
 				assert.NoError(t, err)
@@ -140,16 +122,12 @@ func Test_OnUSBDeviceClaimChanged(t *testing.T) {
 		},
 		{
 			fun: func(_ *testing.T) {
-				client := generateClient()
-				mockObj := &mockUSBDevicePlugin{startTimes: 0}
+				client := fake.NewSimpleClientset(mockUsbDevice1, mockUsbDeviceClaim1, mockKubeVirt)
 				handler := NewClaimHandler(
 					fakeclients.USBDeviceCache(client.DevicesV1beta1().USBDevices),
 					fakeclients.USBDeviceClaimsClient(client.DevicesV1beta1().USBDeviceClaims),
 					fakeclients.USBDevicesClient(client.DevicesV1beta1().USBDevices),
 					fakeclients.KubeVirtClient(client.KubevirtV1().KubeVirts),
-					func(_ string, _ []*deviceplugins.PluginDevices) deviceplugins.USBDevicePluginInterface {
-						return mockObj
-					},
 				)
 
 				// Test claim created
@@ -157,20 +135,17 @@ func Test_OnUSBDeviceClaimChanged(t *testing.T) {
 				assert.NoError(t, err)
 				_, err = handler.OnUSBDeviceClaimChanged("", mockUsbDeviceClaim1)
 				assert.NoError(t, err)
-				time.Sleep(1 * time.Second)
-				assert.Equal(t, 1, mockObj.startTimes)
 			},
 			description: "Case to create two identical claims",
 		},
 		{
 			fun: func(_ *testing.T) {
-				client := generateClient()
+				client := fake.NewSimpleClientset(mockUsbDevice1, mockUsbDeviceClaim1, mockKubeVirt)
 				handler := NewClaimHandler(
 					fakeclients.USBDeviceCache(client.DevicesV1beta1().USBDevices),
 					fakeclients.USBDeviceClaimsClient(client.DevicesV1beta1().USBDeviceClaims),
 					fakeclients.USBDevicesClient(client.DevicesV1beta1().USBDevices),
 					fakeclients.KubeVirtClient(client.KubevirtV1().KubeVirts),
-					mockUSBDevicePluginHelper,
 				)
 
 				// Test claim created
@@ -187,26 +162,4 @@ func Test_OnUSBDeviceClaimChanged(t *testing.T) {
 			tc.fun(t)
 		})
 	}
-}
-
-func generateClient() *fake.Clientset {
-	client := fake.NewSimpleClientset(mockUsbDevice1, mockUsbDeviceClaim1, mockKubeVirt)
-	discoverAllowedUSBDevices = func(_ []kubevirtv1.USBHostDevice) map[string][]*deviceplugins.PluginDevices {
-		m := map[string][]*deviceplugins.PluginDevices{}
-		m[mockUsbDevice1.Status.ResourceName] = []*deviceplugins.PluginDevices{
-			{
-				ID: "test",
-				Devices: []*deviceplugins.USBDevice{
-					{
-						Vendor:     2385,
-						Product:    5734,
-						DevicePath: "/dev/bus/usb/001/002",
-					},
-				},
-			},
-		}
-		return m
-	}
-
-	return client
 }

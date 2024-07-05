@@ -6,7 +6,6 @@ import (
 	"github.com/rancher/wrangler/pkg/relatedresource"
 
 	"github.com/harvester/pcidevices/pkg/config"
-	"github.com/harvester/pcidevices/pkg/deviceplugins"
 )
 
 const (
@@ -21,7 +20,7 @@ func Register(ctx context.Context, management *config.FactoryManager) error {
 	virtClient := management.KubevirtFactory.Kubevirt().V1().KubeVirt()
 
 	handler := NewHandler(usbDeviceCtrl, usbDeviceClaimCtrl, usbDeviceCtrl.Cache(), usbDeviceClaimCtrl.Cache())
-	usbDeviceClaimController := NewClaimHandler(usbDeviceCtrl.Cache(), usbDeviceClaimCtrl, usbDeviceCtrl, virtClient, deviceplugins.NewUSBDevicePlugin)
+	usbDeviceClaimController := NewClaimHandler(usbDeviceCtrl.Cache(), usbDeviceClaimCtrl, usbDeviceCtrl, virtClient)
 
 	usbDeviceClaimCtrl.OnChange(ctx, "usbClaimClient-device-claim", usbDeviceClaimController.OnUSBDeviceClaimChanged)
 	usbDeviceClaimCtrl.OnRemove(ctx, "usbClaimClient-device-claim-remove", usbDeviceClaimController.OnRemove)
