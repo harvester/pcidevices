@@ -18,12 +18,12 @@ import (
 )
 
 type DevClaimHandler struct {
-	usbClaimClient ctldevicerv1beta1.USBDeviceClaimClient
-	usbClient      ctldevicerv1beta1.USBDeviceClient
-	virtClient     ctlkubevirtv1.KubeVirtClient
-	lock           *sync.Mutex
-	usbDeviceCache ctldevicerv1beta1.USBDeviceCache
-	devicePlugin   map[string]*deviceController
+	usbClaimClient           ctldevicerv1beta1.USBDeviceClaimClient
+	usbClient                ctldevicerv1beta1.USBDeviceClient
+	virtClient               ctlkubevirtv1.KubeVirtClient
+	lock                     *sync.Mutex
+	usbDeviceCache           ctldevicerv1beta1.USBDeviceCache
+	managedDeviceControllers map[string]*deviceController
 }
 
 type deviceController struct {
@@ -39,12 +39,12 @@ func NewClaimHandler(
 	virtClient ctlkubevirtv1.KubeVirtClient,
 ) *DevClaimHandler {
 	return &DevClaimHandler{
-		usbDeviceCache: usbDeviceCache,
-		usbClaimClient: usbClaimClient,
-		usbClient:      usbClient,
-		virtClient:     virtClient,
-		lock:           &sync.Mutex{},
-		devicePlugin:   map[string]*deviceController{},
+		usbDeviceCache:           usbDeviceCache,
+		usbClaimClient:           usbClaimClient,
+		usbClient:                usbClient,
+		virtClient:               virtClient,
+		lock:                     &sync.Mutex{},
+		managedDeviceControllers: map[string]*deviceController{},
 	}
 }
 
@@ -88,7 +88,7 @@ func (h *DevClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1be
 		return usbDeviceClaim, err
 	}
 
-	deviceHandler, ok := h.devicePlugin[usbDeviceClaim.Name]
+	deviceControl, ok := h.managedDeviceControllers[usbDeviceClaim.Name]
 
 	if !ok {
 		usbDevicePlugin, err := deviceplugins.NewUSBDevicePlugin(*usbDevice)
@@ -98,15 +98,15 @@ func (h *DevClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1be
 			return usbDeviceClaim, err
 		}
 
-		deviceHan := &deviceController{
+		dc := &deviceController{
 			device: usbDevicePlugin,
 		}
-		h.devicePlugin[usbDeviceClaim.Name] = deviceHan
-		deviceHandler = deviceHan
+		h.managedDeviceControllers[usbDeviceClaim.Name] = dc
+		deviceControl = dc
 	}
 
-	if !deviceHandler.started {
-		h.startDevicePlugin(deviceHandler, usbDeviceClaim.Name)
+	if !deviceControl.started {
+		deviceControl.startDevicePlugin(usbDeviceClaim.Name)
 	}
 
 	if !usbDevice.Status.Enabled {
@@ -124,42 +124,6 @@ func (h *DevClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1be
 	usbDeviceClaimCp.Status.NodeName = usbDevice.Status.NodeName
 
 	return h.usbClaimClient.UpdateStatus(usbDeviceClaimCp)
-}
-
-func (h *DevClaimHandler) startDevicePlugin(deviceHan *deviceController, deviceName string) {
-	if deviceHan.started {
-		return
-	}
-
-	deviceHan.stop = make(chan struct{})
-
-	go func() {
-		for {
-			// This will be blocked by a channel read inside function
-			if err := deviceHan.device.Start(deviceHan.stop); err != nil {
-				logrus.Errorf("Error starting %s device plugin", deviceName)
-			}
-
-			select {
-			case <-deviceHan.stop:
-				return
-			case <-time.After(5 * time.Second):
-				// try to start device plugin again when getting error
-				continue
-			}
-		}
-	}()
-
-	deviceHan.started = true
-}
-
-func (h *DevClaimHandler) stopDevicePlugin(deviceHan *deviceController) {
-	if !deviceHan.started {
-		return
-	}
-
-	close(deviceHan.stop)
-	deviceHan.started = false
 }
 
 func (h *DevClaimHandler) OnRemove(_ string, claim *v1beta1.USBDeviceClaim) (*v1beta1.USBDeviceClaim, error) {
@@ -215,9 +179,9 @@ func (h *DevClaimHandler) OnRemove(_ string, claim *v1beta1.USBDeviceClaim) (*v1
 		}
 	}
 
-	if handler, ok := h.devicePlugin[claim.Name]; ok {
-		h.stopDevicePlugin(handler)
-		delete(h.devicePlugin, claim.Name)
+	if deviceControl, ok := h.managedDeviceControllers[claim.Name]; ok {
+		deviceControl.stopDevicePlugin()
+		delete(h.managedDeviceControllers, claim.Name)
 	}
 
 	usbDeviceCp := usbDevice.DeepCopy()
@@ -271,4 +235,49 @@ func (h *DevClaimHandler) updateKubeVirt(virt *kubevirtv1.KubeVirt, usbDevice *v
 	}
 
 	return virt, nil
+}
+
+// startDevicePlugin starts the usb device plugin.
+// In current device plugin design, we'll use stop to control the flow.
+// It's different from `StopDevicePlugin` in usb_device_plugin.go.
+//
+// The stop from outside is to control the device plugin to start or stop.
+// The done from inside `StopDevicePlugin` is to control the inner flow, such as grpc server.
+//
+// Besides, it already calls `defer StopDevicePlugin` when calling `dc.device.Start`.
+// So, we won't call `StopDevicePlugin` again.
+func (dc *deviceController) startDevicePlugin(deviceName string) {
+	if dc.started {
+		return
+	}
+
+	dc.stop = make(chan struct{})
+
+	go func() {
+		for {
+			// This will be blocked by a channel read inside function
+			if err := dc.device.Start(dc.stop); err != nil {
+				logrus.Errorf("Error starting %s device plugin", deviceName)
+			}
+
+			select {
+			case <-dc.stop:
+				return
+			case <-time.After(5 * time.Second):
+				// try to start device plugin again when getting error
+				continue
+			}
+		}
+	}()
+
+	dc.started = true
+}
+
+func (dc *deviceController) stopDevicePlugin() {
+	if !dc.started {
+		return
+	}
+
+	close(dc.stop)
+	dc.started = false
 }
