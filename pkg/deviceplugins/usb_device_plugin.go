@@ -57,14 +57,14 @@ type USBDevicePlugin struct {
 	deregistered chan struct{}
 	server       *grpc.Server
 	resourceName string
-	device       *PluginDevices
+	device       *PluginDevice
 	logger       *log.FilteredLogger
 
 	initialized bool
 	lock        *sync.Mutex
 }
 
-type PluginDevices struct {
+type PluginDevice struct {
 	ID           string
 	isHealthy    bool
 	DevicePath   string
@@ -76,7 +76,7 @@ type USBDevicePluginInterface interface {
 	Start(stop <-chan struct{}) error
 }
 
-func (pd *PluginDevices) toKubeVirtDevicePlugin() *pluginapi.Device {
+func (pd *PluginDevice) toKubeVirtDevicePlugin() *pluginapi.Device {
 	healthStr := pluginapi.Healthy
 	if !pd.isHealthy {
 		healthStr = pluginapi.Unhealthy
@@ -88,12 +88,12 @@ func (pd *PluginDevices) toKubeVirtDevicePlugin() *pluginapi.Device {
 	}
 }
 
-func (plugin *USBDevicePlugin) FindDevice() *PluginDevices {
+func (plugin *USBDevicePlugin) GetDevice() *PluginDevice {
 	return plugin.device
 }
 
 func (plugin *USBDevicePlugin) setDeviceHealth(isHealthy bool) {
-	pd := plugin.FindDevice()
+	pd := plugin.GetDevice()
 	isDifferent := pd.isHealthy != isHealthy
 	pd.isHealthy = isHealthy
 	if isDifferent {
@@ -357,7 +357,7 @@ func (plugin *USBDevicePlugin) Allocate(_ context.Context, allocRequest *plugina
 		for _, id := range request.DevicesIDs {
 			plugin.logger.V(2).Infof("usb device id: %s", id)
 
-			pluginDevice := plugin.FindDevice()
+			pluginDevice := plugin.GetDevice()
 			if pluginDevice == nil {
 				plugin.logger.V(2).Infof("usb disappeared: %s", id)
 				continue
@@ -418,7 +418,7 @@ func NewUSBDevicePlugin(usb v1beta1.USBDevice) (*USBDevicePlugin, error) {
 	return &USBDevicePlugin{
 		socketPath:   SocketPath(resourceID),
 		resourceName: usb.Status.ResourceName,
-		device: &PluginDevices{
+		device: &PluginDevice{
 			ID:           usb.Name,
 			DevicePath:   usb.Status.DevicePath,
 			Bus:          bus,
