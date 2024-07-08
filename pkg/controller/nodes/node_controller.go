@@ -9,7 +9,6 @@ import (
 
 	"github.com/jaypipes/ghw"
 	ctlcorev1 "github.com/rancher/wrangler/pkg/generated/controllers/core/v1"
-	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -17,11 +16,9 @@ import (
 
 	ctlnetworkv1beta1 "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io/v1beta1"
 
+	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/config"
 	"github.com/harvester/pcidevices/pkg/controller/gpudevice"
-	"github.com/harvester/pcidevices/pkg/controller/usbdevice"
-
-	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/controller/pcidevice"
 	"github.com/harvester/pcidevices/pkg/controller/sriovdevice"
 	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
@@ -88,12 +85,6 @@ func Register(ctx context.Context, management *config.FactoryManager) error {
 		usbCtl:                   usbCtl,
 		usbClaimCtl:              usbClaimCtl,
 		virtClient:               virtClient,
-	}
-
-	usbHandler := usbdevice.NewHandler(h.usbCtl, h.usbClaimCtl, h.usbCtl.Cache(), h.usbClaimCtl.Cache())
-	if err := usbHandler.WatchUSBDevices(ctx); err != nil {
-		logrus.Errorf("error watching usb devices: %v", err)
-		return err
 	}
 
 	nodeCtl.OnChange(ctx, reconcilePCIDevices, h.reconcileNodeDevices)

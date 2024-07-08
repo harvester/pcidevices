@@ -69,35 +69,41 @@ func parseSysUeventKeyValue(key string, value string, u *USBDevice) bool {
 	case "BUSNUM":
 		val, err := strconv.ParseInt(value, 10, 32)
 		if err != nil {
+			logrus.Errorf("Unable to parse BUSNUM %s\n", value)
 			return false
 		}
 		u.Bus = int(val)
 	case "DEVNUM":
 		val, err := strconv.ParseInt(value, 10, 32)
 		if err != nil {
+			logrus.Errorf("Unable to parse DEVNUM %s\n", value)
 			return false
 		}
 		u.DeviceNumber = int(val)
 	case "PRODUCT":
 		products := strings.Split(value, "/")
 		if len(products) != 3 {
+			logrus.Errorf("PRODUCT value %s is not in the format of xx/xx/xx\n", value)
 			return false
 		}
 
 		val, err := strconv.ParseInt(products[0], 16, 32)
 		if err != nil {
+			logrus.Errorf("Unable to parse PRODUCT[0] %s\n", value)
 			return false
 		}
 		u.Vendor = int(val)
 
 		val, err = strconv.ParseInt(products[1], 16, 32)
 		if err != nil {
+			logrus.Errorf("Unable to parse PRODUCT[1] %s\n", value)
 			return false
 		}
 		u.Product = int(val)
 
 		val, err = strconv.ParseInt(products[2], 16, 32)
 		if err != nil {
+			logrus.Errorf("Unable to parse PRODUCT[2] %s\n", value)
 			return false
 		}
 		u.BCD = int(val)

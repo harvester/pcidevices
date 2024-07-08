@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/rancher/wrangler/pkg/relatedresource"
+	"github.com/sirupsen/logrus"
 
 	"github.com/harvester/pcidevices/pkg/config"
 )
@@ -21,6 +22,11 @@ func Register(ctx context.Context, management *config.FactoryManager) error {
 
 	handler := NewHandler(usbDeviceCtrl, usbDeviceClaimCtrl, usbDeviceCtrl.Cache(), usbDeviceClaimCtrl.Cache())
 	usbDeviceClaimController := NewClaimHandler(usbDeviceCtrl.Cache(), usbDeviceClaimCtrl, usbDeviceCtrl, virtClient)
+
+	if err := handler.WatchUSBDevices(ctx); err != nil {
+		logrus.Errorf("error watching usb devices: %v", err)
+		return err
+	}
 
 	usbDeviceClaimCtrl.OnChange(ctx, "usbClaimClient-device-claim", usbDeviceClaimController.OnUSBDeviceClaimChanged)
 	usbDeviceClaimCtrl.OnRemove(ctx, "usbClaimClient-device-claim-remove", usbDeviceClaimController.OnRemove)
