@@ -132,16 +132,16 @@ func (h *DevHandler) reconcile() error {
 		return err
 	}
 
-	storedUSBDevices, err := h.usbCache.List(labels.SelectorFromSet(cl.labels()))
+	list, err := h.usbClient.List(metav1.ListOptions{LabelSelector: labels.Set(cl.labels()).String()})
 	if err != nil {
 		logrus.Errorf("failed to list USB devices: %v\n", err)
 		return err
 	}
 
 	mapStoredUSBDevices := make(map[string]*v1beta1.USBDevice)
-	for _, storedUSBDevice := range storedUSBDevices {
+	for _, storedUSBDevice := range list.Items {
 		storedUSBDevice := storedUSBDevice
-		mapStoredUSBDevices[storedUSBDevice.Status.DevicePath] = storedUSBDevice
+		mapStoredUSBDevices[storedUSBDevice.Status.DevicePath] = &storedUSBDevice
 	}
 
 	err = h.handleList(h.getList(localUSBDevices, mapStoredUSBDevices, nodeName))
