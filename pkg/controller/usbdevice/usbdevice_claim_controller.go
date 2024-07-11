@@ -224,17 +224,11 @@ func (h *DevClaimHandler) updateKubeVirt(virt *kubevirtv1.KubeVirt, usbDevice *v
 		ExternalResourceProvider: true,
 	})
 
-	if virt.Spec.Configuration.PermittedHostDevices == nil || !reflect.DeepEqual(virt.Spec.Configuration.PermittedHostDevices.USB, virtDp.Spec.Configuration.PermittedHostDevices.USB) {
-		newVirt, err := h.virtClient.Update(virtDp)
-		if err != nil {
-			logrus.Errorf("failed to update kubevirt: %v", err)
-			return virt, err
-		}
-
-		return newVirt, nil
+	if virt.Spec.Configuration.PermittedHostDevices != nil && reflect.DeepEqual(virt.Spec.Configuration.PermittedHostDevices.USB, virtDp.Spec.Configuration.PermittedHostDevices.USB) {
+		return virt, nil
 	}
 
-	return virt, nil
+	return h.virtClient.Update(virtDp)
 }
 
 // startDevicePlugin starts the usb device plugin.

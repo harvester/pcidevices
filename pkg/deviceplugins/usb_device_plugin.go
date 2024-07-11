@@ -72,10 +72,6 @@ type PluginDevice struct {
 	DeviceNumber int
 }
 
-type USBDevicePluginInterface interface {
-	Start(stop <-chan struct{}) error
-}
-
 func (pd *PluginDevice) toKubeVirtDevicePlugin() *pluginapi.Device {
 	healthStr := pluginapi.Healthy
 	if !pd.isHealthy {
@@ -88,12 +84,12 @@ func (pd *PluginDevice) toKubeVirtDevicePlugin() *pluginapi.Device {
 	}
 }
 
-func (plugin *USBDevicePlugin) GetDevice() *PluginDevice {
+func (plugin *USBDevicePlugin) Device() *PluginDevice {
 	return plugin.device
 }
 
 func (plugin *USBDevicePlugin) setDeviceHealth(isHealthy bool) {
-	pd := plugin.GetDevice()
+	pd := plugin.Device()
 	isDifferent := pd.isHealthy != isHealthy
 	pd.isHealthy = isHealthy
 	if isDifferent {
@@ -121,7 +117,7 @@ func (plugin *USBDevicePlugin) GetDeviceName() string {
 	return plugin.resourceName
 }
 
-func (plugin *USBDevicePlugin) StopDevicePlugin() error {
+func (plugin *USBDevicePlugin) stopDevicePlugin() error {
 	defer func() {
 		select {
 		case <-plugin.done:
@@ -160,7 +156,7 @@ func (plugin *USBDevicePlugin) Start(stop <-chan struct{}) error {
 	}
 
 	plugin.server = grpc.NewServer([]grpc.ServerOption{}...)
-	defer plugin.StopDevicePlugin()
+	defer plugin.stopDevicePlugin()
 
 	pluginapi.RegisterDevicePluginServer(plugin.server, plugin)
 
@@ -357,7 +353,7 @@ func (plugin *USBDevicePlugin) Allocate(_ context.Context, allocRequest *plugina
 		for _, id := range request.DevicesIDs {
 			plugin.logger.V(2).Infof("usb device id: %s", id)
 
-			pluginDevice := plugin.GetDevice()
+			pluginDevice := plugin.Device()
 			if pluginDevice == nil {
 				plugin.logger.V(2).Infof("usb disappeared: %s", id)
 				continue
