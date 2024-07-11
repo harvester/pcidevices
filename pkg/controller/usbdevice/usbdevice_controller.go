@@ -231,9 +231,8 @@ func (h *DevHandler) getList(localUSBDevices map[int][]*deviceplugins.USBDevice,
 						PCIAddress:   localUSBDevice.PCIAddress,
 					}
 					updateList = append(updateList, existedCp)
-				} else {
-					delete(mapStoredUSBDevices, localUSBDevice.DevicePath)
 				}
+				delete(mapStoredUSBDevices, localUSBDevice.DevicePath)
 			}
 		}
 	}
