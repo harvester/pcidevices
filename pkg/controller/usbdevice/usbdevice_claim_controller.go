@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
-	"time"
 
 	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -18,18 +17,12 @@ import (
 )
 
 type DevClaimHandler struct {
-	usbClaimClient           ctldevicerv1beta1.USBDeviceClaimClient
-	usbClient                ctldevicerv1beta1.USBDeviceClient
-	virtClient               ctlkubevirtv1.KubeVirtClient
-	lock                     *sync.Mutex
-	usbDeviceCache           ctldevicerv1beta1.USBDeviceCache
-	managedDeviceControllers map[string]*deviceController
-}
-
-type deviceController struct {
-	device  *deviceplugins.USBDevicePlugin
-	stop    chan struct{}
-	started bool
+	usbClaimClient       ctldevicerv1beta1.USBDeviceClaimClient
+	usbClient            ctldevicerv1beta1.USBDeviceClient
+	virtClient           ctlkubevirtv1.KubeVirtClient
+	lock                 *sync.Mutex
+	usbDeviceCache       ctldevicerv1beta1.USBDeviceCache
+	managedDevicePlugins map[string]*deviceplugins.USBDevicePlugin
 }
 
 func NewClaimHandler(
@@ -39,12 +32,12 @@ func NewClaimHandler(
 	virtClient ctlkubevirtv1.KubeVirtClient,
 ) *DevClaimHandler {
 	return &DevClaimHandler{
-		usbDeviceCache:           usbDeviceCache,
-		usbClaimClient:           usbClaimClient,
-		usbClient:                usbClient,
-		virtClient:               virtClient,
-		lock:                     &sync.Mutex{},
-		managedDeviceControllers: map[string]*deviceController{},
+		usbDeviceCache:       usbDeviceCache,
+		usbClaimClient:       usbClaimClient,
+		usbClient:            usbClient,
+		virtClient:           virtClient,
+		lock:                 &sync.Mutex{},
+		managedDevicePlugins: map[string]*deviceplugins.USBDevicePlugin{},
 	}
 }
 
@@ -88,7 +81,7 @@ func (h *DevClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1be
 		return usbDeviceClaim, err
 	}
 
-	deviceControl, ok := h.managedDeviceControllers[usbDeviceClaim.Name]
+	devicePlugin, ok := h.managedDevicePlugins[usbDeviceClaim.Name]
 
 	if !ok {
 		usbDevicePlugin, err := deviceplugins.NewUSBDevicePlugin(*usbDevice)
@@ -98,15 +91,12 @@ func (h *DevClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1be
 			return usbDeviceClaim, err
 		}
 
-		dc := &deviceController{
-			device: usbDevicePlugin,
-		}
-		h.managedDeviceControllers[usbDeviceClaim.Name] = dc
-		deviceControl = dc
+		h.managedDevicePlugins[usbDeviceClaim.Name] = usbDevicePlugin
+		devicePlugin = usbDevicePlugin
 	}
 
-	if !deviceControl.started {
-		deviceControl.startDevicePlugin(usbDeviceClaim.Name)
+	if !devicePlugin.IsStarted() {
+		devicePlugin.StartDevicePlugin()
 	}
 
 	if !usbDevice.Status.Enabled {
@@ -179,9 +169,9 @@ func (h *DevClaimHandler) OnRemove(_ string, claim *v1beta1.USBDeviceClaim) (*v1
 		}
 	}
 
-	if deviceControl, ok := h.managedDeviceControllers[claim.Name]; ok {
-		deviceControl.stopDevicePlugin()
-		delete(h.managedDeviceControllers, claim.Name)
+	if devicePlugin, ok := h.managedDevicePlugins[claim.Name]; ok {
+		devicePlugin.StopDevicePlugin()
+		delete(h.managedDevicePlugins, claim.Name)
 	}
 
 	usbDeviceCp := usbDevice.DeepCopy()
@@ -229,49 +219,4 @@ func (h *DevClaimHandler) updateKubeVirt(virt *kubevirtv1.KubeVirt, usbDevice *v
 	}
 
 	return h.virtClient.Update(virtDp)
-}
-
-// startDevicePlugin starts the usb device plugin.
-// In current device plugin design, we'll use stop to control the flow.
-// It's different from `StopDevicePlugin` in usb_device_plugin.go.
-//
-// The stop from outside is to control the device plugin to start or stop.
-// The done from inside `StopDevicePlugin` is to control the inner flow, such as grpc server.
-//
-// Besides, it already calls `defer StopDevicePlugin` when calling `dc.device.Start`.
-// So, we won't call `StopDevicePlugin` again.
-func (dc *deviceController) startDevicePlugin(deviceName string) {
-	if dc.started {
-		return
-	}
-
-	dc.stop = make(chan struct{})
-
-	go func() {
-		for {
-			// This will be blocked by a channel read inside function
-			if err := dc.device.Start(dc.stop); err != nil {
-				logrus.Errorf("Error starting %s device plugin", deviceName)
-			}
-
-			select {
-			case <-dc.stop:
-				return
-			case <-time.After(5 * time.Second):
-				// try to start device plugin again when getting error
-				continue
-			}
-		}
-	}()
-
-	dc.started = true
-}
-
-func (dc *deviceController) stopDevicePlugin() {
-	if !dc.started {
-		return
-	}
-
-	close(dc.stop)
-	dc.started = false
 }

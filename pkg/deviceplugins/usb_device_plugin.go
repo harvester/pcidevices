@@ -51,17 +51,16 @@ var (
 // The actual plugin
 type USBDevicePlugin struct {
 	socketPath   string
-	stop         <-chan struct{}
+	stop         chan struct{}
 	update       chan struct{}
-	done         chan struct{}
 	deregistered chan struct{}
 	server       *grpc.Server
 	resourceName string
 	device       *PluginDevice
 	logger       *log.FilteredLogger
 
-	initialized bool
-	lock        *sync.Mutex
+	started bool
+	lock    *sync.Mutex
 }
 
 type PluginDevice struct {
@@ -84,12 +83,8 @@ func (pd *PluginDevice) toKubeVirtDevicePlugin() *pluginapi.Device {
 	}
 }
 
-func (plugin *USBDevicePlugin) Device() *PluginDevice {
-	return plugin.device
-}
-
 func (plugin *USBDevicePlugin) setDeviceHealth(isHealthy bool) {
-	pd := plugin.Device()
+	pd := plugin.device
 	isDifferent := pd.isHealthy != isHealthy
 	pd.isHealthy = isHealthy
 	if isDifferent {
@@ -101,32 +96,11 @@ func (plugin *USBDevicePlugin) devicesToKubeVirtDevicePlugin() []*pluginapi.Devi
 	return []*pluginapi.Device{plugin.device.toKubeVirtDevicePlugin()}
 }
 
-func (plugin *USBDevicePlugin) GetInitialized() bool {
-	plugin.lock.Lock()
-	defer plugin.lock.Unlock()
-	return plugin.initialized
-}
-
-func (plugin *USBDevicePlugin) setInitialized(initialized bool) {
-	plugin.lock.Lock()
-	plugin.initialized = initialized
-	plugin.lock.Unlock()
-}
-
-func (plugin *USBDevicePlugin) GetDeviceName() string {
+func (plugin *USBDevicePlugin) DeviceName() string {
 	return plugin.resourceName
 }
 
 func (plugin *USBDevicePlugin) stopDevicePlugin() error {
-	defer func() {
-		select {
-		case <-plugin.done:
-			return
-		default:
-			close(plugin.done)
-		}
-	}()
-
 	// Give the device plugin one second to properly deregister
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
@@ -136,13 +110,10 @@ func (plugin *USBDevicePlugin) stopDevicePlugin() error {
 	}
 
 	plugin.server.Stop()
-	plugin.setInitialized(false)
 	return plugin.cleanup()
 }
 
-func (plugin *USBDevicePlugin) Start(stop <-chan struct{}) error {
-	plugin.stop = stop
-	plugin.done = make(chan struct{})
+func (plugin *USBDevicePlugin) startDevicePlugin() error {
 	plugin.deregistered = make(chan struct{})
 
 	err := plugin.cleanup()
@@ -180,7 +151,6 @@ func (plugin *USBDevicePlugin) Start(stop <-chan struct{}) error {
 		errChan <- plugin.healthCheck()
 	}()
 
-	plugin.setInitialized(true)
 	plugin.logger.Infof("%s device plugin started", plugin.resourceName)
 	err = <-errChan
 
@@ -291,7 +261,7 @@ func (plugin *USBDevicePlugin) register() error {
 	reqt := &pluginapi.RegisterRequest{
 		Version:      pluginapi.Version,
 		Endpoint:     path.Base(plugin.socketPath),
-		ResourceName: plugin.GetDeviceName(),
+		ResourceName: plugin.DeviceName(),
 	}
 
 	_, err = client.Register(context.Background(), reqt)
@@ -353,7 +323,7 @@ func (plugin *USBDevicePlugin) Allocate(_ context.Context, allocRequest *plugina
 		for _, id := range request.DevicesIDs {
 			plugin.logger.V(2).Infof("usb device id: %s", id)
 
-			pluginDevice := plugin.Device()
+			pluginDevice := plugin.device
 			if pluginDevice == nil {
 				plugin.logger.V(2).Infof("usb disappeared: %s", id)
 				continue
@@ -370,7 +340,6 @@ func (plugin *USBDevicePlugin) Allocate(_ context.Context, allocRequest *plugina
 				return nil, fmt.Errorf("error setting the permission the socket %s: %v", pluginDevice.DevicePath, err)
 			}
 
-			// We might have more than one USB device per resource name
 			key := util.ResourceNameToEnvVar(v1.USBResourcePrefix, plugin.resourceName)
 			value := fmt.Sprintf("%d:%d", pluginDevice.Bus, pluginDevice.DeviceNumber)
 			if previous, exist := env[key]; exist {
@@ -421,9 +390,9 @@ func NewUSBDevicePlugin(usb v1beta1.USBDevice) (*USBDevicePlugin, error) {
 			DeviceNumber: deviceNumber,
 			isHealthy:    true,
 		},
-		logger:      log.Log.With("subcomponent", resourceID),
-		initialized: false,
-		lock:        &sync.Mutex{},
+		logger:  log.Log.With("subcomponent", resourceID),
+		started: false,
+		lock:    &sync.Mutex{},
 	}, nil
 }
 
@@ -445,4 +414,43 @@ func generateBusAndDevice(devicePath string) (int, int, error) {
 	}
 
 	return bus, deviceNumber, nil
+}
+
+func (plugin *USBDevicePlugin) StartDevicePlugin() {
+	if plugin.started {
+		return
+	}
+
+	plugin.stop = make(chan struct{})
+	plugin.started = true
+
+	go func() {
+		for {
+			// This will be blocked by a channel read inside function
+			if err := plugin.startDevicePlugin(); err != nil {
+				logrus.Errorf("Error starting %s device plugin", plugin.resourceName)
+			}
+
+			select {
+			case <-plugin.stop:
+				return
+			case <-time.After(5 * time.Second):
+				// try to start device plugin again when getting error
+				continue
+			}
+		}
+	}()
+}
+
+func (plugin *USBDevicePlugin) StopDevicePlugin() {
+	if !plugin.started {
+		return
+	}
+
+	close(plugin.stop)
+	plugin.started = false
+}
+
+func (plugin *USBDevicePlugin) IsStarted() bool {
+	return plugin.started
 }
