@@ -3,17 +3,19 @@ package fakeclients
 import (
 	"context"
 
-	kubevirtv1 "github.com/harvester/harvester/pkg/generated/clientset/versioned/typed/kubevirt.io/v1"
-	kubevirtctlv1 "github.com/harvester/harvester/pkg/generated/controllers/kubevirt.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	kubevirtv1api "kubevirt.io/api/core/v1"
+
+	kubevirtv1 "github.com/harvester/harvester/pkg/generated/clientset/versioned/typed/kubevirt.io/v1"
+	kubevirtctlv1 "github.com/harvester/harvester/pkg/generated/controllers/kubevirt.io/v1"
 )
 
 const (
 	VMByPCIDeviceClaim = "harvesterhci.io/vm-by-pcideviceclaim"
+	VMByUSBDeviceClaim = "harvesterhci.io/vm-by-usbdeviceclaim"
 	VMByVGPU           = "harvesterhci.io/vm-by-vgpu"
 )
 
@@ -78,7 +80,7 @@ func (c VirtualMachineCache) AddIndexer(_ string, _ kubevirtctlv1.VirtualMachine
 
 func (c VirtualMachineCache) GetByIndex(indexName, key string) ([]*kubevirtv1api.VirtualMachine, error) {
 	switch indexName {
-	case VMByPCIDeviceClaim:
+	case VMByPCIDeviceClaim, VMByUSBDeviceClaim:
 		var vms []*kubevirtv1api.VirtualMachine
 		vmList, err := c.List("", labels.NewSelector())
 		if err != nil {

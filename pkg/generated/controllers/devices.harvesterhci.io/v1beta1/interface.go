@@ -35,6 +35,8 @@ type Interface interface {
 	PCIDeviceClaim() PCIDeviceClaimController
 	SRIOVGPUDevice() SRIOVGPUDeviceController
 	SRIOVNetworkDevice() SRIOVNetworkDeviceController
+	USBDevice() USBDeviceController
+	USBDeviceClaim() USBDeviceClaimController
 	VGPUDevice() VGPUDeviceController
 }
 
@@ -62,6 +64,12 @@ func (c *version) SRIOVGPUDevice() SRIOVGPUDeviceController {
 }
 func (c *version) SRIOVNetworkDevice() SRIOVNetworkDeviceController {
 	return NewSRIOVNetworkDeviceController(schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "SRIOVNetworkDevice"}, "sriovnetworkdevices", false, c.controllerFactory)
+}
+func (c *version) USBDevice() USBDeviceController {
+	return NewUSBDeviceController(schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "USBDevice"}, "usbdevices", false, c.controllerFactory)
+}
+func (c *version) USBDeviceClaim() USBDeviceClaimController {
+	return NewUSBDeviceClaimController(schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "USBDeviceClaim"}, "usbdeviceclaims", false, c.controllerFactory)
 }
 func (c *version) VGPUDevice() VGPUDeviceController {
 	return NewVGPUDeviceController(schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "VGPUDevice"}, "vgpudevices", false, c.controllerFactory)

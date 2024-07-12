@@ -25,6 +25,7 @@ import (
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	kubevirtv1 "kubevirt.io/api/core/v1"
 )
 
 var scheme = runtime.NewScheme()
@@ -32,6 +33,7 @@ var codecs = serializer.NewCodecFactory(scheme)
 
 var localSchemeBuilder = runtime.SchemeBuilder{
 	devicesv1beta1.AddToScheme,
+	kubevirtv1.AddToScheme,
 }
 
 // AddToScheme adds all types of this clientset into the given scheme. This allows composition

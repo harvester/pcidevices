@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/config"
 	"github.com/harvester/pcidevices/pkg/controller/nodecleanup"
 	"github.com/harvester/pcidevices/pkg/crd"
 	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
@@ -133,11 +134,10 @@ var _ = BeforeSuite(func() {
 	})
 
 	Expect(err).NotTo(HaveOccurred())
-	pdCtl := factory.Devices().V1beta1().PCIDevice()
-	pdcCtl := factory.Devices().V1beta1().PCIDeviceClaim()
-	nodeCtl := coreFactory.Core().V1().Node()
 
-	err = nodecleanup.Register(ctx, pdcCtl, pdCtl, nodeCtl)
+	management := config.NewFactoryManager(factory, coreFactory, nil, nil, nil, nil)
+
+	err = nodecleanup.Register(ctx, management)
 	Expect(err).NotTo(HaveOccurred())
 	err = start.All(ctx, 1, factory, coreFactory)
 	Expect(err).NotTo(HaveOccurred())

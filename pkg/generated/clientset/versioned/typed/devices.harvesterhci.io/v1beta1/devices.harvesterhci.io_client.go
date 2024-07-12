@@ -33,6 +33,8 @@ type DevicesV1beta1Interface interface {
 	PCIDeviceClaimsGetter
 	SRIOVGPUDevicesGetter
 	SRIOVNetworkDevicesGetter
+	USBDevicesGetter
+	USBDeviceClaimsGetter
 	VGPUDevicesGetter
 }
 
@@ -59,6 +61,14 @@ func (c *DevicesV1beta1Client) SRIOVGPUDevices() SRIOVGPUDeviceInterface {
 
 func (c *DevicesV1beta1Client) SRIOVNetworkDevices() SRIOVNetworkDeviceInterface {
 	return newSRIOVNetworkDevices(c)
+}
+
+func (c *DevicesV1beta1Client) USBDevices() USBDeviceInterface {
+	return newUSBDevices(c)
+}
+
+func (c *DevicesV1beta1Client) USBDeviceClaims() USBDeviceClaimInterface {
+	return newUSBDeviceClaims(c)
 }
 
 func (c *DevicesV1beta1Client) VGPUDevices() VGPUDeviceInterface {

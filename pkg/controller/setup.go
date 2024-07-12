@@ -5,25 +5,29 @@ import (
 	"fmt"
 	"time"
 
+	ctlnetwork "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io"
 	"github.com/rancher/lasso/pkg/cache"
 	"github.com/rancher/lasso/pkg/client"
 	"github.com/rancher/lasso/pkg/controller"
 	ctlcore "github.com/rancher/wrangler/pkg/generated/controllers/core"
 	"github.com/rancher/wrangler/pkg/generic"
 	"github.com/rancher/wrangler/pkg/start"
+	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/workqueue"
+	"kubevirt.io/client-go/kubecli"
 
-	ctlnetwork "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io"
-
+	"github.com/harvester/pcidevices/pkg/config"
 	"github.com/harvester/pcidevices/pkg/controller/gpudevice"
 	"github.com/harvester/pcidevices/pkg/controller/nodecleanup"
 	"github.com/harvester/pcidevices/pkg/controller/nodes"
 	"github.com/harvester/pcidevices/pkg/controller/pcideviceclaim"
 	"github.com/harvester/pcidevices/pkg/controller/sriovdevice"
+	"github.com/harvester/pcidevices/pkg/controller/usbdevice"
 	"github.com/harvester/pcidevices/pkg/crd"
-	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
+	ctldevices "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
+	ctlkubevirt "github.com/harvester/pcidevices/pkg/generated/controllers/kubevirt.io"
 	"github.com/harvester/pcidevices/pkg/webhook"
 )
 
@@ -47,11 +51,8 @@ func Setup(ctx context.Context, cfg *rest.Config, _ *runtime.Scheme) error {
 		DefaultRateLimiter: rateLimit,
 		DefaultWorkers:     2,
 	})
-	if err != nil {
-		return err
-	}
 
-	pciFactory, err := ctl.NewFactoryFromConfigWithOptions(cfg, &generic.FactoryOptions{
+	deviceFactory, err := ctldevices.NewFactoryFromConfigWithOptions(cfg, &generic.FactoryOptions{
 		SharedControllerFactory: factory,
 	})
 
@@ -75,39 +76,42 @@ func Setup(ctx context.Context, cfg *rest.Config, _ *runtime.Scheme) error {
 		return fmt.Errorf("error building network controllers: %v", err)
 	}
 
-	pdCtl := pciFactory.Devices().V1beta1().PCIDevice()
-	pdcCtl := pciFactory.Devices().V1beta1().PCIDeviceClaim()
-	sriovCtl := pciFactory.Devices().V1beta1().SRIOVNetworkDevice()
-	nodeCtl := pciFactory.Devices().V1beta1().Node()
-	coreNodeCtl := coreFactory.Core().V1().Node()
-	vlanCtl := networkFactory.Network().V1beta1().VlanConfig()
-	sriovNetworkDeviceCache := sriovCtl.Cache()
-	sriovGPUCtl := pciFactory.Devices().V1beta1().SRIOVGPUDevice()
-	vGPUCtl := pciFactory.Devices().V1beta1().VGPUDevice()
-	podCtl := coreFactory.Core().V1().Pod()
-	RegisterIndexers(sriovNetworkDeviceCache)
+	kubevirtFactory, err := ctlkubevirt.NewFactoryFromConfigWithOptions(cfg, &ctlkubevirt.FactoryOptions{
+		SharedControllerFactory: factory,
+	})
 
-	if err := pcideviceclaim.Register(ctx, pdcCtl, pdCtl); err != nil {
-		return fmt.Errorf("error registering pcidevicclaim controllers :%v", err)
+	clientConfig := kubecli.DefaultClientConfig(&pflag.FlagSet{})
+	virtClient, err := kubecli.GetKubevirtClientFromClientConfig(clientConfig)
+
+	management := config.NewFactoryManager(
+		deviceFactory,
+		coreFactory,
+		networkFactory,
+		kubevirtFactory,
+		virtClient,
+		cfg,
+	)
+
+	nodeCtl := deviceFactory.Devices().V1beta1().Node()
+
+	RegisterIndexers(management)
+
+	registers := []func(context.Context, *config.FactoryManager) error{
+		pcideviceclaim.Register,
+		usbdevice.Register,
+		nodes.Register,
+		sriovdevice.Register,
+		nodecleanup.Register,
+		gpudevice.Register,
 	}
 
-	if err := nodes.Register(ctx, sriovCtl, pdCtl, nodeCtl, coreNodeCtl, vlanCtl.Cache(),
-		sriovNetworkDeviceCache, pdcCtl, vGPUCtl, sriovGPUCtl); err != nil {
-		return fmt.Errorf("error registering node controller: %v", err)
+	for _, register := range registers {
+		if err := register(ctx, management); err != nil {
+			return fmt.Errorf("error registering controller: %v", err)
+		}
 	}
 
-	if err := sriovdevice.Register(ctx, sriovCtl, coreNodeCtl.Cache(), vlanCtl.Cache()); err != nil {
-		return fmt.Errorf("error registering sriovdevice controller: %v", err)
-	}
-
-	if err := nodecleanup.Register(ctx, pdcCtl, pdCtl, coreNodeCtl); err != nil {
-		return fmt.Errorf("error registering nodecleanup controller: %v", err)
-	}
-
-	if err := gpudevice.Register(ctx, sriovGPUCtl, vGPUCtl, pdcCtl, podCtl, cfg); err != nil {
-		return fmt.Errorf("error registering gpudevice controller :%v", err)
-	}
-	if err := start.All(ctx, 2, coreFactory, networkFactory, pciFactory); err != nil {
+	if err := start.All(ctx, 2, coreFactory, networkFactory, deviceFactory); err != nil {
 		return fmt.Errorf("error starting controllers :%v", err)
 	}
 

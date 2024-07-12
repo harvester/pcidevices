@@ -12,7 +12,7 @@ import (
 	ctlharvesterv1 "github.com/harvester/harvester/pkg/generated/controllers/harvesterhci.io"
 	ctlkubevirtv1 "github.com/harvester/harvester/pkg/generated/controllers/kubevirt.io"
 
-	ctlpcidevices "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
+	ctldevices "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
 )
 
 type Clients struct {
@@ -20,7 +20,7 @@ type Clients struct {
 	CoreFactory      *ctlcore.Factory
 	HarvesterFactory *ctlharvesterv1.Factory
 	KubevirtFactory  *ctlkubevirtv1.Factory
-	PCIFactory       *ctlpcidevices.Factory
+	DeviceFactory    *ctldevices.Factory
 }
 
 func NewClient(ctx context.Context, rest *rest.Config, threadiness int) (*Clients, error) {
@@ -56,7 +56,7 @@ func NewClient(ctx context.Context, rest *rest.Config, threadiness int) (*Client
 		return nil, err
 	}
 
-	pciFactory, err := ctlpcidevices.NewFactoryFromConfigWithOptions(rest, clients.FactoryOptions)
+	deviceFactory, err := ctldevices.NewFactoryFromConfigWithOptions(rest, clients.FactoryOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -70,6 +70,6 @@ func NewClient(ctx context.Context, rest *rest.Config, threadiness int) (*Client
 		HarvesterFactory: harvesterFactory,
 		KubevirtFactory:  kubevirtFactory,
 		CoreFactory:      coreFactory,
-		PCIFactory:       pciFactory,
+		DeviceFactory:    deviceFactory,
 	}, nil
 }
