@@ -102,7 +102,7 @@ func (plugin *USBDevicePlugin) DeviceName() string {
 
 func (plugin *USBDevicePlugin) stopDevicePlugin() error {
 	// Give the device plugin one second to properly deregister
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 	select {
 	case <-plugin.deregistered:
