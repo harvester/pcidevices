@@ -13,9 +13,14 @@ PCI Devices Controller is a **Kubernetes controller** that:
 This operator introduces these CRDs:
 - PCIDevice
 - PCIDeviceClaim
+- USBDevice
+- USBDeviceClaim
 
-It also introduces a custom PCIDevicePlugin. The way the deviceplugin works is by storing all 
-PCIDevices with the same resourceName. Then when one is claimed, the deviceplugin marks that device state as "healthy".
+It introduces different types of devices that can be used here. In general, when a device is claimed, it is marked as "healthy" and is ready to be used. Each device type has own custom device plugin to manage the device lifecycle.
+
+- PCI Device: Each resource name might have multiple PCI devices.
+- USB Device: Each resource name only has one USB device.
+
 
 ## PCIDevice
 
@@ -68,7 +73,6 @@ status:
 ```
 
 
-
 ## PCIDeviceClaim
 
 This custom resource is created to store the request to prepare a device for 
@@ -101,9 +105,67 @@ then `true` when it is bound to the `vfio-pci` driver.
 The `status.kernelDriverToUnbind` is stored so that deleting the claim 
 can re-bind the device to the original driver.
 
+## USBDevice
+
+Collect all USB devices on all nodes, provided to users, so they know how many USB devices they could use.
+
+Considering the same vendor/product case, we should add the bus and device number as a suffix to avoid misunderstanding. It's 002/004 in this case.
+
+### CRD
+
+```yaml
+apiVersion: devices.harvesterhci.io/v1beta1
+kind: USBDevice
+metadata:
+  labels:
+    nodename: jacknode
+  name: jacknode-0951-1666-002004
+status:
+  description: DataTraveler 100 G3/G4/SE9 G2/50 Kyson (Kingston Technology)
+  devicePath: /dev/bus/usb/002/004
+  enabled: false
+  nodeName: jacknode
+  pciAddress: "0000:02:01.0"
+  productID: "1666"
+  resourceName: kubevirt.io/jacknode-0951-1666-002004
+  vendorID: "0951"
+```
+
+## USBDeviceClaim
+
+When users decide which USB devices they want to use, they will create a `usbdeviceclaim`. After `usbdeviceclaim` is created, the controller will update spec.configuration.permittedHostDevices.usb in the kubevirt resource.
+
+We use the pciAddress field to prevent users from enabling the specified PCI device.
+
+### CRD
+
+```yaml
+apiVersion: devices.harvesterhci.io/v1beta1
+kind: USBDeviceClaim
+metadata:
+  name: jacknode-0951-1666-002004
+  ownerReferences:
+    - apiVersion: devices.harvesterhci.io/v1beta1
+      kind: USBDevice
+      name: jacknode-0951-1666-002004
+      uid: b584d7d0-0820-445e-bc90-4ffbfe82d63b
+spec: {}
+status:
+  userName: ""
+  nodeName: jacknode
+  pciAddress: "0000:02:01.0"
+```
+
 # Controllers 
 
-There is be a DaemonSet that runs the PCIDevice controller on each node. The controller reconciles the stored list of PCI Devices for that node to the actual current list of PCI devices for that node.
+There is a DaemonSet that runs the device controller on each node. The controller reconciles the stored list of devices for that node to the actual current list of devices for that node.
+
+
+## PCIDevice Controller
+
+The PCIDevice controller will pick up on the new currently active driver automatically, as part of its normal operation.
+
+## PCIDeviceClaim Controller
 
 The PCIDeviceClaim controller will process the requests by attempting to set up devices for PCI Passthrough. The steps involved are:
 - Load `vfio-pci` kernel module
@@ -113,7 +175,31 @@ The PCIDeviceClaim controller will process the requests by attempting to set up 
 
 Once the device is confirmed to have been bound to `vfio-pci`, the PCIDeviceClaim controller will delete the request.
 
-The PCIDevice controller will pick up on the new currently active driver automatically, as part of it's normal operation.
+## USBDevice Controller
+
+The USBDevice Controller triggers the collection of USB devices on the host at two specific times:
+
+- When the pod starts.
+- When there is a change in the USB devices (including plugin and removal), primarily detected through fsnotify.
+ 
+Once the USBDevice Controller detects the USB devices on the host, it converts them into the USBDevice CRD format and creates the corresponding resources, ignoring any devices that have already been created.
+
+## USBDeviceClaim Controller
+
+The USBDeviceClaim Controller is triggered when a user decides which USB device to use and creates a USB device claim. Upon the creation of a USBDeviceClaim, this controller performs two main actions:
+
+- It activates the device plugin.
+- It updates the kubevirt resource.
+
+This controller primarily manages the lifecycle of the device plugin, ensuring that the claimed USB device is properly integrated and available for use.
+
+# Limitation
+
+## USB Device
+
+- Don't support live migration
+- Don't support hot-plug (including re-plug)
+- Require re-creating a USBDeviceClaim to enable the USB device after re-plugging, as re-plugging will change the device path.
 
 # Daemon
 
@@ -134,7 +220,7 @@ This only detects the presence or absence of device, not the number of them.
 Another reason not to use these simple labels is that we want to be able to allow our customers to set custom RBAC rules that restrict who can use which device in the cluster. We can do that with a custom `PCIDevice` CRD, but it's not clear how to do that with node labels.
 
 ## License
-Copyright (c) 2023 [Rancher Labs, Inc.](http://rancher.com)
+Copyright (c) 2024 [Rancher Labs, Inc.](http://rancher.com)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
