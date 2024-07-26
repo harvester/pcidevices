@@ -197,9 +197,11 @@ This controller primarily manages the lifecycle of the device plugin, ensuring t
 
 ## USB Device
 
-- Don't support live migration
-- Don't support hot-plug (including re-plug)
-- Require re-creating a USBDeviceClaim to enable the USB device after re-plugging, as re-plugging will change the device path.
+- Don't support live migration.
+- Don't support hot-plug (including re-plug).
+- Require re-creating a USBDeviceClaim to enable the USB device if device path changes in following situations:
+  - Re-plugging USB device.
+  - Rebooting the node.
 
 # Daemon
 
