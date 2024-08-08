@@ -55,6 +55,7 @@ type USBDevicePlugin struct {
 	update       chan struct{}
 	deregistered chan struct{}
 	server       *grpc.Server
+	serverDone   chan struct{}
 	resourceName string
 	device       *PluginDevice
 	logger       *log.FilteredLogger
@@ -101,6 +102,10 @@ func (plugin *USBDevicePlugin) DeviceName() string {
 }
 
 func (plugin *USBDevicePlugin) stopDevicePlugin() error {
+	defer func() {
+		close(plugin.serverDone)
+	}()
+
 	// Give the device plugin one second to properly deregister
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
@@ -115,6 +120,7 @@ func (plugin *USBDevicePlugin) stopDevicePlugin() error {
 
 func (plugin *USBDevicePlugin) startDevicePlugin() error {
 	plugin.deregistered = make(chan struct{})
+	plugin.serverDone = make(chan struct{})
 
 	err := plugin.cleanup()
 	if err != nil {
@@ -294,6 +300,7 @@ func (plugin *USBDevicePlugin) ListAndWatch(_ *pluginapi.Empty, lws pluginapi.De
 	if err := sendUpdate(plugin.devicesToKubeVirtDevicePlugin()); err != nil {
 		return err
 	}
+
 	done := false
 	for !done {
 		select {
@@ -303,6 +310,8 @@ func (plugin *USBDevicePlugin) ListAndWatch(_ *pluginapi.Empty, lws pluginapi.De
 			}
 		case <-plugin.stop:
 			done = true
+		case <-plugin.serverDone:
+			done = true
 		}
 	}
 
@@ -310,7 +319,9 @@ func (plugin *USBDevicePlugin) ListAndWatch(_ *pluginapi.Empty, lws pluginapi.De
 		plugin.logger.Reason(err).Warningf("Failed to deregister device plugin %s",
 			plugin.resourceName)
 	}
+
 	close(plugin.deregistered)
+
 	return nil
 }
 
