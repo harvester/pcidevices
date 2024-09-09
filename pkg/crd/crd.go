@@ -142,7 +142,7 @@ func List() []crd.CRD {
 			return c.
 				WithColumn("Node Name", ".status.nodeName").
 				WithColumn("PCI Address", ".status.pciAddress").
-				WithColumn("User Name", ".status.userName")
+				WithColumn("User Name", ".spec.userName")
 		}),
 	}
 }

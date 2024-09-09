@@ -26,6 +26,7 @@ func (udc *usbDeviceClaimValidator) Resource() types.Resource {
 		APIVersion: devicesv1beta1.SchemeGroupVersion.Version,
 		ObjectType: &devicesv1beta1.USBDeviceClaim{},
 		OperationTypes: []admissionregv1.OperationType{
+			admissionregv1.Update,
 			admissionregv1.Delete,
 		},
 	}
@@ -45,6 +46,19 @@ func (udc *usbDeviceClaimValidator) Delete(_ *types.Request, oldObj runtime.Obje
 	}
 	if len(vms) > 0 {
 		err := fmt.Errorf("usbdeviceclaim %s is still in use by vm %s/%s", usbClaimObj.Name, vms[0].Name, vms[0].Namespace)
+		logrus.Errorf(err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func (udc *usbDeviceClaimValidator) Update(_ *types.Request, oldObj runtime.Object, newObj runtime.Object) error {
+	oldUsbClaimObj := oldObj.(*devicesv1beta1.USBDeviceClaim)
+	newUsbClaimObj := newObj.(*devicesv1beta1.USBDeviceClaim)
+
+	if oldUsbClaimObj.Spec.UserName != newUsbClaimObj.Spec.UserName {
+		err := fmt.Errorf("usbdeviceclaim %s username is immutable", newUsbClaimObj.Name)
 		logrus.Errorf(err.Error())
 		return err
 	}

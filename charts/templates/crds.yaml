@@ -457,22 +457,25 @@ spec:
     - jsonPath: .status.pciAddress
       name: PCI Address
       type: string
-    - jsonPath: .status.userName
+    - jsonPath: .spec.userName
       name: User Name
       type: string
     name: v1beta1
     schema:
       openAPIV3Schema:
         properties:
+          spec:
+            properties:
+              userName:
+                nullable: true
+                type: string
+            type: object
           status:
             properties:
               nodeName:
                 nullable: true
                 type: string
               pciAddress:
-                nullable: true
-                type: string
-              userName:
                 nullable: true
                 type: string
             type: object
@@ -940,7 +943,7 @@ spec:
   - JSONPath: .status.pciAddress
     name: PCI Address
     type: string
-  - JSONPath: .status.userName
+  - JSONPath: .spec.userName
     name: User Name
     type: string
   group: devices.harvesterhci.io
@@ -955,15 +958,18 @@ spec:
   validation:
     openAPIV3Schema:
       properties:
+        spec:
+          properties:
+            userName:
+              nullable: true
+              type: string
+          type: object
         status:
           properties:
             nodeName:
               nullable: true
               type: string
             pciAddress:
-              nullable: true
-              type: string
-            userName:
               nullable: true
               type: string
           type: object

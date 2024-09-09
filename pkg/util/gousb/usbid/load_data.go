@@ -27,8 +27,8 @@ import "time"
 //
 // The baked-in data was last generated:
 //
-// 2024-07-02 11:16:54.773304 +0800 CST m=+3.301417917
-var LastUpdate = time.Unix(0, 1719890214773304000)
+// 2024-09-09 09:38:25.925192 +0800 CST m=+1.282289042
+var LastUpdate = time.Unix(0, 1725845905925192000)
 
 const usbIDListData = `#
 #	List of USB ID's
@@ -41,8 +41,8 @@ const usbIDListData = `#
 #	The latest version can be obtained from
 #		http://www.linux-usb.org/usb.ids
 #
-# Version: 2024.03.18
-# Date:    2024-03-18 20:34:02
+# Version: 2024.07.04
+# Date:    2024-07-04 20:34:02
 #
 
 # Vendors, devices and interfaces. Please keep sorted.
@@ -2432,6 +2432,7 @@ const usbIDListData = `#
 	02e3  Xbox One Elite Controller
 	02e6  Xbox Wireless Adapter for Windows
 	02ea  Xbox One Controller
+	02f3  Xbox One Chatpad
 	02fd  Xbox One S Controller [Bluetooth]
 	02fe  Xbox Wireless Adapter for Windows
 	0306  Surface Pro 7 SD Card Reader
@@ -5024,7 +5025,7 @@ const usbIDListData = `#
 	0a28  INDI AV-IN Device
 	1301  Network Controller
 	1302  i3 Gateway
-	1303  3 Micro Module
+	1303  i3 Micro Module
 	1304  i3 Module
 	1305  i3 Multi Sensing Module
 04c1  U.S. Robotics (3Com)
@@ -6465,6 +6466,7 @@ const usbIDListData = `#
 	2060  PT-E550W P-touch Label Printer
 	2061  PT-P700 P-touch Label Printer
 	2064  PT-P700 P-touch Label Printer RemovableDisk
+	2065  PT-P750W P-Touch Label Writer
 	2074  PT-D600 P-touch Label Printer
 	209b  QL-800 Label Printer
 	209c  QL-810W Label Printer
@@ -7471,6 +7473,7 @@ const usbIDListData = `#
 	03dd  PTH-460 [Intuos Pro BT (S)] tablet
 	03ec  DTH134 [DTH134] touchscreen
 	03ed  DTC121 [DTC121] touchscreen
+	03f0  DTH135 [Movink 13]
 	0400  PenPartner 4x5
 	4001  TPC4001
 	4004  TPC4004
@@ -9081,6 +9084,7 @@ const usbIDListData = `#
 	0752  micros Reader
 	0760  USB 2.0 Card Reader/Writer
 	0761  Genesys Mass Storage Device
+	0769  SPR2801S [Lightspeeur 2801]
 	0780  USBFS DFU Adapter
 	07a0  Pen Flash
 	0880  Wasp (SL-6612)
@@ -10930,7 +10934,7 @@ const usbIDListData = `#
 	0056  Agfa AP1100 Photo Printer
 	005d  Mobile Mass Storage
 	005f  Laser Pro LL [MFPrinter]
-	0062  XG-76NA 802.11bg
+	0062  XG-76NA / XG-760N 802.11b/g Wireless adapter
 	0078  Laser Pro Monochrome MFP
 079d  Alfadata Computer Corp.
 	0201  GamePort Adapter
@@ -11201,6 +11205,7 @@ const usbIDListData = `#
 	1228  MPEG-2 Capture Device (M038)
 	1830  AVerTV Volar Video Capture (H830)
 	1871  TD310 DVB-T/T2/C dongle
+	2553  Live Gamer Ultra 2.1
 	3835  AVerTV Volar Green HD (A835B)
 	850a  AverTV Volar Black HD (A850)
 	850b  AverTV Red HD+ (A850T)
@@ -11212,6 +11217,7 @@ const usbIDListData = `#
 	b300  A300 DVB-T TV receiver
 	b800  MR800 FM Radio
 	c039  DVD EZMaker 7
+	d553  Live Gamer Ultra Pro-RGB
 	e880  MPEG-2 Capture Device (E880)
 	e882  MPEG-2 Capture Device (E882)
 07cb  Kingmax Technology, Inc.
@@ -12318,7 +12324,7 @@ const usbIDListData = `#
 	0a0b  WLU5053 802.11abgn Wireless Module [Broadcom BCM43236B]
 	0a13  AX88179 Gigabit Ethernet [Toshiba]
 	0b05  PX1220E-1G25 External hard drive
-	0b09  PX1396E-3T01 External hard drive
+	0b09  PX139xE 3.5 External HDD
 	0b1a  STOR.E ALU 2S
 	1300  Wireless Broadband (CDMA EV-DO) SM-Bus Minicard Status Port
 	1301  Wireless Broadband (CDMA EV-DO) Minicard Status Port
@@ -12452,6 +12458,7 @@ const usbIDListData = `#
 	010f  nanoKONTROL studio controller
 	0117  nanoKONTROL2 MIDI Controller
 	012f  SQ-1
+	0154  NTS-1 digital kit mkII
 	0203  KRONOS
 	0f03  K-Series K61P MIDI studio controller
 0945  Pasco Scientific
@@ -13036,6 +13043,7 @@ const usbIDListData = `#
 	5803  BCM5880 Secure Applications Processor with secure keyboard
 	5804  BCM5880 Secure Applications Processor with fingerprint swipe sensor
 	5832  BCM5880 Secure Applications Processor Smartcard reader
+	5843  BCM58200 ControlVault 3 (FingerPrint sensor + Contacted SmartCard)
 	6300  Pirelli Remote NDIS Device
 	6410  BCM20703A1 Bluetooth 4.1 + LE
 	bd11  BCM4320 802.11bg Wireless Adapter
@@ -13052,11 +13060,14 @@ const usbIDListData = `#
 	0009  LP2844 Printer
 	0027  ZTC LP2844-Z-200dpi
 	0050  P120i / WM120i
+	0062  GK420d Label Printer
+	0065  ZM400 Label Printer
 	0080  GK420d Label Printer
 	0081  GK420t Label Printer
 	0084  GX420d Desktop Label Printer
 	008b  HC100 wristbands Printer
 	008c  ZP 450 Printer
+	00a1  TLP2824 Plus
 	00d1  GC420d Label Printer
 	0110  ZD500 Desktop Label Printer
 	011c  ZD410 Direct Thermal Label Printer
@@ -13067,6 +13078,7 @@ const usbIDListData = `#
 	0010  MPMan MP-F40 MP3 Player
 0a66  ClearCube Technology
 0a67  Medeli Electronics Co., Ltd
+	ffff  LCS Audio
 0a68  Comaide Corp.
 0a69  Chroma ate, Inc.
 0a6b  Green House Co., Ltd
@@ -13278,10 +13290,11 @@ const usbIDListData = `#
 0ac9  Micro Solutions, Inc.
 	0000  Backpack CD-ReWriter
 	0001  BACKPACK  2 Cable
-	0010  BACKPACK
+	0010  BACKPACK CD Drive
 	0011  Backpack 40GB Hard Drive
 	0110  BACKPACK
 	0111  BackPack
+	10ff  BACKPACK
 	1234  BACKPACK
 0aca  OPEN Networks Ltd
 	1060  OPEN NT1 Plus II
@@ -13340,7 +13353,7 @@ const usbIDListData = `#
 	3102  MemoryStick Card Reader
 	3201  MMC/SD+MemoryStick Card Reader
 	3216  HS Card Reader
-	3260  7-in-1 Card Reader
+	3260  ND3260 7-in-1 Card Reader
 	5010  ND5010 Card Reader
 0af0  Option
 	5000  UMTS Card
@@ -13414,6 +13427,7 @@ const usbIDListData = `#
 	17a0  Xonar U3 sound card
 	17a1  Eee Note EA800 (mass storage mode)
 	17ab  USB-N13 802.11n Network Adapter (rev. B1) [Realtek RTL8192CU]
+	17b5  Broadcom BCM20702A0 Bluetooth
 	17ba  N10 Nano 802.11n Network Adapter [Realtek RTL8192CU]
 	17c2  ROG Spitfire
 	17c7  WL-330NUL

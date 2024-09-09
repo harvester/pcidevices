@@ -56,6 +56,21 @@ var (
 	}
 )
 
+func Test_UploadUSBDeviceClaimNotInUse(t *testing.T) {
+	assert := require.New(t)
+	harvesterfakeClient := harvesterfake.NewSimpleClientset()
+	vmCache := fakeclients.VirtualMachineCache(harvesterfakeClient.KubevirtV1().VirtualMachines)
+	usbValidator := NewUSBDeviceClaimValidator(vmCache)
+	old := usbdeviceclaim1.DeepCopy()
+	old.Spec.UserName = "admin"
+	newOne := usbdeviceclaim1.DeepCopy()
+	newOne.Spec.UserName = "admin2"
+
+	err := usbValidator.Update(nil, old, newOne)
+
+	assert.Error(err, "expected error when updating the userName")
+}
+
 func Test_DeleteUSBDeviceClaimInUse(t *testing.T) {
 	assert := require.New(t)
 	harvesterfakeClient := harvesterfake.NewSimpleClientset(vmWithValidUSBDeviceName)
