@@ -14,6 +14,7 @@ import (
 	"github.com/harvester/pcidevices/pkg/deviceplugins"
 	ctldevicerv1beta1 "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 	ctlkubevirtv1 "github.com/harvester/pcidevices/pkg/generated/controllers/kubevirt.io/v1"
+	"github.com/harvester/pcidevices/pkg/util"
 )
 
 type DevClaimHandler struct {
@@ -69,7 +70,7 @@ func (h *DevClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1be
 	h.lock.Lock()
 	defer h.lock.Unlock()
 
-	virt, err := h.virtClient.Get(KubeVirtNamespace, KubeVirtResource, metav1.GetOptions{})
+	virt, err := h.virtClient.Get(util.KubeVirtNamespace, util.KubeVirtResource, metav1.GetOptions{})
 	if err != nil {
 		logrus.Errorf("failed to get kubevirt: %v", err)
 		return usbDeviceClaim, err
@@ -138,7 +139,7 @@ func (h *DevClaimHandler) OnRemove(_ string, claim *v1beta1.USBDeviceClaim) (*v1
 	h.lock.Lock()
 	defer h.lock.Unlock()
 
-	virt, err := h.virtClient.Get(KubeVirtNamespace, KubeVirtResource, metav1.GetOptions{})
+	virt, err := h.virtClient.Get(util.KubeVirtNamespace, util.KubeVirtResource, metav1.GetOptions{})
 	if err != nil {
 		fmt.Println(err)
 		return nil, err

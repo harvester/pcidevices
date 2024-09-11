@@ -9,12 +9,6 @@ import (
 	"github.com/harvester/pcidevices/pkg/config"
 )
 
-const (
-	KubeVirtNamespace      = "harvester-system"
-	KubeVirtResource       = "kubevirt"
-	KubeVirtResourcePrefix = "kubevirt.io/"
-)
-
 func Register(ctx context.Context, management *config.FactoryManager) error {
 	usbDeviceCtrl := management.DeviceFactory.Devices().V1beta1().USBDevice()
 	usbDeviceClaimCtrl := management.DeviceFactory.Devices().V1beta1().USBDeviceClaim()

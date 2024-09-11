@@ -11,6 +11,7 @@ import (
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/generated/clientset/versioned/fake"
+	"github.com/harvester/pcidevices/pkg/util"
 	"github.com/harvester/pcidevices/pkg/util/fakeclients"
 )
 
@@ -35,7 +36,7 @@ var (
 	mockKubeVirt = &kubevirtv1.KubeVirt{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "kubevirt",
-			Namespace: KubeVirtNamespace,
+			Namespace: util.KubeVirtNamespace,
 		},
 		Spec: kubevirtv1.KubeVirtSpec{},
 	}

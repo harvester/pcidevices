@@ -17,6 +17,7 @@ import (
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/deviceplugins"
 	ctldevicerv1vbeta1 "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/util"
 	"github.com/harvester/pcidevices/pkg/util/gousb"
 	"github.com/harvester/pcidevices/pkg/util/gousb/usbid"
 )
@@ -266,5 +267,5 @@ func isStatusChanged(existed *v1beta1.USBDevice, localUSBDevice *deviceplugins.U
 }
 
 func resourceName(name string) string {
-	return fmt.Sprintf("%s%s", KubeVirtResourcePrefix, name)
+	return fmt.Sprintf("%s%s", util.KubeVirtResourcePrefix, name)
 }

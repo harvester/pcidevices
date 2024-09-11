@@ -70,41 +70,52 @@ func (vmValidator *vmDeviceHostValidator) Update(_ *types.Request, _ runtime.Obj
 
 func (vmValidator *vmDeviceHostValidator) validateDevicesFromSameNodes(vmObj *kubevirtv1.VirtualMachine) error {
 	var nodeName string
-	errorMsgFormat := "device %s/%s is not on the same node in VirtualMachine.Spec.Template.Spec.Domain.Devices.HostDevices %s"
 
-	for _, device := range vmObj.Spec.Template.Spec.Domain.Devices.HostDevices {
-		usb, err := vmValidator.usbCache.Get(device.Name)
-		if err != nil {
-			if !apierrors.IsNotFound(err) {
-				return err
-			}
-		}
-
-		if nodeName == "" && usb != nil {
-			nodeName = usb.Status.NodeName
-			continue
-		}
-
-		pci, err := vmValidator.pciCache.Get(device.Name)
-		if err != nil {
-			if !apierrors.IsNotFound(err) {
-				return err
-			}
-		}
-
-		if nodeName == "" && pci != nil {
-			nodeName = pci.Status.NodeName
-			continue
-		}
-
-		if pci != nil && pci.Status.NodeName != nodeName {
-			return fmt.Errorf(errorMsgFormat, "pcidevice", pci.Name, vmObj.Name)
-		}
-
-		if usb != nil && usb.Status.NodeName != nodeName {
-			return fmt.Errorf(errorMsgFormat, "usbdevice", usb.Name, vmObj.Name)
+	for number, device := range vmObj.Spec.Template.Spec.Domain.Devices.HostDevices {
+		if err := vmValidator.validateDevice(device, &nodeName, number, vmObj.Name); err != nil {
+			return err
 		}
 	}
 
 	return nil
+}
+
+func (vmValidator *vmDeviceHostValidator) validateDevice(device kubevirtv1.HostDevice, nodeName *string, number int, vmName string) error {
+	errorMsgFormat := "hostDevices[].name %s/%s is not on the same node in VirtualMachine.Spec.Template.Spec.Domain.Devices.HostDevices %s"
+
+	usb, err := vmValidator.usbCache.Get(device.Name)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+
+	if *nodeName == "" && usb != nil {
+		if usb.Status.ResourceName != device.DeviceName {
+			return fmt.Errorf("hostDevices[%d].DeviceName %s is not found in USBDevice", number, device.DeviceName)
+		}
+		*nodeName = usb.Status.NodeName
+		return nil
+	}
+
+	pci, err := vmValidator.pciCache.Get(device.Name)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+
+	if *nodeName == "" && pci != nil {
+		if pci.Status.ResourceName != device.DeviceName {
+			return fmt.Errorf("hostDevices[%d].DeviceName %s is not found in PCIDevice", number, device.DeviceName)
+		}
+		*nodeName = pci.Status.NodeName
+		return nil
+	}
+
+	if pci != nil && pci.Status.NodeName != *nodeName {
+		return fmt.Errorf(errorMsgFormat, "pcidevice", pci.Name, vmName)
+	}
+
+	if usb != nil && usb.Status.NodeName != *nodeName {
+		return fmt.Errorf(errorMsgFormat, "usbdevice", usb.Name, vmName)
+	}
+
+	return fmt.Errorf("hostDevices[%d].name %s is not found in USBDevice or PCIDevice", number, device.Name)
 }
