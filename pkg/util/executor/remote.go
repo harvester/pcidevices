@@ -64,7 +64,11 @@ func (r *RemoteCommandExecutor) Run(cmd string, args []string) ([]byte, error) {
 		Executor:      &exec.DefaultRemoteExecutor{},
 	}
 
-	cmdString := fmt.Sprintf("%s %s", cmd, strings.Join(args, " "))
+	var argString string
+	if len(args) > 0 {
+		argString = strings.Join(args, " ")
+	}
+	cmdString := fmt.Sprintf("%s %s", cmd, argString)
 	options.Command = []string{"/bin/sh", "-c", cmdString}
 	err := options.Run()
 	if err != nil {

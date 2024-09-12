@@ -41,7 +41,7 @@ import (
 )
 
 const (
-	vgpuPrefix = "MDEV_PCI_RESOURCE"
+	VGPUPrefix = "MDEV_PCI_RESOURCE"
 )
 
 type VGPUDevicePlugin struct {
@@ -212,7 +212,7 @@ func (dp *VGPUDevicePlugin) ListAndWatch(_ *pluginapi.Empty, s pluginapi.DeviceP
 
 func (dp *VGPUDevicePlugin) Allocate(_ context.Context, r *pluginapi.AllocateRequest) (*pluginapi.AllocateResponse, error) {
 	logrus.Debugf("Allocate request %s", r.String())
-	resourceNameEnvVar := util.ResourceNameToEnvVar(vgpuPrefix, dp.resourceName)
+	resourceNameEnvVar := util.ResourceNameToEnvVar(VGPUPrefix, dp.resourceName)
 	allocatedDevices := []string{}
 	resp := new(pluginapi.AllocateResponse)
 	containerResponse := new(pluginapi.ContainerAllocateResponse)

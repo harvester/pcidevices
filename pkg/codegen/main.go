@@ -37,6 +37,8 @@ func main() {
 				kubevirtv1.SchemeGroupVersion.Group: {
 					Types: []interface{}{
 						kubevirtv1.KubeVirt{},
+						kubevirtv1.VirtualMachineInstance{},
+						kubevirtv1.VirtualMachine{},
 					},
 					GenerateTypes:   false,
 					GenerateClients: true,

@@ -78,6 +78,9 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "vgpu-vm",
 			Namespace: "default",
+			Annotations: map[string]string{
+				devicesv1beta1.DeviceAllocationKey: `{"gpus":{"nvidia.com/fakevgpu":["vgpu1"]}}`,
+			},
 		},
 		Spec: kubevirtv1.VirtualMachineSpec{
 			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
@@ -173,6 +176,7 @@ func Test_VGPUDeletion(t *testing.T) {
 	vGPUValidator := NewVGPUValidator(virtualMachineCache)
 	for _, v := range testCases {
 		err := vGPUValidator.Delete(nil, v.gpu)
+		t.Log(err)
 		if v.expectError {
 			assert.Error(err, fmt.Sprintf("expected to find error for test case %s", v.name))
 		} else {
