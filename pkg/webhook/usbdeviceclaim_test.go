@@ -36,6 +36,9 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "vm-with-usb-devices",
 			Namespace: "default",
+			Annotations: map[string]string{
+				devicesv1beta1.DeviceAllocationKey: `{"hostdevices":{"fake.com/device1":["usbdevice1"]}}`,
+			},
 		},
 		Spec: kubevirtv1.VirtualMachineSpec{
 			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	ctlnetwork "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io"
 	"github.com/rancher/lasso/pkg/cache"
 	"github.com/rancher/lasso/pkg/client"
 	"github.com/rancher/lasso/pkg/controller"
@@ -18,6 +17,8 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"kubevirt.io/client-go/kubecli"
 
+	ctlnetwork "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io"
+
 	"github.com/harvester/pcidevices/pkg/config"
 	"github.com/harvester/pcidevices/pkg/controller/gpudevice"
 	"github.com/harvester/pcidevices/pkg/controller/nodecleanup"
@@ -25,6 +26,7 @@ import (
 	"github.com/harvester/pcidevices/pkg/controller/pcideviceclaim"
 	"github.com/harvester/pcidevices/pkg/controller/sriovdevice"
 	"github.com/harvester/pcidevices/pkg/controller/usbdevice"
+	"github.com/harvester/pcidevices/pkg/controller/virtualmachine"
 	"github.com/harvester/pcidevices/pkg/crd"
 	ctldevices "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
 	ctlkubevirt "github.com/harvester/pcidevices/pkg/generated/controllers/kubevirt.io"
@@ -103,6 +105,7 @@ func Setup(ctx context.Context, cfg *rest.Config, _ *runtime.Scheme) error {
 		sriovdevice.Register,
 		nodecleanup.Register,
 		gpudevice.Register,
+		virtualmachine.Register,
 	}
 
 	for _, register := range registers {
@@ -111,7 +114,7 @@ func Setup(ctx context.Context, cfg *rest.Config, _ *runtime.Scheme) error {
 		}
 	}
 
-	if err := start.All(ctx, 2, coreFactory, networkFactory, deviceFactory); err != nil {
+	if err := start.All(ctx, 2, coreFactory, networkFactory, deviceFactory, kubevirtFactory); err != nil {
 		return fmt.Errorf("error starting controllers :%v", err)
 	}
 

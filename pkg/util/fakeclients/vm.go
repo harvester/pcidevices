@@ -2,6 +2,7 @@ package fakeclients
 
 import (
 	"context"
+	"slices"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -11,6 +12,8 @@ import (
 
 	kubevirtv1 "github.com/harvester/harvester/pkg/generated/clientset/versioned/typed/kubevirt.io/v1"
 	kubevirtctlv1 "github.com/harvester/harvester/pkg/generated/controllers/kubevirt.io/v1"
+
+	"github.com/harvester/pcidevices/pkg/util/common"
 )
 
 const (
@@ -88,10 +91,12 @@ func (c VirtualMachineCache) GetByIndex(indexName, key string) ([]*kubevirtv1api
 		}
 
 		for _, vm := range vmList {
-			for _, hostDevice := range vm.Spec.Template.Spec.Domain.Devices.HostDevices {
-				if hostDevice.Name == key {
-					vms = append(vms, vm)
-				}
+			deviceInfo, err := common.VMByHostDeviceName(vm)
+			if err != nil {
+				return nil, err
+			}
+			if slices.Contains(deviceInfo, key) {
+				vms = append(vms, vm)
 			}
 		}
 		return vms, nil
@@ -103,10 +108,12 @@ func (c VirtualMachineCache) GetByIndex(indexName, key string) ([]*kubevirtv1api
 		}
 
 		for _, vm := range vmList {
-			for _, gpuDevice := range vm.Spec.Template.Spec.Domain.Devices.GPUs {
-				if gpuDevice.Name == key {
-					vms = append(vms, vm)
-				}
+			deviceInfo, err := common.VMByVGPUDevice(vm)
+			if err != nil {
+				return nil, err
+			}
+			if slices.Contains(deviceInfo, key) {
+				vms = append(vms, vm)
 			}
 		}
 		return vms, nil

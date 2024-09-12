@@ -1,10 +1,11 @@
 package config
 
 import (
-	ctlnetwork "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io"
 	ctlcore "github.com/rancher/wrangler/pkg/generated/controllers/core"
 	"k8s.io/client-go/rest"
 	"kubevirt.io/client-go/kubecli"
+
+	ctlnetwork "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io"
 
 	ctldevices "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io"
 	ctlkubevirt "github.com/harvester/pcidevices/pkg/generated/controllers/kubevirt.io"

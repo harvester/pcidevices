@@ -107,6 +107,9 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "vm-with-iommu-devices",
 			Namespace: "default",
+			Annotations: map[string]string{
+				devicesv1beta1.DeviceAllocationKey: `{"hostdevices":{"fake.com/device1":["node1dev1"]}}`,
+			},
 		},
 		Spec: kubevirtv1.VirtualMachineSpec{
 			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
@@ -130,6 +133,9 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "vm-with-iommu-devices",
 			Namespace: "default",
+			Annotations: map[string]string{
+				devicesv1beta1.DeviceAllocationKey: `{"hostdevices":{"fake.com/device1":["node1dev1"],"fake.com/device2":["node1dev2"]}}`,
+			},
 		},
 		Spec: kubevirtv1.VirtualMachineSpec{
 			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
