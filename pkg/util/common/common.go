@@ -83,6 +83,14 @@ func GetVFList(pfDir string) (vfList []string, err error) {
 	return
 }
 
+func VMBySpecHostDeviceName(obj *kubevirtv1.VirtualMachine) ([]string, error) {
+	hostDeviceName := make([]string, 0, len(obj.Spec.Template.Spec.Domain.Devices.HostDevices))
+	for _, hostDevice := range obj.Spec.Template.Spec.Domain.Devices.HostDevices {
+		hostDeviceName = append(hostDeviceName, hostDevice.Name)
+	}
+	return hostDeviceName, nil
+}
+
 // VMByHostDeviceName indexes VM's by host device name.
 // It could be usb device claim or pci device claim name.
 func VMByHostDeviceName(obj *kubevirtv1.VirtualMachine) ([]string, error) {

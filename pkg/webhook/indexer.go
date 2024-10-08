@@ -23,7 +23,9 @@ func RegisterIndexers(clients *Clients) {
 	vmCache := clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()
 	vmCache.AddIndexer(VMByName, vmByName)
 	vmCache.AddIndexer(VMByPCIDeviceClaim, common.VMByHostDeviceName)
-	vmCache.AddIndexer(VMByUSBDeviceClaim, common.VMByHostDeviceName)
+	// Because USB device don't have same problem which vGPU and PCI device have,
+	// so we just need to use a simple way to collect the host device names.
+	vmCache.AddIndexer(VMByUSBDeviceClaim, common.VMBySpecHostDeviceName)
 	vmCache.AddIndexer(VMByVGPU, common.VMByVGPUDevice)
 	deviceCache := clients.DeviceFactory.Devices().V1beta1().PCIDevice().Cache()
 	deviceCache.AddIndexer(PCIDeviceByResourceName, pciDeviceByResourceName)

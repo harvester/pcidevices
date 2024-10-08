@@ -67,12 +67,7 @@ func Test_OnUSBDeviceClaimChanged(t *testing.T) {
 		{
 			fun: func(t *testing.T) {
 				client := fake.NewSimpleClientset(mockUsbDevice1, mockUsbDeviceClaim1, mockKubeVirt)
-				handler := NewClaimHandler(
-					fakeclients.USBDeviceCache(client.DevicesV1beta1().USBDevices),
-					fakeclients.USBDeviceClaimsClient(client.DevicesV1beta1().USBDeviceClaims),
-					fakeclients.USBDevicesClient(client.DevicesV1beta1().USBDevices),
-					fakeclients.KubeVirtClient(client.KubevirtV1().KubeVirts),
-				)
+				handler := NewClaimHandler(fakeclients.USBDeviceCache(client.DevicesV1beta1().USBDevices), fakeclients.USBDeviceClaimsClient(client.DevicesV1beta1().USBDeviceClaims), fakeclients.USBDevicesClient(client.DevicesV1beta1().USBDevices), fakeclients.KubeVirtClient(client.KubevirtV1().KubeVirts), make(chan struct{}))
 
 				// Test claim created
 				_, err := handler.OnUSBDeviceClaimChanged("", mockUsbDeviceClaim1)
@@ -123,12 +118,7 @@ func Test_OnUSBDeviceClaimChanged(t *testing.T) {
 		{
 			fun: func(_ *testing.T) {
 				client := fake.NewSimpleClientset(mockUsbDevice1, mockUsbDeviceClaim1, mockKubeVirt)
-				handler := NewClaimHandler(
-					fakeclients.USBDeviceCache(client.DevicesV1beta1().USBDevices),
-					fakeclients.USBDeviceClaimsClient(client.DevicesV1beta1().USBDeviceClaims),
-					fakeclients.USBDevicesClient(client.DevicesV1beta1().USBDevices),
-					fakeclients.KubeVirtClient(client.KubevirtV1().KubeVirts),
-				)
+				handler := NewClaimHandler(fakeclients.USBDeviceCache(client.DevicesV1beta1().USBDevices), fakeclients.USBDeviceClaimsClient(client.DevicesV1beta1().USBDeviceClaims), fakeclients.USBDevicesClient(client.DevicesV1beta1().USBDevices), fakeclients.KubeVirtClient(client.KubevirtV1().KubeVirts), make(chan struct{}))
 
 				// Test claim created
 				_, err := handler.OnUSBDeviceClaimChanged("", mockUsbDeviceClaim1)
@@ -141,12 +131,7 @@ func Test_OnUSBDeviceClaimChanged(t *testing.T) {
 		{
 			fun: func(_ *testing.T) {
 				client := fake.NewSimpleClientset(mockUsbDevice1, mockUsbDeviceClaim1, mockKubeVirt)
-				handler := NewClaimHandler(
-					fakeclients.USBDeviceCache(client.DevicesV1beta1().USBDevices),
-					fakeclients.USBDeviceClaimsClient(client.DevicesV1beta1().USBDeviceClaims),
-					fakeclients.USBDevicesClient(client.DevicesV1beta1().USBDevices),
-					fakeclients.KubeVirtClient(client.KubevirtV1().KubeVirts),
-				)
+				handler := NewClaimHandler(fakeclients.USBDeviceCache(client.DevicesV1beta1().USBDevices), fakeclients.USBDeviceClaimsClient(client.DevicesV1beta1().USBDeviceClaims), fakeclients.USBDevicesClient(client.DevicesV1beta1().USBDevices), fakeclients.KubeVirtClient(client.KubevirtV1().KubeVirts), make(chan struct{}))
 
 				// Test claim created
 				mockUsbDeviceClaim1.Name = "non-exist"

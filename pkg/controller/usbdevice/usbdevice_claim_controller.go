@@ -23,6 +23,7 @@ type DevClaimHandler struct {
 	lock                 *sync.Mutex
 	usbDeviceCache       ctldevicerv1beta1.USBDeviceCache
 	managedDevicePlugins map[string]*deviceplugins.USBDevicePlugin
+	reconcileUSBDevice   chan<- struct{}
 }
 
 func NewClaimHandler(
@@ -30,6 +31,7 @@ func NewClaimHandler(
 	usbClaimClient ctldevicerv1beta1.USBDeviceClaimClient,
 	usbClient ctldevicerv1beta1.USBDeviceClient,
 	virtClient ctlkubevirtv1.KubeVirtClient,
+	reconcileUSBDevice chan<- struct{},
 ) *DevClaimHandler {
 	return &DevClaimHandler{
 		usbDeviceCache:       usbDeviceCache,
@@ -38,6 +40,7 @@ func NewClaimHandler(
 		virtClient:           virtClient,
 		lock:                 &sync.Mutex{},
 		managedDevicePlugins: map[string]*deviceplugins.USBDevicePlugin{},
+		reconcileUSBDevice:   reconcileUSBDevice,
 	}
 }
 
@@ -97,6 +100,18 @@ func (h *DevClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1be
 
 	if !devicePlugin.IsStarted() {
 		devicePlugin.StartDevicePlugin()
+
+		usbDeviceCp := usbDevice.DeepCopy()
+		// Reset status and message regardless of the original status when the device plugin is started
+		usbDeviceCp.Status.Status = ""
+		usbDeviceCp.Status.Message = ""
+
+		if !reflect.DeepEqual(usbDevice.Status, usbDeviceCp.Status) {
+			if usbDevice, err = h.usbClient.UpdateStatus(usbDeviceCp); err != nil {
+				logrus.Errorf("failed to enable usb device %s status: %v", usbDeviceCp.Name, err)
+				return usbDeviceClaim, err
+			}
+		}
 	}
 
 	if !usbDevice.Status.Enabled {
@@ -107,6 +122,11 @@ func (h *DevClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1be
 			return usbDeviceClaim, err
 		}
 	}
+
+	go func() {
+		// Actively reconcile usb device
+		h.reconcileUSBDevice <- struct{}{}
+	}()
 
 	// just sync usb device pci address to usb device claim
 	usbDeviceClaimCp := usbDeviceClaim.DeepCopy()
@@ -172,6 +192,10 @@ func (h *DevClaimHandler) OnRemove(_ string, claim *v1beta1.USBDeviceClaim) (*v1
 	if devicePlugin, ok := h.managedDevicePlugins[claim.Name]; ok {
 		devicePlugin.StopDevicePlugin()
 		delete(h.managedDevicePlugins, claim.Name)
+		go func() {
+			// Actively reconcile usb device
+			h.reconcileUSBDevice <- struct{}{}
+		}()
 	}
 
 	usbDeviceCp := usbDevice.DeepCopy()
