@@ -14,6 +14,8 @@ type USBDevice struct {
 	Status USBDeviceStatus `json:"status,omitempty"`
 }
 
+const USBDeviceStatusOrphaned = "orphaned"
+
 type USBDeviceStatus struct {
 	VendorID     string `json:"vendorID"`
 	ProductID    string `json:"productID"`
@@ -23,4 +25,6 @@ type USBDeviceStatus struct {
 	Description  string `json:"description"`
 	PCIAddress   string `json:"pciAddress"`
 	Enabled      bool   `json:"enabled"`
+	Status       string `json:"status,omitempty"`
+	Message      string `json:"message,omitempty"`
 }
