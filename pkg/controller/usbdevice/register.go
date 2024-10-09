@@ -16,14 +16,12 @@ const (
 )
 
 func Register(ctx context.Context, management *config.FactoryManager) error {
-	reconcileUSBDevice := make(chan struct{}, 1)
-
 	usbDeviceCtrl := management.DeviceFactory.Devices().V1beta1().USBDevice()
 	usbDeviceClaimCtrl := management.DeviceFactory.Devices().V1beta1().USBDeviceClaim()
 	virtClient := management.KubevirtFactory.Kubevirt().V1().KubeVirt()
 
 	handler := NewHandler(usbDeviceCtrl, usbDeviceClaimCtrl, usbDeviceCtrl.Cache(), usbDeviceClaimCtrl.Cache())
-	usbDeviceClaimController := NewClaimHandler(usbDeviceCtrl.Cache(), usbDeviceClaimCtrl, usbDeviceCtrl, virtClient, reconcileUSBDevice)
+	usbDeviceClaimController := NewClaimHandler(usbDeviceCtrl.Cache(), usbDeviceClaimCtrl, usbDeviceCtrl, virtClient, handler.reconcileSignal)
 
 	// Initial reconcile
 	if err := handler.reconcile(); err != nil {
@@ -31,7 +29,7 @@ func Register(ctx context.Context, management *config.FactoryManager) error {
 		return err
 	}
 
-	if err := handler.WatchUSBDevices(ctx, reconcileUSBDevice); err != nil {
+	if err := handler.WatchUSBDevices(ctx); err != nil {
 		logrus.Errorf("error watching usb devices: %v", err)
 		return err
 	}

@@ -26,6 +26,8 @@ type DevHandler struct {
 	usbClaimClient ctldevicerv1vbeta1.USBDeviceClaimClient
 	usbCache       ctldevicerv1vbeta1.USBDeviceCache
 	usbClaimCache  ctldevicerv1vbeta1.USBDeviceClaimCache
+
+	reconcileSignal chan struct{}
 }
 
 type UsageList struct {
@@ -44,10 +46,11 @@ func NewHandler(
 	usbClaimCache ctldevicerv1vbeta1.USBDeviceClaimCache,
 ) *DevHandler {
 	return &DevHandler{
-		usbClient:      usbClient,
-		usbClaimClient: usbClaimClient,
-		usbCache:       usbCache,
-		usbClaimCache:  usbClaimCache,
+		usbClient:       usbClient,
+		usbClaimClient:  usbClaimClient,
+		usbCache:        usbCache,
+		usbClaimCache:   usbClaimCache,
+		reconcileSignal: make(chan struct{}, 1),
 	}
 }
 
@@ -80,7 +83,7 @@ func (h *DevHandler) OnDeviceChange(_ string, _ string, obj runtime.Object) ([]r
 	return nil, nil
 }
 
-func (h *DevHandler) WatchUSBDevices(ctx context.Context, reconcile <-chan struct{}) error {
+func (h *DevHandler) WatchUSBDevices(ctx context.Context) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return fmt.Errorf("failed to creating a fsnotify watcher: %v", err)
@@ -108,7 +111,7 @@ func (h *DevHandler) WatchUSBDevices(ctx context.Context, reconcile <-chan struc
 			select {
 			case <-ctx.Done():
 				return
-			case <-orChan(watcher.Events, reconcile):
+			case <-orChan(watcher.Events, h.reconcileSignal):
 				// we need reconcile whatever there is a change in /dev/bus/usb/xxx or reconcile signal is received
 				if err := h.reconcile(); err != nil {
 					logrus.Errorf("failed to reconcile USB devices: %v", err)
@@ -193,7 +196,7 @@ func (h *DevHandler) handleList(usageList UsageList) error {
 
 		logrus.Errorf("failed to delete orphaned device claim: %v\n", err)
 		usbDevice.Status.Status = v1beta1.USBDeviceStatusOrphaned
-		usbDevice.Status.Message = "The USB device is orphaned, please remove it from virtual machine."
+		usbDevice.Status.Message = "The USB device is orphaned, please remove it from virtual machine and disable it."
 
 		_, err = h.usbClient.UpdateStatus(usbDevice)
 		if err != nil {

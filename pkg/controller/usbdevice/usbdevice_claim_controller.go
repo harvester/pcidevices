@@ -98,27 +98,23 @@ func (h *DevClaimHandler) OnUSBDeviceClaimChanged(_ string, usbDeviceClaim *v1be
 		devicePlugin = usbDevicePlugin
 	}
 
+	usbDeviceCp := usbDevice.DeepCopy()
+
 	if !devicePlugin.IsStarted() {
 		devicePlugin.StartDevicePlugin()
 
-		usbDeviceCp := usbDevice.DeepCopy()
 		// Reset status and message regardless of the original status when the device plugin is started
 		usbDeviceCp.Status.Status = ""
 		usbDeviceCp.Status.Message = ""
-
-		if !reflect.DeepEqual(usbDevice.Status, usbDeviceCp.Status) {
-			if usbDevice, err = h.usbClient.UpdateStatus(usbDeviceCp); err != nil {
-				logrus.Errorf("failed to enable usb device %s status: %v", usbDeviceCp.Name, err)
-				return usbDeviceClaim, err
-			}
-		}
 	}
 
 	if !usbDevice.Status.Enabled {
-		usbDeviceCp := usbDevice.DeepCopy()
 		usbDeviceCp.Status.Enabled = true
-		if _, err = h.usbClient.UpdateStatus(usbDeviceCp); err != nil {
-			logrus.Errorf("failed to enable usb device %s status: %v", usbDeviceCp.Name, err)
+	}
+
+	if !reflect.DeepEqual(usbDevice.Status, usbDeviceCp.Status) {
+		if usbDevice, err = h.usbClient.UpdateStatus(usbDeviceCp); err != nil {
+			logrus.Errorf("failed to update usb device %s status: %v", usbDeviceCp.Name, err)
 			return usbDeviceClaim, err
 		}
 	}
