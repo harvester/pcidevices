@@ -1,6 +1,6 @@
 module github.com/harvester/pcidevices
 
-go 1.22
+go 1.22.7
 
 require (
 	github.com/evanphx/json-patch v5.6.0+incompatible
@@ -150,13 +150,13 @@ require (
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.25.0 // indirect
-	golang.org/x/crypto v0.18.0 // indirect
+	golang.org/x/crypto v0.21.0 // indirect
 	golang.org/x/mod v0.14.0 // indirect
-	golang.org/x/net v0.20.0
+	golang.org/x/net v0.21.0
 	golang.org/x/oauth2 v0.13.0 // indirect
 	golang.org/x/sync v0.5.0 // indirect
-	golang.org/x/sys v0.16.0 // indirect
-	golang.org/x/term v0.16.0 // indirect
+	golang.org/x/sys v0.18.0 // indirect
+	golang.org/x/term v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.16.1 // indirect
@@ -189,9 +189,10 @@ replace (
 	github.com/rancher/rancher/pkg/apis => github.com/rancher/rancher/pkg/apis v0.0.0-20230124173128-2207cfed1803
 	github.com/rancher/rancher/pkg/client => github.com/rancher/rancher/pkg/client v0.0.0-20230124173128-2207cfed1803
 	github.com/u-root/u-root => github.com/u-root/u-root v0.10.0
-	golang.org/x/net => golang.org/x/net v0.17.0
+	golang.org/x/net => golang.org/x/net v0.23.0
 	golang.org/x/text => golang.org/x/text v0.3.8
 	google.golang.org/grpc => google.golang.org/grpc v1.56.3
+	google.golang.org/protobuf => google.golang.org/protobuf v1.33.0
 	k8s.io/api => k8s.io/api v0.26.13
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.26.13
 	k8s.io/apimachinery => k8s.io/apimachinery v0.26.13
