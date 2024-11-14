@@ -24,6 +24,7 @@ import (
 	"github.com/harvester/pcidevices/pkg/config"
 	"github.com/harvester/pcidevices/pkg/deviceplugins"
 	v1beta1gen "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/iommu"
 )
 
 var (
@@ -277,6 +278,18 @@ func getOrphanedPCIDevices(
 	return &pdsOrphaned, nil
 }
 
+func checkGroupMap(pd *v1beta1.PCIDevice) error {
+	group, err := iommu.GetGroupMap(pd.Status.Address)
+	if err != nil {
+		return err
+	}
+
+	if group != pd.Status.IOMMUGroup {
+		return fmt.Errorf("group mismatch: sys %s pd %s", group, pd.Status.IOMMUGroup)
+	}
+	return nil
+}
+
 func (h *Handler) reconcilePCIDeviceClaims(_ string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
 
 	if pdc == nil || pdc.DeletionTimestamp != nil || (pdc.Spec.NodeName != h.nodeName) {
@@ -287,6 +300,10 @@ func (h *Handler) reconcilePCIDeviceClaims(_ string, pdc *v1beta1.PCIDeviceClaim
 	// Get the PCIDevice object for the PCIDeviceClaim
 	pd, err := h.getPCIDeviceForClaim(pdc)
 	if pd == nil {
+		return pdc, err
+	}
+
+	if err := checkGroupMap(pd); err != nil {
 		return pdc, err
 	}
 
