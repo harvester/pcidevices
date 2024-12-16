@@ -73,44 +73,30 @@ var (
 )
 
 func Test_CreateVM(t *testing.T) {
+
 	testcases := []struct {
 		name   string
 		err    error
-		before func() // do some changes before testing
-		after  func() // recover changes after testing
+		before func(usbdevice2innode1Cp *devicesv1beta1.USBDevice, pcideviceinnode1Cp *devicesv1beta1.PCIDevice, vmWithTwoInSameNodeDevicesCp *kubevirtv1.VirtualMachine)
 	}{
 		{
 			name:   "matched node name",
-			before: func() {},
-			after:  func() {},
+			before: func(_ *devicesv1beta1.USBDevice, _ *devicesv1beta1.PCIDevice, _ *kubevirtv1.VirtualMachine) {},
 			err:    nil,
 		},
 		{
 			name: "mismatched node name - mismatched usb device",
-			before: func() {
-				usbdevice2innode1.Status.NodeName = "node2"
+			before: func(usbdevice2innode1Cp *devicesv1beta1.USBDevice, pcideviceinnode1Cp *devicesv1beta1.PCIDevice, vmWithTwoInSameNodeDevicesCp *kubevirtv1.VirtualMachine) {
+				usbdevice2innode1Cp.Status.NodeName = "node2"
 				// change order to trigger usb device is mismatched
-				vmWithTwoInSameNodeDevices.Spec.Template.Spec.Domain.Devices.HostDevices = []kubevirtv1.HostDevice{
+				vmWithTwoInSameNodeDevicesCp.Spec.Template.Spec.Domain.Devices.HostDevices = []kubevirtv1.HostDevice{
 					{
-						Name:       pcideviceinnode1.Name,
-						DeviceName: pcideviceinnode1.Status.ResourceName,
+						Name:       pcideviceinnode1Cp.Name,
+						DeviceName: pcideviceinnode1Cp.Status.ResourceName,
 					},
 					{
-						Name:       usbdevice2innode1.Name,
-						DeviceName: usbdevice2innode1.Status.ResourceName,
-					},
-				}
-			},
-			after: func() {
-				usbdevice2innode1.Status.NodeName = "node1"
-				vmWithTwoInSameNodeDevices.Spec.Template.Spec.Domain.Devices.HostDevices = []kubevirtv1.HostDevice{
-					{
-						Name:       usbdevice2innode1.Name,
-						DeviceName: usbdevice2innode1.Status.ResourceName,
-					},
-					{
-						Name:       pcideviceinnode1.Name,
-						DeviceName: pcideviceinnode1.Status.ResourceName,
+						Name:       usbdevice2innode1Cp.Name,
+						DeviceName: usbdevice2innode1Cp.Status.ResourceName,
 					},
 				}
 			},
@@ -118,70 +104,114 @@ func Test_CreateVM(t *testing.T) {
 		},
 		{
 			name: "mismatched node name - mismatched pci device",
-			before: func() {
-				pcideviceinnode1.Status.NodeName = "node2"
-			},
-			after: func() {
-				pcideviceinnode1.Status.NodeName = "node1"
+			before: func(_ *devicesv1beta1.USBDevice, pcideviceinnode1Cp *devicesv1beta1.PCIDevice, _ *kubevirtv1.VirtualMachine) {
+				pcideviceinnode1Cp.Status.NodeName = "node2"
 			},
 			err: errors.New("device pcidevice/node1dev1noiommu is not on the same node in VirtualMachine.Spec.Template.Spec.Domain.Devices.HostDevices vm-with-usb-devices2"),
+		},
+		{
+			name: "usb device name is different from CR, it should be able to create",
+			before: func(_ *devicesv1beta1.USBDevice, _ *devicesv1beta1.PCIDevice, vm *kubevirtv1.VirtualMachine) {
+				vm.Spec.Template.Spec.Domain.Devices.HostDevices[0].Name = "tempusbdevice"
+			},
+			err: nil,
+		},
+		{
+			name: "mismatched usb resource name ",
+			before: func(_ *devicesv1beta1.USBDevice, _ *devicesv1beta1.PCIDevice, vm *kubevirtv1.VirtualMachine) {
+				vm.Spec.Template.Spec.Domain.Devices.HostDevices[0].DeviceName = "fake.com/device2"
+			},
+			err: errors.New("hostdevice usbdevice2innode1: resource name fake.com/device2 not found in pcidevice and usbdevice cache"),
+		},
+		{
+			name: "pci device name is different from CR, it should be able to create",
+			before: func(_ *devicesv1beta1.USBDevice, _ *devicesv1beta1.PCIDevice, vm *kubevirtv1.VirtualMachine) {
+				vm.Spec.Template.Spec.Domain.Devices.HostDevices[1].Name = "temppcidevice"
+			},
+			err: nil,
+		},
+		{
+			name: "mismatched pci resource name ",
+			before: func(_ *devicesv1beta1.USBDevice, _ *devicesv1beta1.PCIDevice, vm *kubevirtv1.VirtualMachine) {
+				vm.Spec.Template.Spec.Domain.Devices.HostDevices[1].DeviceName = "fake.com/device2"
+			},
+			err: errors.New("hostdevice node1dev1noiommu: resource name fake.com/device2 not found in pcidevice and usbdevice cache"),
+		},
+		{
+			name: "gpu device name is different from CR, it should be able to create",
+			before: func(_ *devicesv1beta1.USBDevice, pcideviceinnode1cp *devicesv1beta1.PCIDevice, vm *kubevirtv1.VirtualMachine) {
+				vm.Spec.Template.Spec.Domain.Devices.HostDevices = []kubevirtv1.HostDevice{}
+				vm.Spec.Template.Spec.Domain.Devices.GPUs = []kubevirtv1.GPU{
+					{
+						Name:       pcideviceinnode1cp.Name + "fake",
+						DeviceName: pcideviceinnode1cp.Status.ResourceName,
+					},
+				}
+			},
+			err: nil,
+		},
+		{
+			name: "mismatched gpu resource name ",
+			before: func(_ *devicesv1beta1.USBDevice, pcideviceinnode1cp *devicesv1beta1.PCIDevice, vm *kubevirtv1.VirtualMachine) {
+				vm.Spec.Template.Spec.Domain.Devices.HostDevices = []kubevirtv1.HostDevice{}
+				vm.Spec.Template.Spec.Domain.Devices.GPUs = []kubevirtv1.GPU{
+					{
+						Name:       pcideviceinnode1cp.Name,
+						DeviceName: pcideviceinnode1cp.Status.ResourceName + "fake",
+					},
+				}
+			},
+			err: errors.New("gpu device node1dev1noiommu: resource name fake.com/device1fake not found in pcidevice cache"),
 		},
 	}
 
 	for _, tc := range testcases {
-		tc.before()
+		pcideviceinnode1Cp := pcideviceinnode1.DeepCopy()
+		usbdevice2innode1Cp := usbdevice2innode1.DeepCopy()
+		vmWithTwoInSameNodeDevicesCp := vmWithTwoInSameNodeDevices.DeepCopy()
+		tc.before(
+			usbdevice2innode1Cp,
+			pcideviceinnode1Cp,
+			vmWithTwoInSameNodeDevicesCp,
+		)
 
-		fakeClient := fake.NewSimpleClientset(usbdevice2innode1, pcideviceinnode1)
+		fakeClient := fake.NewSimpleClientset(usbdevice2innode1Cp, pcideviceinnode1Cp)
 		usbCache := fakeclients.USBDeviceCache(fakeClient.DevicesV1beta1().USBDevices)
 		pciCache := fakeclients.PCIDevicesCache(fakeClient.DevicesV1beta1().PCIDevices)
+
 		validator := NewDeviceHostValidation(usbCache, pciCache)
-		err := validator.Create(nil, vmWithTwoInSameNodeDevices)
+		err := validator.Create(nil, vmWithTwoInSameNodeDevicesCp)
 
 		assert.Equal(t, tc.err, err, tc.name)
-
-		tc.after()
 	}
 }
 
 func Test_UpdateVM(t *testing.T) {
+
 	testcases := []struct {
 		name   string
 		err    error
-		before func() // do some changes before testing
-		after  func() // recover changes after testing
+		before func(usbdevice2innode1Cp *devicesv1beta1.USBDevice, pcideviceinnode1Cp *devicesv1beta1.PCIDevice, vmWithTwoInSameNodeDevicesCp *kubevirtv1.VirtualMachine)
 	}{
 		{
-			name:   "matched node name",
-			before: func() {},
-			after:  func() {},
-			err:    nil,
+			name: "matched node name",
+			before: func(_ *devicesv1beta1.USBDevice, _ *devicesv1beta1.PCIDevice, _ *kubevirtv1.VirtualMachine) {
+			},
+			err: nil,
 		},
 		{
 			name: "mismatched node name - mismatched usb device",
-			before: func() {
-				usbdevice2innode1.Status.NodeName = "node2"
+			before: func(usbdevice2innode1Cp *devicesv1beta1.USBDevice, pcideviceinnode1Cp *devicesv1beta1.PCIDevice, vmWithTwoInSameNodeDevicesCp *kubevirtv1.VirtualMachine) {
+				usbdevice2innode1Cp.Status.NodeName = "node2"
 				// change order to trigger usb device is mismatched
-				vmWithTwoInSameNodeDevices.Spec.Template.Spec.Domain.Devices.HostDevices = []kubevirtv1.HostDevice{
+				vmWithTwoInSameNodeDevicesCp.Spec.Template.Spec.Domain.Devices.HostDevices = []kubevirtv1.HostDevice{
 					{
-						Name:       pcideviceinnode1.Name,
-						DeviceName: pcideviceinnode1.Status.ResourceName,
+						Name:       pcideviceinnode1Cp.Name,
+						DeviceName: pcideviceinnode1Cp.Status.ResourceName,
 					},
 					{
-						Name:       usbdevice2innode1.Name,
-						DeviceName: usbdevice2innode1.Status.ResourceName,
-					},
-				}
-			},
-			after: func() {
-				usbdevice2innode1.Status.NodeName = "node1"
-				vmWithTwoInSameNodeDevices.Spec.Template.Spec.Domain.Devices.HostDevices = []kubevirtv1.HostDevice{
-					{
-						Name:       usbdevice2innode1.Name,
-						DeviceName: usbdevice2innode1.Status.ResourceName,
-					},
-					{
-						Name:       pcideviceinnode1.Name,
-						DeviceName: pcideviceinnode1.Status.ResourceName,
+						Name:       usbdevice2innode1Cp.Name,
+						DeviceName: usbdevice2innode1Cp.Status.ResourceName,
 					},
 				}
 			},
@@ -189,27 +219,81 @@ func Test_UpdateVM(t *testing.T) {
 		},
 		{
 			name: "mismatched node name - mismatched pci device",
-			before: func() {
-				pcideviceinnode1.Status.NodeName = "node2"
-			},
-			after: func() {
-				pcideviceinnode1.Status.NodeName = "node1"
+			before: func(_ *devicesv1beta1.USBDevice, pcideviceinnode1Cp *devicesv1beta1.PCIDevice, _ *kubevirtv1.VirtualMachine) {
+				pcideviceinnode1Cp.Status.NodeName = "node2"
 			},
 			err: errors.New("device pcidevice/node1dev1noiommu is not on the same node in VirtualMachine.Spec.Template.Spec.Domain.Devices.HostDevices vm-with-usb-devices2"),
+		},
+		{
+			name: "usb device name is different from CR, it should be able to create",
+			before: func(_ *devicesv1beta1.USBDevice, _ *devicesv1beta1.PCIDevice, vm *kubevirtv1.VirtualMachine) {
+				vm.Spec.Template.Spec.Domain.Devices.HostDevices[0].Name = "tempusbdevice"
+			},
+			err: nil,
+		},
+		{
+			name: "mismatched usb resource name ",
+			before: func(_ *devicesv1beta1.USBDevice, _ *devicesv1beta1.PCIDevice, vm *kubevirtv1.VirtualMachine) {
+				vm.Spec.Template.Spec.Domain.Devices.HostDevices[0].DeviceName = "fake.com/device2"
+			},
+			err: errors.New("hostdevice usbdevice2innode1: resource name fake.com/device2 not found in pcidevice and usbdevice cache"),
+		},
+		{
+			name: "pci device name is different from CR, it should be able to create",
+			before: func(_ *devicesv1beta1.USBDevice, _ *devicesv1beta1.PCIDevice, vm *kubevirtv1.VirtualMachine) {
+				vm.Spec.Template.Spec.Domain.Devices.HostDevices[1].Name = "temppcidevice"
+			},
+			err: nil,
+		},
+		{
+			name: "mismatched pci resource name ",
+			before: func(_ *devicesv1beta1.USBDevice, _ *devicesv1beta1.PCIDevice, vm *kubevirtv1.VirtualMachine) {
+				vm.Spec.Template.Spec.Domain.Devices.HostDevices[1].DeviceName = "fake.com/device2"
+			},
+			err: errors.New("hostdevice node1dev1noiommu: resource name fake.com/device2 not found in pcidevice and usbdevice cache"),
+		},
+		{
+			name: "gpu device name is different from CR, it should be able to create",
+			before: func(_ *devicesv1beta1.USBDevice, pcideviceinnode1cp *devicesv1beta1.PCIDevice, vm *kubevirtv1.VirtualMachine) {
+				vm.Spec.Template.Spec.Domain.Devices.HostDevices = []kubevirtv1.HostDevice{}
+				vm.Spec.Template.Spec.Domain.Devices.GPUs = []kubevirtv1.GPU{
+					{
+						Name:       pcideviceinnode1cp.Name + "fake",
+						DeviceName: pcideviceinnode1cp.Status.ResourceName,
+					},
+				}
+			},
+			err: nil,
+		},
+		{
+			name: "mismatched gpu resource name ",
+			before: func(_ *devicesv1beta1.USBDevice, pcideviceinnode1cp *devicesv1beta1.PCIDevice, vm *kubevirtv1.VirtualMachine) {
+				vm.Spec.Template.Spec.Domain.Devices.HostDevices = []kubevirtv1.HostDevice{}
+				vm.Spec.Template.Spec.Domain.Devices.GPUs = []kubevirtv1.GPU{
+					{
+						Name:       pcideviceinnode1cp.Name,
+						DeviceName: pcideviceinnode1cp.Status.ResourceName + "fake",
+					},
+				}
+			},
+			err: errors.New("gpu device node1dev1noiommu: resource name fake.com/device1fake not found in pcidevice cache"),
 		},
 	}
 
 	for _, tc := range testcases {
-		tc.before()
+		pcideviceinnode1Cp := pcideviceinnode1.DeepCopy()
+		usbdevice2innode1Cp := usbdevice2innode1.DeepCopy()
+		vmWithTwoInSameNodeDevicesCp := vmWithTwoInSameNodeDevices.DeepCopy()
 
-		fakeClient := fake.NewSimpleClientset(usbdevice2innode1, pcideviceinnode1)
+		tc.before(usbdevice2innode1Cp, pcideviceinnode1Cp, vmWithTwoInSameNodeDevicesCp)
+
+		fakeClient := fake.NewSimpleClientset(usbdevice2innode1Cp, pcideviceinnode1Cp)
 		usbCache := fakeclients.USBDeviceCache(fakeClient.DevicesV1beta1().USBDevices)
 		pciCache := fakeclients.PCIDevicesCache(fakeClient.DevicesV1beta1().PCIDevices)
+
 		validator := NewDeviceHostValidation(usbCache, pciCache)
-		err := validator.Update(nil, nil, vmWithTwoInSameNodeDevices)
+		err := validator.Update(nil, nil, vmWithTwoInSameNodeDevicesCp)
 
 		assert.Equal(t, tc.err, err, tc.name)
-
-		tc.after()
 	}
 }

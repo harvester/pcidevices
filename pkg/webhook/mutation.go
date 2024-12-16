@@ -17,7 +17,8 @@ func Mutation(clients *Clients) (http.Handler, []types.Resource, error) {
 			clients.DeviceFactory.Devices().V1beta1().VGPUDevice().Cache()),
 		NewPCIVMMutator(clients.DeviceFactory.Devices().V1beta1().PCIDevice().Cache(),
 			clients.DeviceFactory.Devices().V1beta1().PCIDeviceClaim().Cache(),
-			clients.DeviceFactory.Devices().V1beta1().PCIDeviceClaim()),
+			clients.DeviceFactory.Devices().V1beta1().PCIDeviceClaim(),
+		),
 	}
 
 	router := webhook.NewRouter()

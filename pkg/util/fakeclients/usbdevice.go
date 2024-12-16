@@ -13,6 +13,8 @@ import (
 	devicesv1beta1ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 )
 
+const USBDeviceByResourceName = "harvesterhci.io/usbdevice-by-resource-name"
+
 type USBDevicesClient func() v1beta1.USBDeviceInterface
 
 func (p USBDevicesClient) Update(d *devicev1beta1.USBDevice) (*devicev1beta1.USBDevice, error) {
@@ -76,6 +78,23 @@ func (p USBDeviceCache) AddIndexer(_ string, _ devicesv1beta1ctl.USBDeviceIndexe
 	panic("implement me")
 }
 
-func (p USBDeviceCache) GetByIndex(_, _ string) ([]*devicev1beta1.USBDevice, error) {
-	panic("implement me")
+func (p USBDeviceCache) GetByIndex(indexName, name string) ([]*devicev1beta1.USBDevice, error) {
+	switch indexName {
+	case USBDeviceByResourceName:
+		var usbDevices []*devicev1beta1.USBDevice
+		devices, err := p.List(labels.NewSelector())
+		if err != nil {
+			return []*devicev1beta1.USBDevice{}, err
+		}
+
+		for _, device := range devices {
+			if device.Status.ResourceName == name {
+				usbDevices = append(usbDevices, device)
+			}
+		}
+		return usbDevices, err
+	default:
+	}
+
+	return []*devicev1beta1.USBDevice{}, nil
 }

@@ -166,3 +166,7 @@ func generateHostDeviceAllocation(obj *kubevirtv1.VirtualMachine, allocationDeta
 	}
 	return nil, nil
 }
+
+func USBDeviceByResourceName(obj *v1beta1.USBDevice) ([]string, error) {
+	return []string{obj.Status.ResourceName}, nil
+}
