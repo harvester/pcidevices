@@ -53,3 +53,17 @@ func GroupPaths() ([]string, error) {
 	}
 	return groupPaths, nil
 }
+
+func GetGroupMap(address string) (string, error) {
+	iommuGroupPaths, err := GroupPaths()
+	if err != nil {
+		return "", err
+	}
+
+	iommuGroupMap := GroupMapForPCIDevices(iommuGroupPaths)
+	if group, found := iommuGroupMap[address]; found {
+		return strconv.Itoa(group), nil
+	}
+
+	return "", fmt.Errorf("missing group for address: %s", address)
+}
