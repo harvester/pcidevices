@@ -19,7 +19,10 @@ func Validation(clients *Clients) (http.Handler, []types.Resource, error) {
 		NewVGPUValidator(clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()),
 		NewSRIOVGPUValidator(clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()),
 		NewUSBDeviceClaimValidator(clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()),
-		NewDeviceHostValidation(clients.DeviceFactory.Devices().V1beta1().USBDevice().Cache(), clients.DeviceFactory.Devices().V1beta1().PCIDevice().Cache()),
+		NewDeviceHostValidation(
+			clients.DeviceFactory.Devices().V1beta1().USBDevice().Cache(),
+			clients.DeviceFactory.Devices().V1beta1().PCIDevice().Cache(),
+		),
 		NewUSBDeviceValidator(),
 	}
 

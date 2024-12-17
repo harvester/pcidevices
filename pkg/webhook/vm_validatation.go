@@ -41,14 +41,22 @@ func NewDeviceHostValidation(usbCache v1beta1.USBDeviceCache, pciCache v1beta1.P
 }
 
 func (vmValidator *vmDeviceHostValidator) Create(_ *types.Request, newObj runtime.Object) error {
-	vmObject := newObj.(*kubevirtv1.VirtualMachine)
+	vmObj := newObj.(*kubevirtv1.VirtualMachine)
 
-	if len(vmObject.Spec.Template.Spec.Domain.Devices.HostDevices) == 0 {
-		return nil
+	if len(vmObj.Spec.Template.Spec.Domain.Devices.HostDevices) != 0 {
+		if err := vmValidator.validateHostDevices(vmObj); err != nil {
+			return err
+		}
+
+		if err := vmValidator.validateDevicesFromSameNodes(vmObj); err != nil {
+			return err
+		}
 	}
 
-	if err := vmValidator.validateDevicesFromSameNodes(vmObject); err != nil {
-		return err
+	if len(vmObj.Spec.Template.Spec.Domain.Devices.GPUs) != 0 {
+		if err := vmValidator.validateGPUs(vmObj); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -57,12 +65,19 @@ func (vmValidator *vmDeviceHostValidator) Create(_ *types.Request, newObj runtim
 func (vmValidator *vmDeviceHostValidator) Update(_ *types.Request, _ runtime.Object, newObj runtime.Object) error {
 	vmObj := newObj.(*kubevirtv1.VirtualMachine)
 
-	if len(vmObj.Spec.Template.Spec.Domain.Devices.HostDevices) == 0 {
-		return nil
+	if len(vmObj.Spec.Template.Spec.Domain.Devices.HostDevices) != 0 {
+		if err := vmValidator.validateHostDevices(vmObj); err != nil {
+			return err
+		}
+		if err := vmValidator.validateDevicesFromSameNodes(vmObj); err != nil {
+			return err
+		}
 	}
 
-	if err := vmValidator.validateDevicesFromSameNodes(vmObj); err != nil {
-		return err
+	if len(vmObj.Spec.Template.Spec.Domain.Devices.GPUs) != 0 {
+		if err := vmValidator.validateGPUs(vmObj); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -103,6 +118,70 @@ func (vmValidator *vmDeviceHostValidator) validateDevicesFromSameNodes(vmObj *ku
 
 		if usb != nil && usb.Status.NodeName != nodeName {
 			return fmt.Errorf(errorMsgFormat, "usbdevice", usb.Name, vmObj.Name)
+		}
+	}
+
+	return nil
+}
+
+func (vmValidator *vmDeviceHostValidator) validateHostDevices(vmObj *kubevirtv1.VirtualMachine) error {
+	for _, hostDevice := range vmObj.Spec.Template.Spec.Domain.Devices.HostDevices {
+		var (
+			foundInPCI, foundInUSB bool
+			err                    error
+		)
+
+		if foundInPCI, err = vmValidator.validatePCIDevice(hostDevice.DeviceName); err != nil {
+			return err
+		}
+
+		if foundInUSB, err = vmValidator.validateUSBDevice(hostDevice.DeviceName); err != nil {
+			return err
+		}
+
+		if !foundInPCI && !foundInUSB {
+			return fmt.Errorf("hostdevice %s: resource name %s not found in pcidevice and usbdevice cache", hostDevice.Name, hostDevice.DeviceName)
+		}
+	}
+	return nil
+}
+
+func (vmValidator *vmDeviceHostValidator) validatePCIDevice(resourceName string) (found bool, err error) {
+	pciDeviceObjs, err := vmValidator.pciCache.GetByIndex(PCIDeviceByResourceName, resourceName)
+	if err != nil {
+		return false, fmt.Errorf("error looking up pcidevice %s from cache: %v", resourceName, err)
+	}
+
+	if len(pciDeviceObjs) == 0 {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func (vmValidator *vmDeviceHostValidator) validateUSBDevice(resourceName string) (found bool, err error) {
+	usbDeviceObjs, err := vmValidator.usbCache.GetByIndex(USBDeviceByResourceName, resourceName)
+	if err != nil {
+		return false, fmt.Errorf("error looking up usbdevice %s from cache: %v", resourceName, err)
+	}
+
+	if len(usbDeviceObjs) == 0 {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func (vmValidator *vmDeviceHostValidator) validateGPUs(vmObj *kubevirtv1.VirtualMachine) error {
+	for _, gpu := range vmObj.Spec.Template.Spec.Domain.Devices.GPUs {
+		foundInPCI, err := vmValidator.validatePCIDevice(gpu.DeviceName)
+
+		if err != nil {
+			return err
+		}
+
+		if !foundInPCI {
+			return fmt.Errorf("gpu device %s: resource name %s not found in pcidevice cache", gpu.Name, gpu.DeviceName)
 		}
 	}
 

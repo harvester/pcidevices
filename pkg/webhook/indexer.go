@@ -17,6 +17,7 @@ const (
 	VMByPCIDeviceClaim      = "harvesterhci.io/vm-by-pcideviceclaim"
 	VMByUSBDeviceClaim      = "harvesterhci.io/vm-by-usbdeviceclaim"
 	VMByVGPU                = "harvesterhci.io/vm-by-vgpu"
+	USBDeviceByResourceName = "harvesterhci.io/usbdevice-by-resource-name"
 )
 
 func RegisterIndexers(clients *Clients) {
@@ -30,6 +31,8 @@ func RegisterIndexers(clients *Clients) {
 	deviceCache := clients.DeviceFactory.Devices().V1beta1().PCIDevice().Cache()
 	deviceCache.AddIndexer(PCIDeviceByResourceName, pciDeviceByResourceName)
 	deviceCache.AddIndexer(IommuGroupByNode, iommuGroupByNodeName)
+	usbDeviceCache := clients.DeviceFactory.Devices().V1beta1().USBDevice().Cache()
+	usbDeviceCache.AddIndexer(USBDeviceByResourceName, common.USBDeviceByResourceName)
 	usbDeviceClaimCache := clients.DeviceFactory.Devices().V1beta1().USBDeviceClaim().Cache()
 	usbDeviceClaimCache.AddIndexer(USBDeviceByAddress, usbDeviceClaimByAddress)
 }
