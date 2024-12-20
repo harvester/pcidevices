@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -165,4 +166,28 @@ func generateHostDeviceAllocation(obj *kubevirtv1.VirtualMachine, allocationDeta
 		return generateDeviceInfo(allocation.HostDevices), nil
 	}
 	return nil, nil
+}
+
+func USBDeviceByResourceName(obj *v1beta1.USBDevice) ([]string, error) {
+	return []string{obj.Status.ResourceName}, nil
+}
+
+func VGPUDeviceByResourceName(obj *v1beta1.VGPUDevice) ([]string, error) {
+	return []string{
+		GeneratevGPUDeviceName(obj.Status.ConfiguredVGPUTypeName),
+	}, nil
+}
+
+func GeneratevGPUDeviceName(deviceName string) string {
+	deviceName = strings.TrimSpace(deviceName)
+	deviceName = strings.ToUpper(deviceName)
+	deviceName = strings.Replace(deviceName, "/", "_", -1)
+	deviceName = strings.Replace(deviceName, ".", "_", -1)
+	//deviceName = strings.Replace(deviceName, "-", "_", -1)
+	reg, _ := regexp.Compile(`\s+`)
+	deviceName = reg.ReplaceAllString(deviceName, "_")
+	// Removes any char other than alphanumeric and underscore
+	reg, _ = regexp.Compile(`^a-zA-Z0-9_-.]+`)
+	deviceName = reg.ReplaceAllString(deviceName, "")
+	return fmt.Sprintf("nvidia.com/%s", deviceName)
 }

@@ -15,7 +15,8 @@ import (
 )
 
 const (
-	IommuGroupByNode = "pcidevice.harvesterhci.io/iommu-by-node"
+	IommuGroupByNode        = "pcidevice.harvesterhci.io/iommu-by-node"
+	PCIDeviceByResourceName = "harvesterhcio.io/pcidevice-by-resource-name"
 )
 
 type PCIDevicesClient func() v1beta1.PCIDeviceInterface
@@ -80,6 +81,18 @@ func (p PCIDevicesCache) GetByIndex(indexName, key string) ([]*pcidevicev1beta1.
 			}
 		}
 		return resp, err
+	case PCIDeviceByResourceName:
+		list, err := p().List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return nil, err
+		}
+		var resp []*pcidevicev1beta1.PCIDevice
+		for i, v := range list.Items {
+			if key == v.Status.ResourceName {
+				resp = append(resp, &list.Items[i])
+			}
+		}
+		return resp, nil
 	default:
 		return nil, nil
 	}

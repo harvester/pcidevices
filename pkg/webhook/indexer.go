@@ -10,13 +10,15 @@ import (
 )
 
 const (
-	VMByName                = "harvesterhci.io/vm-by-name"
-	PCIDeviceByResourceName = "harvesterhcio.io/pcidevice-by-resource-name"
-	IommuGroupByNode        = "pcidevice.harvesterhci.io/iommu-by-node"
-	USBDeviceByAddress      = "pcidevice.harvesterhci.io/usb-device-by-address"
-	VMByPCIDeviceClaim      = "harvesterhci.io/vm-by-pcideviceclaim"
-	VMByUSBDeviceClaim      = "harvesterhci.io/vm-by-usbdeviceclaim"
-	VMByVGPU                = "harvesterhci.io/vm-by-vgpu"
+	VMByName                 = "harvesterhci.io/vm-by-name"
+	PCIDeviceByResourceName  = "harvesterhcio.io/pcidevice-by-resource-name"
+	IommuGroupByNode         = "pcidevice.harvesterhci.io/iommu-by-node"
+	USBDeviceByAddress       = "pcidevice.harvesterhci.io/usb-device-by-address"
+	VMByPCIDeviceClaim       = "harvesterhci.io/vm-by-pcideviceclaim"
+	VMByUSBDeviceClaim       = "harvesterhci.io/vm-by-usbdeviceclaim"
+	VMByVGPU                 = "harvesterhci.io/vm-by-vgpu"
+	USBDeviceByResourceName  = "harvesterhci.io/usbdevice-by-resource-name"
+	vGPUDeviceByResourceName = "harvesterhci.io/vgpu-device-by-resource-name"
 )
 
 func RegisterIndexers(clients *Clients) {
@@ -30,8 +32,12 @@ func RegisterIndexers(clients *Clients) {
 	deviceCache := clients.DeviceFactory.Devices().V1beta1().PCIDevice().Cache()
 	deviceCache.AddIndexer(PCIDeviceByResourceName, pciDeviceByResourceName)
 	deviceCache.AddIndexer(IommuGroupByNode, iommuGroupByNodeName)
+	usbDeviceCache := clients.DeviceFactory.Devices().V1beta1().USBDevice().Cache()
+	usbDeviceCache.AddIndexer(USBDeviceByResourceName, common.USBDeviceByResourceName)
 	usbDeviceClaimCache := clients.DeviceFactory.Devices().V1beta1().USBDeviceClaim().Cache()
 	usbDeviceClaimCache.AddIndexer(USBDeviceByAddress, usbDeviceClaimByAddress)
+	vgpuCache := clients.DeviceFactory.Devices().V1beta1().VGPUDevice().Cache()
+	vgpuCache.AddIndexer(vGPUDeviceByResourceName, common.VGPUDeviceByResourceName)
 }
 
 func vmByName(obj *kubevirtv1.VirtualMachine) ([]string, error) {
