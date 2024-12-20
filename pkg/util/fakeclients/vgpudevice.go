@@ -11,7 +11,10 @@ import (
 	pcidevicev1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/generated/clientset/versioned/typed/devices.harvesterhci.io/v1beta1"
 	pcidevicesv1beta1ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/util/common"
 )
+
+const vGPUDeviceByResourceName = "harvesterhci.io/vgpu-device-by-resource-name"
 
 type VGPUDeviceClient func() v1beta1.VGPUDeviceInterface
 
@@ -72,6 +75,21 @@ func (s VGPUDeviceCache) AddIndexer(_ string, _ pcidevicesv1beta1ctl.VGPUDeviceI
 	panic("implement me")
 }
 
-func (s VGPUDeviceCache) GetByIndex(_, _ string) ([]*pcidevicev1beta1.VGPUDevice, error) {
-	panic("implement me")
+func (s VGPUDeviceCache) GetByIndex(index, key string) ([]*pcidevicev1beta1.VGPUDevice, error) {
+	switch index {
+	case vGPUDeviceByResourceName:
+		devices, err := s.List(labels.NewSelector())
+		if err != nil {
+			return nil, err
+		}
+		for _, device := range devices {
+			if common.GeneratevGPUDeviceName(device.Status.ConfiguredVGPUTypeName) == key {
+				return []*pcidevicev1beta1.VGPUDevice{device}, nil
+			}
+		}
+		return nil, nil
+	default:
+	}
+
+	return nil, nil
 }

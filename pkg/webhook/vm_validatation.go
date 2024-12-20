@@ -15,8 +15,9 @@ import (
 type vmDeviceHostValidator struct {
 	types.DefaultValidator
 
-	usbCache v1beta1.USBDeviceCache
-	pciCache v1beta1.PCIDeviceCache
+	usbCache  v1beta1.USBDeviceCache
+	pciCache  v1beta1.PCIDeviceCache
+	vgpuCache v1beta1.VGPUDeviceCache
 }
 
 func (vmValidator *vmDeviceHostValidator) Resource() types.Resource {
@@ -33,10 +34,11 @@ func (vmValidator *vmDeviceHostValidator) Resource() types.Resource {
 	}
 }
 
-func NewDeviceHostValidation(usbCache v1beta1.USBDeviceCache, pciCache v1beta1.PCIDeviceCache) types.Validator {
+func NewDeviceHostValidation(usbCache v1beta1.USBDeviceCache, pciCache v1beta1.PCIDeviceCache, vgpuCache v1beta1.VGPUDeviceCache) types.Validator {
 	return &vmDeviceHostValidator{
-		usbCache: usbCache,
-		pciCache: pciCache,
+		usbCache:  usbCache,
+		pciCache:  pciCache,
+		vgpuCache: vgpuCache,
 	}
 }
 
@@ -172,9 +174,22 @@ func (vmValidator *vmDeviceHostValidator) validateUSBDevice(resourceName string)
 	return true, nil
 }
 
+func (vmValidator *vmDeviceHostValidator) validateVGPUDevice(resourceName string) (found bool, err error) {
+	vGPUDeviceObjs, err := vmValidator.vgpuCache.GetByIndex(vGPUDeviceByResourceName, resourceName)
+	if err != nil {
+		return false, fmt.Errorf("error looking up vGPU device %s from cache: %v", resourceName, err)
+	}
+
+	if len(vGPUDeviceObjs) == 0 {
+		return false, nil
+	}
+
+	return true, nil
+}
+
 func (vmValidator *vmDeviceHostValidator) validateGPUs(vmObj *kubevirtv1.VirtualMachine) error {
 	for _, gpu := range vmObj.Spec.Template.Spec.Domain.Devices.GPUs {
-		foundInPCI, err := vmValidator.validatePCIDevice(gpu.DeviceName)
+		foundInPCI, err := vmValidator.validateVGPUDevice(gpu.DeviceName)
 
 		if err != nil {
 			return err
