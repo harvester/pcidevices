@@ -22,6 +22,7 @@ func Validation(clients *Clients) (http.Handler, []types.Resource, error) {
 		NewDeviceHostValidation(
 			clients.DeviceFactory.Devices().V1beta1().USBDevice().Cache(),
 			clients.DeviceFactory.Devices().V1beta1().PCIDevice().Cache(),
+			clients.DeviceFactory.Devices().V1beta1().VGPUDevice().Cache(),
 		),
 		NewUSBDeviceValidator(),
 	}
