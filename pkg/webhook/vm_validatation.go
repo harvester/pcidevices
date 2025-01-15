@@ -44,29 +44,15 @@ func NewDeviceHostValidation(usbCache v1beta1.USBDeviceCache, pciCache v1beta1.P
 
 func (vmValidator *vmDeviceHostValidator) Create(_ *types.Request, newObj runtime.Object) error {
 	vmObj := newObj.(*kubevirtv1.VirtualMachine)
-
-	if len(vmObj.Spec.Template.Spec.Domain.Devices.HostDevices) != 0 {
-		if err := vmValidator.validateHostDevices(vmObj); err != nil {
-			return err
-		}
-
-		if err := vmValidator.validateDevicesFromSameNodes(vmObj); err != nil {
-			return err
-		}
-	}
-
-	if len(vmObj.Spec.Template.Spec.Domain.Devices.GPUs) != 0 {
-		if err := vmValidator.validateGPUs(vmObj); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return vmValidator.validateDevices(vmObj)
 }
 
 func (vmValidator *vmDeviceHostValidator) Update(_ *types.Request, _ runtime.Object, newObj runtime.Object) error {
 	vmObj := newObj.(*kubevirtv1.VirtualMachine)
+	return vmValidator.validateDevices(vmObj)
+}
 
+func (vmValidator *vmDeviceHostValidator) validateDevices(vmObj *kubevirtv1.VirtualMachine) error {
 	if len(vmObj.Spec.Template.Spec.Domain.Devices.HostDevices) != 0 {
 		if err := vmValidator.validateHostDevices(vmObj); err != nil {
 			return err
