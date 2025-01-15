@@ -9,10 +9,14 @@ import (
 
 func Validation(clients *Clients) (http.Handler, []types.Resource, error) {
 	validators := []types.Validator{
-		NewSriovNetworkDeviceValidator(clients.PCIFactory.Devices().V1beta1().PCIDeviceClaim().Cache()),
-		NewPCIDeviceClaimValidator(clients.PCIFactory.Devices().V1beta1().PCIDevice().Cache(), clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()),
+		NewSriovNetworkDeviceValidator(clients.DeviceFactory.Devices().V1beta1().PCIDeviceClaim().Cache()),
+		NewPCIDeviceClaimValidator(clients.DeviceFactory.Devices().V1beta1().PCIDevice().Cache(), clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()),
 		NewVGPUValidator(clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()),
 		NewSRIOVGPUValidator(clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()),
+		NewDeviceHostValidation(
+			clients.DeviceFactory.Devices().V1beta1().PCIDevice().Cache(),
+			clients.DeviceFactory.Devices().V1beta1().VGPUDevice().Cache(),
+		),
 	}
 
 	router := webhook.NewRouter()

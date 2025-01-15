@@ -20,7 +20,7 @@ type Clients struct {
 	CoreFactory      *ctlcore.Factory
 	HarvesterFactory *ctlharvesterv1.Factory
 	KubevirtFactory  *ctlkubevirtv1.Factory
-	PCIFactory       *ctlpcidevices.Factory
+	DeviceFactory    *ctlpcidevices.Factory
 }
 
 func NewClient(ctx context.Context, rest *rest.Config, threadiness int) (*Clients, error) {
@@ -70,6 +70,6 @@ func NewClient(ctx context.Context, rest *rest.Config, threadiness int) (*Client
 		HarvesterFactory: harvesterFactory,
 		KubevirtFactory:  kubevirtFactory,
 		CoreFactory:      coreFactory,
-		PCIFactory:       pciFactory,
+		DeviceFactory:    pciFactory,
 	}, nil
 }

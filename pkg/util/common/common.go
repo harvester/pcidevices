@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 )
 
 const (
@@ -76,4 +79,24 @@ func GetVFList(pfDir string) (vfList []string, err error) {
 		}
 	}
 	return
+}
+
+func VGPUDeviceByResourceName(obj *v1beta1.VGPUDevice) ([]string, error) {
+	return []string{
+		GeneratevGPUDeviceName(obj.Status.ConfiguredVGPUTypeName),
+	}, nil
+}
+
+func GeneratevGPUDeviceName(deviceName string) string {
+	deviceName = strings.TrimSpace(deviceName)
+	deviceName = strings.ToUpper(deviceName)
+	deviceName = strings.Replace(deviceName, "/", "_", -1)
+	deviceName = strings.Replace(deviceName, ".", "_", -1)
+	//deviceName = strings.Replace(deviceName, "-", "_", -1)
+	reg, _ := regexp.Compile(`\s+`)
+	deviceName = reg.ReplaceAllString(deviceName, "_")
+	// Removes any char other than alphanumeric and underscore
+	reg, _ = regexp.Compile(`^a-zA-Z0-9_-.]+`)
+	deviceName = reg.ReplaceAllString(deviceName, "")
+	return fmt.Sprintf("nvidia.com/%s", deviceName)
 }

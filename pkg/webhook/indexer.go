@@ -6,14 +6,19 @@ import (
 	kubevirtv1 "kubevirt.io/api/core/v1"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/util/common"
 )
 
 const (
-	VMByName                = "harvesterhci.io/vm-by-name"
-	PCIDeviceByResourceName = "harvesterhcio.io/pcidevice-by-resource-name"
-	IommuGroupByNode        = "pcidevice.harvesterhci.io/iommu-by-node"
-	VMByPCIDeviceClaim      = "harvesterhci.io/vm-by-pcideviceclaim"
-	VMByVGPU                = "harvesterhci.io/vm-by-vgpu"
+	VMByName                 = "harvesterhci.io/vm-by-name"
+	PCIDeviceByResourceName  = "harvesterhcio.io/pcidevice-by-resource-name"
+	IommuGroupByNode         = "pcidevice.harvesterhci.io/iommu-by-node"
+	USBDeviceByAddress       = "pcidevice.harvesterhci.io/usb-device-by-address"
+	VMByPCIDeviceClaim       = "harvesterhci.io/vm-by-pcideviceclaim"
+	VMByUSBDeviceClaim       = "harvesterhci.io/vm-by-usbdeviceclaim"
+	VMByVGPU                 = "harvesterhci.io/vm-by-vgpu"
+	USBDeviceByResourceName  = "harvesterhci.io/usbdevice-by-resource-name"
+	vGPUDeviceByResourceName = "harvesterhci.io/vgpu-device-by-resource-name"
 )
 
 func RegisterIndexers(clients *Clients) {
@@ -21,9 +26,12 @@ func RegisterIndexers(clients *Clients) {
 	vmCache.AddIndexer(VMByName, vmByName)
 	vmCache.AddIndexer(VMByPCIDeviceClaim, vmByPCIDeviceClaim)
 	vmCache.AddIndexer(VMByVGPU, vmByVGPUDevice)
-	deviceCache := clients.PCIFactory.Devices().V1beta1().PCIDevice().Cache()
+	deviceCache := clients.DeviceFactory.Devices().V1beta1().PCIDevice().Cache()
 	deviceCache.AddIndexer(PCIDeviceByResourceName, pciDeviceByResourceName)
 	deviceCache.AddIndexer(IommuGroupByNode, iommuGroupByNodeName)
+
+	vgpuCache := clients.DeviceFactory.Devices().V1beta1().VGPUDevice().Cache()
+	vgpuCache.AddIndexer(vGPUDeviceByResourceName, common.VGPUDeviceByResourceName)
 }
 
 func vmByName(obj *kubevirtv1.VirtualMachine) ([]string, error) {
