@@ -130,7 +130,7 @@ func (p *Parser) split(s string) (kind string, level int, id uint64, name string
 }
 
 func (p *Parser) parseVendor(level int, raw uint64, name string) error {
-	id := gousb.ID(raw)
+	id := gousb.ID(raw) // nolint:gosec
 
 	switch level {
 	case 0:
@@ -175,7 +175,7 @@ func (p *Parser) parseClass(level int, id uint64, name string) error {
 		p.class = &Class{
 			Name: name,
 		}
-		p.classes[gousb.Class(id)] = p.class
+		p.classes[gousb.Class(id)] = p.class // nolint:gosec
 
 	case 1:
 		if p.class == nil {
@@ -188,7 +188,7 @@ func (p *Parser) parseClass(level int, id uint64, name string) error {
 		if p.class.SubClass == nil {
 			p.class.SubClass = make(map[gousb.Class]*SubClass)
 		}
-		p.class.SubClass[gousb.Class(id)] = p.subclass
+		p.class.SubClass[gousb.Class(id)] = p.subclass // nolint:gosec
 
 	case 2:
 		if p.subclass == nil {
@@ -198,7 +198,7 @@ func (p *Parser) parseClass(level int, id uint64, name string) error {
 		if p.subclass.Protocol == nil {
 			p.subclass.Protocol = make(map[gousb.Protocol]string)
 		}
-		p.subclass.Protocol[gousb.Protocol(id)] = name
+		p.subclass.Protocol[gousb.Protocol(id)] = name // nolint:gosec
 
 	default:
 		return fmt.Errorf("too many levels of nesting for class")
