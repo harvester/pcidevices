@@ -238,7 +238,7 @@ func (h *DevHandler) getList(localUSBDevices map[int][]*deviceplugins.USBDevice,
 						ResourceName: resourceName(name),
 						NodeName:     nodeName,
 						DevicePath:   localUSBDevice.DevicePath,
-						Description:  usbid.DescribeWithVendorAndProduct(gousb.ID(localUSBDevice.Vendor), gousb.ID(localUSBDevice.Product)),
+						Description:  usbid.DescribeWithVendorAndProduct(gousb.ID(localUSBDevice.Vendor), gousb.ID(localUSBDevice.Product)), // nolint:gosec
 						PCIAddress:   localUSBDevice.PCIAddress,
 					},
 				}
@@ -252,7 +252,7 @@ func (h *DevHandler) getList(localUSBDevices map[int][]*deviceplugins.USBDevice,
 						ResourceName: resourceName(usbDeviceName(nodeName, localUSBDevice)),
 						NodeName:     nodeName,
 						DevicePath:   localUSBDevice.DevicePath,
-						Description:  usbid.DescribeWithVendorAndProduct(gousb.ID(localUSBDevice.Vendor), gousb.ID(localUSBDevice.Product)),
+						Description:  usbid.DescribeWithVendorAndProduct(gousb.ID(localUSBDevice.Vendor), gousb.ID(localUSBDevice.Product)), // nolint:gosec
 						PCIAddress:   localUSBDevice.PCIAddress,
 					}
 					updateList = append(updateList, existedCp)

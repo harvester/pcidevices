@@ -24,7 +24,7 @@ func TestDescribeWithVendorAndProduct(t *testing.T) {
 		vendor, _ := strconv.ParseInt(tc.vendor, 16, 64)
 		product, _ := strconv.ParseInt(tc.product, 16, 64)
 
-		output := DescribeWithVendorAndProduct(gousb.ID(vendor), gousb.ID(product))
+		output := DescribeWithVendorAndProduct(gousb.ID(vendor), gousb.ID(product)) // nolint:gosec
 
 		assert.Equal(t, tc.expected, output)
 	}
