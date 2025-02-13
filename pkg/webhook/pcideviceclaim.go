@@ -20,12 +20,14 @@ type pciDeviceClaimValidator struct {
 	deviceCache         v1beta1.PCIDeviceCache
 	kubevirtCache       kubevirtctl.VirtualMachineCache
 	usbDeviceClaimCache v1beta1.USBDeviceClaimCache
+	usbDeviceCache      v1beta1.USBDeviceCache
 }
 
-func NewPCIDeviceClaimValidator(deviceCache v1beta1.PCIDeviceCache, kubevirtCache kubevirtctl.VirtualMachineCache, usbDeviceClaimCache v1beta1.USBDeviceClaimCache) types.Validator {
+func NewPCIDeviceClaimValidator(deviceCache v1beta1.PCIDeviceCache, kubevirtCache kubevirtctl.VirtualMachineCache, usbDeviceClaimCache v1beta1.USBDeviceClaimCache, usbDeviceCache v1beta1.USBDeviceCache) types.Validator {
 	return &pciDeviceClaimValidator{
 		deviceCache:         deviceCache,
 		usbDeviceClaimCache: usbDeviceClaimCache,
+		usbDeviceCache:      usbDeviceCache,
 		kubevirtCache:       kubevirtCache,
 	}
 }
@@ -64,10 +66,17 @@ func (pdc *pciDeviceClaimValidator) Create(_ *types.Request, newObj runtime.Obje
 
 	if len(usbClaimDevs) != 0 {
 		var used []string
-		for _, usbDev := range usbClaimDevs {
-			used = append(used, usbDev.Name)
+		for _, usbClaimDev := range usbClaimDevs {
+			usbDev, err := pdc.usbDeviceCache.Get(usbClaimDev.Name)
+			if err != nil {
+				return err
+			}
+			used = append(used, fmt.Sprintf("%s (%s)", usbDev.Name, usbDev.Status.Description))
 		}
-		err = fmt.Errorf("usbdeviceclaim [%s] is used, so its pcidevice %s can't be claimed", strings.Join(used, ","), pciDev.Name)
+
+		pciName := fmt.Sprintf("%s (%s)", pciDev.Name, pciDev.Status.Description)
+		allUsbDevs := strings.Join(used, ", ")
+		err = fmt.Errorf("These USB devices [%s] are using the PCI USB Controller [%s], so it can't be passed through. \n If you need to pass through PCI USB controller, please detach and remove all USB devices which are using this PCI USB controller", allUsbDevs, pciName)
 		logrus.Errorf(err.Error())
 		return err
 	}
