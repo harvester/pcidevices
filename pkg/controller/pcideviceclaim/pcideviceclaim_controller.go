@@ -1,6 +1,7 @@
 package pcideviceclaim
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -158,6 +159,39 @@ func loadVfioDrivers() {
 	}
 }
 
+func checkVFIOModules() (bool, error) {
+	return checkModulesExists([]string{"vfio_pci", "vfio_iommu_type1"})
+}
+
+// checkModulesExists checks the /proc/modules file to see if a module exists
+func checkModulesExists(modules []string) (bool, error) {
+	fd, err := os.Open("/proc/modules")
+	if err != nil {
+		return false, fmt.Errorf("failed to open /proc/modules: %v", err)
+	}
+	defer fd.Close()
+
+	mark := map[string]struct{}{}
+	scanner := bufio.NewScanner(fd)
+	for scanner.Scan() {
+		line := scanner.Text()
+		for _, module := range modules {
+			if strings.Contains(line, module) {
+				mark[module] = struct{}{}
+			}
+		}
+		if len(mark) == len(modules) {
+			return true, nil
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return false, fmt.Errorf("failed to read /proc/modules: %v", err)
+	}
+
+	return false, nil
+}
+
 func bindDeviceToVFIOPCIDriver(pd *v1beta1.PCIDevice) error {
 	if deviceBoundToDriver(vfioPCIDriverPath, pd.Status.Address) {
 		return nil
@@ -293,6 +327,16 @@ func checkGroupMap(pd *v1beta1.PCIDevice) error {
 func (h *Handler) reconcilePCIDeviceClaims(_ string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
 
 	if pdc == nil || pdc.DeletionTimestamp != nil || (pdc.Spec.NodeName != h.nodeName) {
+		return pdc, nil
+	}
+
+	if found, err := checkVFIOModules(); !found {
+		if err != nil {
+			return pdc, fmt.Errorf("error checking vfio modules: %v", err)
+		}
+		logrus.Infof("Modules not loaded, retrying in 3 seconds")
+		loadVfioDrivers()
+		h.pdcClient.EnqueueAfter(pdc.Name, 3*time.Second)
 		return pdc, nil
 	}
 
