@@ -1,0 +1,6 @@
+vfio_iommu_type1       40960  0
+vfio_pci               16384  0
+vfio_pci_core          69632  1 vfio_pci
+vfio                   32768  2 vfio_pci_core,vfio_iommu_type1
+vfio_virqfd            16384  1 vfio_pci_core
+irqbypass              16384  2 vfio_pci_core,kvm

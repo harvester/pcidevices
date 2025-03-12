@@ -160,12 +160,12 @@ func loadVfioDrivers() {
 }
 
 func checkVFIOModules() (bool, error) {
-	return checkModulesExists([]string{"vfio_pci", "vfio_iommu_type1"})
+	return checkModulesExists("/proc/modules", []string{"vfio_pci", "vfio_iommu_type1"})
 }
 
 // checkModulesExists checks the /proc/modules file to see if a module exists
-func checkModulesExists(modules []string) (bool, error) {
-	fd, err := os.Open("/proc/modules")
+func checkModulesExists(filename string, modules []string) (bool, error) {
+	fd, err := os.Open(filename)
 	if err != nil {
 		return false, fmt.Errorf("failed to open /proc/modules: %v", err)
 	}

@@ -165,3 +165,16 @@ func Test_permitHostDeviceInKubevirtWithExternalResourceDevices(t *testing.T) {
 	assert.Len(kvCopy.Spec.Configuration.PermittedHostDevices.PciHostDevices, 1, "expected to find one device added")
 	assert.True(kvCopy.Spec.Configuration.PermittedHostDevices.PciHostDevices[0].ExternalResourceProvider, "expected external resource provider to be updated")
 }
+
+func Test_checkModulesExists(t *testing.T) {
+	assert := require.New(t)
+	modules := []string{"vfio", "vfio_iommu_type1"}
+	found, err := checkModulesExists("../../../tests/manifests/modules", modules)
+	assert.NoError(err)
+	assert.True(found)
+
+	modules = []string{"dummy"}
+	found, err = checkModulesExists("../../../tests/manifests/modules", modules)
+	assert.NoError(err)
+	assert.False(found)
+}
