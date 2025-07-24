@@ -1,4 +1,4 @@
-FROM registry.suse.com/bci/golang:1.23
+FROM registry.suse.com/bci/golang:1.24
 
 ARG DAPPER_HOST_ARCH
 ENV ARCH $DAPPER_HOST_ARCH
@@ -15,7 +15,7 @@ RUN export K8S_VERSION=1.24.2 && \
     tar -C /usr/local/kubebuilder --strip-components=1 -zvxf envtest-bins.tar.gz
 
 ## install golangci
-RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.63.4
+RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.64.8
 
 # The docker version in dapper is too old to have buildx. Install it manually.
 RUN curl -sSfL https://github.com/docker/buildx/releases/download/v0.13.1/buildx-v0.13.1.linux-${ARCH} -o buildx-v0.13.1.linux-${ARCH} && \
