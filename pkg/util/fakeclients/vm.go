@@ -8,10 +8,12 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/rest"
 	kubevirtv1api "kubevirt.io/api/core/v1"
 
+	"github.com/rancher/wrangler/v3/pkg/generic"
+
 	kubevirtv1 "github.com/harvester/harvester/pkg/generated/clientset/versioned/typed/kubevirt.io/v1"
-	kubevirtctlv1 "github.com/harvester/harvester/pkg/generated/controllers/kubevirt.io/v1"
 
 	"github.com/harvester/pcidevices/pkg/util/common"
 )
@@ -56,6 +58,10 @@ func (c VirtualMachineClient) Patch(_, _ string, _ types.PatchType, _ []byte, _ 
 	panic("implement me")
 }
 
+func (c VirtualMachineClient) WithImpersonation(_ rest.ImpersonationConfig) (generic.ClientInterface[*kubevirtv1api.VirtualMachine, *kubevirtv1api.VirtualMachineList], error) {
+	panic("implement me")
+}
+
 type VirtualMachineCache func(string) kubevirtv1.VirtualMachineInterface
 
 func (c VirtualMachineCache) Get(namespace, name string) (*kubevirtv1api.VirtualMachine, error) {
@@ -77,7 +83,7 @@ func (c VirtualMachineCache) List(namespace string, selector labels.Selector) ([
 	return result, err
 }
 
-func (c VirtualMachineCache) AddIndexer(_ string, _ kubevirtctlv1.VirtualMachineIndexer) {
+func (c VirtualMachineCache) AddIndexer(_ string, _ generic.Indexer[*kubevirtv1api.VirtualMachine]) {
 	panic("implement me")
 }
 

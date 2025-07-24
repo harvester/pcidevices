@@ -24,7 +24,6 @@ import (
 	v1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -35,26 +34,28 @@ type FakeUSBDeviceClaims struct {
 	Fake *FakeDevicesV1beta1
 }
 
-var usbdeviceclaimsResource = schema.GroupVersionResource{Group: "devices.harvesterhci.io", Version: "v1beta1", Resource: "usbdeviceclaims"}
+var usbdeviceclaimsResource = v1beta1.SchemeGroupVersion.WithResource("usbdeviceclaims")
 
-var usbdeviceclaimsKind = schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "USBDeviceClaim"}
+var usbdeviceclaimsKind = v1beta1.SchemeGroupVersion.WithKind("USBDeviceClaim")
 
 // Get takes name of the uSBDeviceClaim, and returns the corresponding uSBDeviceClaim object, and an error if there is any.
 func (c *FakeUSBDeviceClaims) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.USBDeviceClaim, err error) {
+	emptyResult := &v1beta1.USBDeviceClaim{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(usbdeviceclaimsResource, name), &v1beta1.USBDeviceClaim{})
+		Invokes(testing.NewRootGetActionWithOptions(usbdeviceclaimsResource, name, options), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.USBDeviceClaim), err
 }
 
 // List takes label and field selectors, and returns the list of USBDeviceClaims that match those selectors.
 func (c *FakeUSBDeviceClaims) List(ctx context.Context, opts v1.ListOptions) (result *v1beta1.USBDeviceClaimList, err error) {
+	emptyResult := &v1beta1.USBDeviceClaimList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(usbdeviceclaimsResource, usbdeviceclaimsKind, opts), &v1beta1.USBDeviceClaimList{})
+		Invokes(testing.NewRootListActionWithOptions(usbdeviceclaimsResource, usbdeviceclaimsKind, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -73,25 +74,27 @@ func (c *FakeUSBDeviceClaims) List(ctx context.Context, opts v1.ListOptions) (re
 // Watch returns a watch.Interface that watches the requested uSBDeviceClaims.
 func (c *FakeUSBDeviceClaims) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(usbdeviceclaimsResource, opts))
+		InvokesWatch(testing.NewRootWatchActionWithOptions(usbdeviceclaimsResource, opts))
 }
 
 // Create takes the representation of a uSBDeviceClaim and creates it.  Returns the server's representation of the uSBDeviceClaim, and an error, if there is any.
 func (c *FakeUSBDeviceClaims) Create(ctx context.Context, uSBDeviceClaim *v1beta1.USBDeviceClaim, opts v1.CreateOptions) (result *v1beta1.USBDeviceClaim, err error) {
+	emptyResult := &v1beta1.USBDeviceClaim{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(usbdeviceclaimsResource, uSBDeviceClaim), &v1beta1.USBDeviceClaim{})
+		Invokes(testing.NewRootCreateActionWithOptions(usbdeviceclaimsResource, uSBDeviceClaim, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.USBDeviceClaim), err
 }
 
 // Update takes the representation of a uSBDeviceClaim and updates it. Returns the server's representation of the uSBDeviceClaim, and an error, if there is any.
 func (c *FakeUSBDeviceClaims) Update(ctx context.Context, uSBDeviceClaim *v1beta1.USBDeviceClaim, opts v1.UpdateOptions) (result *v1beta1.USBDeviceClaim, err error) {
+	emptyResult := &v1beta1.USBDeviceClaim{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(usbdeviceclaimsResource, uSBDeviceClaim), &v1beta1.USBDeviceClaim{})
+		Invokes(testing.NewRootUpdateActionWithOptions(usbdeviceclaimsResource, uSBDeviceClaim, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.USBDeviceClaim), err
 }
@@ -105,7 +108,7 @@ func (c *FakeUSBDeviceClaims) Delete(ctx context.Context, name string, opts v1.D
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeUSBDeviceClaims) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(usbdeviceclaimsResource, listOpts)
+	action := testing.NewRootDeleteCollectionActionWithOptions(usbdeviceclaimsResource, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1beta1.USBDeviceClaimList{})
 	return err
@@ -113,10 +116,11 @@ func (c *FakeUSBDeviceClaims) DeleteCollection(ctx context.Context, opts v1.Dele
 
 // Patch applies the patch and returns the patched uSBDeviceClaim.
 func (c *FakeUSBDeviceClaims) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.USBDeviceClaim, err error) {
+	emptyResult := &v1beta1.USBDeviceClaim{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(usbdeviceclaimsResource, name, pt, data, subresources...), &v1beta1.USBDeviceClaim{})
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(usbdeviceclaimsResource, name, pt, data, opts, subresources...), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.USBDeviceClaim), err
 }

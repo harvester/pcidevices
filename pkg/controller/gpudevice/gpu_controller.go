@@ -135,9 +135,18 @@ func (h *Handler) reconcileSRIOVGPUSetup(sriovGPUDevices []*v1beta1.SRIOVGPUDevi
 		// if pcideviceclaim already exists for SRIOVGPU, then likely this GPU is already passed through
 		// skip creation of SriovGPUDevice object until PCIDeviceClaim exists
 		existingClaim, err := h.pciDeviceClaimCache.Get(v.Name)
-		if err != nil && !apierrors.IsNotFound(err) {
-			return fmt.Errorf("error looking up pcideviceclaim for sriovGPUDevice %s: %v", v.Name, err)
+		if err != nil {
+			// due to wrangler bump to v3.1.0, when object is not found, the return is as an empty object and not nil along with the error. The following ensures
+			// that we mark existingClaim to nil
+			// to ensure no more changes are needed to processing logic
+			if apierrors.IsNotFound(err) {
+				existingClaim = nil
+			} else {
+				return fmt.Errorf("error looking up pcideviceclaim for sriovGPUDevice %s: %v", v.Name, err)
+			}
 		}
+
+		//wrangler bump to v3.1.
 		if existingClaim != nil {
 			// pciDeviceClaim exists skipping
 			logrus.Debugf("skipping creation of vGPUDevice %s as PCIDeviceClaim exists", existingClaim.Name)

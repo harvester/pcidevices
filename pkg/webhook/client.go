@@ -3,9 +3,9 @@ package webhook
 import (
 	"context"
 
-	"github.com/rancher/wrangler/pkg/clients"
-	ctlcore "github.com/rancher/wrangler/pkg/generated/controllers/core"
-	"github.com/rancher/wrangler/pkg/schemes"
+	"github.com/rancher/wrangler/v3/pkg/clients"
+	ctlcore "github.com/rancher/wrangler/v3/pkg/generated/controllers/core"
+	"github.com/rancher/wrangler/v3/pkg/schemes"
 	v1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/client-go/rest"
 

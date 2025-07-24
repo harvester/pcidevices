@@ -20,262 +20,54 @@ package v1beta1
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	v1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
-	"github.com/rancher/lasso/pkg/client"
-	"github.com/rancher/lasso/pkg/controller"
-	"github.com/rancher/wrangler/pkg/apply"
-	"github.com/rancher/wrangler/pkg/condition"
-	"github.com/rancher/wrangler/pkg/generic"
-	"github.com/rancher/wrangler/pkg/kv"
+	"github.com/rancher/wrangler/v3/pkg/apply"
+	"github.com/rancher/wrangler/v3/pkg/condition"
+	"github.com/rancher/wrangler/v3/pkg/generic"
+	"github.com/rancher/wrangler/v3/pkg/kv"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/tools/cache"
 )
 
-type SRIOVNetworkDeviceHandler func(string, *v1beta1.SRIOVNetworkDevice) (*v1beta1.SRIOVNetworkDevice, error)
-
+// SRIOVNetworkDeviceController interface for managing SRIOVNetworkDevice resources.
 type SRIOVNetworkDeviceController interface {
-	generic.ControllerMeta
-	SRIOVNetworkDeviceClient
-
-	OnChange(ctx context.Context, name string, sync SRIOVNetworkDeviceHandler)
-	OnRemove(ctx context.Context, name string, sync SRIOVNetworkDeviceHandler)
-	Enqueue(name string)
-	EnqueueAfter(name string, duration time.Duration)
-
-	Cache() SRIOVNetworkDeviceCache
+	generic.NonNamespacedControllerInterface[*v1beta1.SRIOVNetworkDevice, *v1beta1.SRIOVNetworkDeviceList]
 }
 
+// SRIOVNetworkDeviceClient interface for managing SRIOVNetworkDevice resources in Kubernetes.
 type SRIOVNetworkDeviceClient interface {
-	Create(*v1beta1.SRIOVNetworkDevice) (*v1beta1.SRIOVNetworkDevice, error)
-	Update(*v1beta1.SRIOVNetworkDevice) (*v1beta1.SRIOVNetworkDevice, error)
-	UpdateStatus(*v1beta1.SRIOVNetworkDevice) (*v1beta1.SRIOVNetworkDevice, error)
-	Delete(name string, options *metav1.DeleteOptions) error
-	Get(name string, options metav1.GetOptions) (*v1beta1.SRIOVNetworkDevice, error)
-	List(opts metav1.ListOptions) (*v1beta1.SRIOVNetworkDeviceList, error)
-	Watch(opts metav1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta1.SRIOVNetworkDevice, err error)
+	generic.NonNamespacedClientInterface[*v1beta1.SRIOVNetworkDevice, *v1beta1.SRIOVNetworkDeviceList]
 }
 
+// SRIOVNetworkDeviceCache interface for retrieving SRIOVNetworkDevice resources in memory.
 type SRIOVNetworkDeviceCache interface {
-	Get(name string) (*v1beta1.SRIOVNetworkDevice, error)
-	List(selector labels.Selector) ([]*v1beta1.SRIOVNetworkDevice, error)
-
-	AddIndexer(indexName string, indexer SRIOVNetworkDeviceIndexer)
-	GetByIndex(indexName, key string) ([]*v1beta1.SRIOVNetworkDevice, error)
+	generic.NonNamespacedCacheInterface[*v1beta1.SRIOVNetworkDevice]
 }
 
-type SRIOVNetworkDeviceIndexer func(obj *v1beta1.SRIOVNetworkDevice) ([]string, error)
-
-type sRIOVNetworkDeviceController struct {
-	controller    controller.SharedController
-	client        *client.Client
-	gvk           schema.GroupVersionKind
-	groupResource schema.GroupResource
-}
-
-func NewSRIOVNetworkDeviceController(gvk schema.GroupVersionKind, resource string, namespaced bool, controller controller.SharedControllerFactory) SRIOVNetworkDeviceController {
-	c := controller.ForResourceKind(gvk.GroupVersion().WithResource(resource), gvk.Kind, namespaced)
-	return &sRIOVNetworkDeviceController{
-		controller: c,
-		client:     c.Client(),
-		gvk:        gvk,
-		groupResource: schema.GroupResource{
-			Group:    gvk.Group,
-			Resource: resource,
-		},
-	}
-}
-
-func FromSRIOVNetworkDeviceHandlerToHandler(sync SRIOVNetworkDeviceHandler) generic.Handler {
-	return func(key string, obj runtime.Object) (ret runtime.Object, err error) {
-		var v *v1beta1.SRIOVNetworkDevice
-		if obj == nil {
-			v, err = sync(key, nil)
-		} else {
-			v, err = sync(key, obj.(*v1beta1.SRIOVNetworkDevice))
-		}
-		if v == nil {
-			return nil, err
-		}
-		return v, err
-	}
-}
-
-func (c *sRIOVNetworkDeviceController) Updater() generic.Updater {
-	return func(obj runtime.Object) (runtime.Object, error) {
-		newObj, err := c.Update(obj.(*v1beta1.SRIOVNetworkDevice))
-		if newObj == nil {
-			return nil, err
-		}
-		return newObj, err
-	}
-}
-
-func UpdateSRIOVNetworkDeviceDeepCopyOnChange(client SRIOVNetworkDeviceClient, obj *v1beta1.SRIOVNetworkDevice, handler func(obj *v1beta1.SRIOVNetworkDevice) (*v1beta1.SRIOVNetworkDevice, error)) (*v1beta1.SRIOVNetworkDevice, error) {
-	if obj == nil {
-		return obj, nil
-	}
-
-	copyObj := obj.DeepCopy()
-	newObj, err := handler(copyObj)
-	if newObj != nil {
-		copyObj = newObj
-	}
-	if obj.ResourceVersion == copyObj.ResourceVersion && !equality.Semantic.DeepEqual(obj, copyObj) {
-		return client.Update(copyObj)
-	}
-
-	return copyObj, err
-}
-
-func (c *sRIOVNetworkDeviceController) AddGenericHandler(ctx context.Context, name string, handler generic.Handler) {
-	c.controller.RegisterHandler(ctx, name, controller.SharedControllerHandlerFunc(handler))
-}
-
-func (c *sRIOVNetworkDeviceController) AddGenericRemoveHandler(ctx context.Context, name string, handler generic.Handler) {
-	c.AddGenericHandler(ctx, name, generic.NewRemoveHandler(name, c.Updater(), handler))
-}
-
-func (c *sRIOVNetworkDeviceController) OnChange(ctx context.Context, name string, sync SRIOVNetworkDeviceHandler) {
-	c.AddGenericHandler(ctx, name, FromSRIOVNetworkDeviceHandlerToHandler(sync))
-}
-
-func (c *sRIOVNetworkDeviceController) OnRemove(ctx context.Context, name string, sync SRIOVNetworkDeviceHandler) {
-	c.AddGenericHandler(ctx, name, generic.NewRemoveHandler(name, c.Updater(), FromSRIOVNetworkDeviceHandlerToHandler(sync)))
-}
-
-func (c *sRIOVNetworkDeviceController) Enqueue(name string) {
-	c.controller.Enqueue("", name)
-}
-
-func (c *sRIOVNetworkDeviceController) EnqueueAfter(name string, duration time.Duration) {
-	c.controller.EnqueueAfter("", name, duration)
-}
-
-func (c *sRIOVNetworkDeviceController) Informer() cache.SharedIndexInformer {
-	return c.controller.Informer()
-}
-
-func (c *sRIOVNetworkDeviceController) GroupVersionKind() schema.GroupVersionKind {
-	return c.gvk
-}
-
-func (c *sRIOVNetworkDeviceController) Cache() SRIOVNetworkDeviceCache {
-	return &sRIOVNetworkDeviceCache{
-		indexer:  c.Informer().GetIndexer(),
-		resource: c.groupResource,
-	}
-}
-
-func (c *sRIOVNetworkDeviceController) Create(obj *v1beta1.SRIOVNetworkDevice) (*v1beta1.SRIOVNetworkDevice, error) {
-	result := &v1beta1.SRIOVNetworkDevice{}
-	return result, c.client.Create(context.TODO(), "", obj, result, metav1.CreateOptions{})
-}
-
-func (c *sRIOVNetworkDeviceController) Update(obj *v1beta1.SRIOVNetworkDevice) (*v1beta1.SRIOVNetworkDevice, error) {
-	result := &v1beta1.SRIOVNetworkDevice{}
-	return result, c.client.Update(context.TODO(), "", obj, result, metav1.UpdateOptions{})
-}
-
-func (c *sRIOVNetworkDeviceController) UpdateStatus(obj *v1beta1.SRIOVNetworkDevice) (*v1beta1.SRIOVNetworkDevice, error) {
-	result := &v1beta1.SRIOVNetworkDevice{}
-	return result, c.client.UpdateStatus(context.TODO(), "", obj, result, metav1.UpdateOptions{})
-}
-
-func (c *sRIOVNetworkDeviceController) Delete(name string, options *metav1.DeleteOptions) error {
-	if options == nil {
-		options = &metav1.DeleteOptions{}
-	}
-	return c.client.Delete(context.TODO(), "", name, *options)
-}
-
-func (c *sRIOVNetworkDeviceController) Get(name string, options metav1.GetOptions) (*v1beta1.SRIOVNetworkDevice, error) {
-	result := &v1beta1.SRIOVNetworkDevice{}
-	return result, c.client.Get(context.TODO(), "", name, result, options)
-}
-
-func (c *sRIOVNetworkDeviceController) List(opts metav1.ListOptions) (*v1beta1.SRIOVNetworkDeviceList, error) {
-	result := &v1beta1.SRIOVNetworkDeviceList{}
-	return result, c.client.List(context.TODO(), "", result, opts)
-}
-
-func (c *sRIOVNetworkDeviceController) Watch(opts metav1.ListOptions) (watch.Interface, error) {
-	return c.client.Watch(context.TODO(), "", opts)
-}
-
-func (c *sRIOVNetworkDeviceController) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (*v1beta1.SRIOVNetworkDevice, error) {
-	result := &v1beta1.SRIOVNetworkDevice{}
-	return result, c.client.Patch(context.TODO(), "", name, pt, data, result, metav1.PatchOptions{}, subresources...)
-}
-
-type sRIOVNetworkDeviceCache struct {
-	indexer  cache.Indexer
-	resource schema.GroupResource
-}
-
-func (c *sRIOVNetworkDeviceCache) Get(name string) (*v1beta1.SRIOVNetworkDevice, error) {
-	obj, exists, err := c.indexer.GetByKey(name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(c.resource, name)
-	}
-	return obj.(*v1beta1.SRIOVNetworkDevice), nil
-}
-
-func (c *sRIOVNetworkDeviceCache) List(selector labels.Selector) (ret []*v1beta1.SRIOVNetworkDevice, err error) {
-
-	err = cache.ListAll(c.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1beta1.SRIOVNetworkDevice))
-	})
-
-	return ret, err
-}
-
-func (c *sRIOVNetworkDeviceCache) AddIndexer(indexName string, indexer SRIOVNetworkDeviceIndexer) {
-	utilruntime.Must(c.indexer.AddIndexers(map[string]cache.IndexFunc{
-		indexName: func(obj interface{}) (strings []string, e error) {
-			return indexer(obj.(*v1beta1.SRIOVNetworkDevice))
-		},
-	}))
-}
-
-func (c *sRIOVNetworkDeviceCache) GetByIndex(indexName, key string) (result []*v1beta1.SRIOVNetworkDevice, err error) {
-	objs, err := c.indexer.ByIndex(indexName, key)
-	if err != nil {
-		return nil, err
-	}
-	result = make([]*v1beta1.SRIOVNetworkDevice, 0, len(objs))
-	for _, obj := range objs {
-		result = append(result, obj.(*v1beta1.SRIOVNetworkDevice))
-	}
-	return result, nil
-}
-
+// SRIOVNetworkDeviceStatusHandler is executed for every added or modified SRIOVNetworkDevice. Should return the new status to be updated
 type SRIOVNetworkDeviceStatusHandler func(obj *v1beta1.SRIOVNetworkDevice, status v1beta1.SRIOVNetworkDeviceStatus) (v1beta1.SRIOVNetworkDeviceStatus, error)
 
+// SRIOVNetworkDeviceGeneratingHandler is the top-level handler that is executed for every SRIOVNetworkDevice event. It extends SRIOVNetworkDeviceStatusHandler by a returning a slice of child objects to be passed to apply.Apply
 type SRIOVNetworkDeviceGeneratingHandler func(obj *v1beta1.SRIOVNetworkDevice, status v1beta1.SRIOVNetworkDeviceStatus) ([]runtime.Object, v1beta1.SRIOVNetworkDeviceStatus, error)
 
+// RegisterSRIOVNetworkDeviceStatusHandler configures a SRIOVNetworkDeviceController to execute a SRIOVNetworkDeviceStatusHandler for every events observed.
+// If a non-empty condition is provided, it will be updated in the status conditions for every handler execution
 func RegisterSRIOVNetworkDeviceStatusHandler(ctx context.Context, controller SRIOVNetworkDeviceController, condition condition.Cond, name string, handler SRIOVNetworkDeviceStatusHandler) {
 	statusHandler := &sRIOVNetworkDeviceStatusHandler{
 		client:    controller,
 		condition: condition,
 		handler:   handler,
 	}
-	controller.AddGenericHandler(ctx, name, FromSRIOVNetworkDeviceHandlerToHandler(statusHandler.sync))
+	controller.AddGenericHandler(ctx, name, generic.FromObjectHandlerToHandler(statusHandler.sync))
 }
 
+// RegisterSRIOVNetworkDeviceGeneratingHandler configures a SRIOVNetworkDeviceController to execute a SRIOVNetworkDeviceGeneratingHandler for every events observed, passing the returned objects to the provided apply.Apply.
+// If a non-empty condition is provided, it will be updated in the status conditions for every handler execution
 func RegisterSRIOVNetworkDeviceGeneratingHandler(ctx context.Context, controller SRIOVNetworkDeviceController, apply apply.Apply,
 	condition condition.Cond, name string, handler SRIOVNetworkDeviceGeneratingHandler, opts *generic.GeneratingHandlerOptions) {
 	statusHandler := &sRIOVNetworkDeviceGeneratingHandler{
@@ -297,6 +89,7 @@ type sRIOVNetworkDeviceStatusHandler struct {
 	handler   SRIOVNetworkDeviceStatusHandler
 }
 
+// sync is executed on every resource addition or modification. Executes the configured handlers and sends the updated status to the Kubernetes API
 func (a *sRIOVNetworkDeviceStatusHandler) sync(key string, obj *v1beta1.SRIOVNetworkDevice) (*v1beta1.SRIOVNetworkDevice, error) {
 	if obj == nil {
 		return obj, nil
@@ -342,8 +135,10 @@ type sRIOVNetworkDeviceGeneratingHandler struct {
 	opts  generic.GeneratingHandlerOptions
 	gvk   schema.GroupVersionKind
 	name  string
+	seen  sync.Map
 }
 
+// Remove handles the observed deletion of a resource, cascade deleting every associated resource previously applied
 func (a *sRIOVNetworkDeviceGeneratingHandler) Remove(key string, obj *v1beta1.SRIOVNetworkDevice) (*v1beta1.SRIOVNetworkDevice, error) {
 	if obj != nil {
 		return obj, nil
@@ -353,12 +148,17 @@ func (a *sRIOVNetworkDeviceGeneratingHandler) Remove(key string, obj *v1beta1.SR
 	obj.Namespace, obj.Name = kv.RSplit(key, "/")
 	obj.SetGroupVersionKind(a.gvk)
 
+	if a.opts.UniqueApplyForResourceVersion {
+		a.seen.Delete(key)
+	}
+
 	return nil, generic.ConfigureApplyForObject(a.apply, obj, &a.opts).
 		WithOwner(obj).
 		WithSetID(a.name).
 		ApplyObjects()
 }
 
+// Handle executes the configured SRIOVNetworkDeviceGeneratingHandler and pass the resulting objects to apply.Apply, finally returning the new status of the resource
 func (a *sRIOVNetworkDeviceGeneratingHandler) Handle(obj *v1beta1.SRIOVNetworkDevice, status v1beta1.SRIOVNetworkDeviceStatus) (v1beta1.SRIOVNetworkDeviceStatus, error) {
 	if !obj.DeletionTimestamp.IsZero() {
 		return status, nil
@@ -368,9 +168,41 @@ func (a *sRIOVNetworkDeviceGeneratingHandler) Handle(obj *v1beta1.SRIOVNetworkDe
 	if err != nil {
 		return newStatus, err
 	}
+	if !a.isNewResourceVersion(obj) {
+		return newStatus, nil
+	}
 
-	return newStatus, generic.ConfigureApplyForObject(a.apply, obj, &a.opts).
+	err = generic.ConfigureApplyForObject(a.apply, obj, &a.opts).
 		WithOwner(obj).
 		WithSetID(a.name).
 		ApplyObjects(objs...)
+	if err != nil {
+		return newStatus, err
+	}
+	a.storeResourceVersion(obj)
+	return newStatus, nil
+}
+
+// isNewResourceVersion detects if a specific resource version was already successfully processed.
+// Only used if UniqueApplyForResourceVersion is set in generic.GeneratingHandlerOptions
+func (a *sRIOVNetworkDeviceGeneratingHandler) isNewResourceVersion(obj *v1beta1.SRIOVNetworkDevice) bool {
+	if !a.opts.UniqueApplyForResourceVersion {
+		return true
+	}
+
+	// Apply once per resource version
+	key := obj.Namespace + "/" + obj.Name
+	previous, ok := a.seen.Load(key)
+	return !ok || previous != obj.ResourceVersion
+}
+
+// storeResourceVersion keeps track of the latest resource version of an object for which Apply was executed
+// Only used if UniqueApplyForResourceVersion is set in generic.GeneratingHandlerOptions
+func (a *sRIOVNetworkDeviceGeneratingHandler) storeResourceVersion(obj *v1beta1.SRIOVNetworkDevice) {
+	if !a.opts.UniqueApplyForResourceVersion {
+		return
+	}
+
+	key := obj.Namespace + "/" + obj.Name
+	a.seen.Store(key, obj.ResourceVersion)
 }

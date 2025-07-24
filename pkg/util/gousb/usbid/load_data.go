@@ -27,8 +27,8 @@ import "time"
 //
 // The baked-in data was last generated:
 //
-// 2024-09-12 10:14:18.151722033 +1000 AEST m=+1.350937835
-var LastUpdate = time.Unix(0, 1726100058151722033)
+// 2025-07-25 00:15:34.359109453 +0000 UTC m=+1.508945651
+var LastUpdate = time.Unix(0, 1753402534359109453)
 
 const usbIDListData = `#
 #	List of USB ID's
@@ -41,8 +41,8 @@ const usbIDListData = `#
 #	The latest version can be obtained from
 #		http://www.linux-usb.org/usb.ids
 #
-# Version: 2024.07.04
-# Date:    2024-07-04 20:34:02
+# Version: 2025.04.01
+# Date:    2025-04-01 20:34:02
 #
 
 # Vendors, devices and interfaces. Please keep sorted.
@@ -16908,7 +16908,7 @@ const usbIDListData = `#
 	0256  Schwalm & Tate LLC pISO Raspberry Pi Hat
 	053a  Hackerspace San Salvador HSSV SAMR21-Mote
 	0cbd  Andrzej Szombierski kuku.eu.org keyboard
-	0d32  ODrive Robotics ODrive v3
+	0d32  ODrive Robotics ODrive
 	1001  InterBiometrics Hub
 	1002  InterBiometrics Relais
 	1003  InterBiometrics IBSecureCam-P
@@ -23144,6 +23144,8 @@ const usbIDListData = `#
 357d  Sharkoon
 	7788  JMicron JMS567 ATA/ATAPI Bridge
 3636  InVibro
+3752  Arculus Holdings, LLC
+	0001  AuthentiKey
 3767  Fanatec
 	0101  Speedster 3 Forceshock Wheel
 3838  WEM
@@ -23731,6 +23733,7 @@ const usbIDListData = `#
 	0029  AX200 Bluetooth
 	0032  AX210 Bluetooth
 	0033  AX211 Bluetooth
+	0036  BE200 Bluetooth
 	0716  Modem Flashloader
 	07da  Centrino Bluetooth Wireless Transceiver
 	07db  Atom C2000 Root Hub

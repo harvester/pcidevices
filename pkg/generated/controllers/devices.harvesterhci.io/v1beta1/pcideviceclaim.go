@@ -20,262 +20,54 @@ package v1beta1
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	v1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
-	"github.com/rancher/lasso/pkg/client"
-	"github.com/rancher/lasso/pkg/controller"
-	"github.com/rancher/wrangler/pkg/apply"
-	"github.com/rancher/wrangler/pkg/condition"
-	"github.com/rancher/wrangler/pkg/generic"
-	"github.com/rancher/wrangler/pkg/kv"
+	"github.com/rancher/wrangler/v3/pkg/apply"
+	"github.com/rancher/wrangler/v3/pkg/condition"
+	"github.com/rancher/wrangler/v3/pkg/generic"
+	"github.com/rancher/wrangler/v3/pkg/kv"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/tools/cache"
 )
 
-type PCIDeviceClaimHandler func(string, *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error)
-
+// PCIDeviceClaimController interface for managing PCIDeviceClaim resources.
 type PCIDeviceClaimController interface {
-	generic.ControllerMeta
-	PCIDeviceClaimClient
-
-	OnChange(ctx context.Context, name string, sync PCIDeviceClaimHandler)
-	OnRemove(ctx context.Context, name string, sync PCIDeviceClaimHandler)
-	Enqueue(name string)
-	EnqueueAfter(name string, duration time.Duration)
-
-	Cache() PCIDeviceClaimCache
+	generic.NonNamespacedControllerInterface[*v1beta1.PCIDeviceClaim, *v1beta1.PCIDeviceClaimList]
 }
 
+// PCIDeviceClaimClient interface for managing PCIDeviceClaim resources in Kubernetes.
 type PCIDeviceClaimClient interface {
-	Create(*v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error)
-	Update(*v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error)
-	UpdateStatus(*v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error)
-	Delete(name string, options *metav1.DeleteOptions) error
-	Get(name string, options metav1.GetOptions) (*v1beta1.PCIDeviceClaim, error)
-	List(opts metav1.ListOptions) (*v1beta1.PCIDeviceClaimList, error)
-	Watch(opts metav1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta1.PCIDeviceClaim, err error)
+	generic.NonNamespacedClientInterface[*v1beta1.PCIDeviceClaim, *v1beta1.PCIDeviceClaimList]
 }
 
+// PCIDeviceClaimCache interface for retrieving PCIDeviceClaim resources in memory.
 type PCIDeviceClaimCache interface {
-	Get(name string) (*v1beta1.PCIDeviceClaim, error)
-	List(selector labels.Selector) ([]*v1beta1.PCIDeviceClaim, error)
-
-	AddIndexer(indexName string, indexer PCIDeviceClaimIndexer)
-	GetByIndex(indexName, key string) ([]*v1beta1.PCIDeviceClaim, error)
+	generic.NonNamespacedCacheInterface[*v1beta1.PCIDeviceClaim]
 }
 
-type PCIDeviceClaimIndexer func(obj *v1beta1.PCIDeviceClaim) ([]string, error)
-
-type pCIDeviceClaimController struct {
-	controller    controller.SharedController
-	client        *client.Client
-	gvk           schema.GroupVersionKind
-	groupResource schema.GroupResource
-}
-
-func NewPCIDeviceClaimController(gvk schema.GroupVersionKind, resource string, namespaced bool, controller controller.SharedControllerFactory) PCIDeviceClaimController {
-	c := controller.ForResourceKind(gvk.GroupVersion().WithResource(resource), gvk.Kind, namespaced)
-	return &pCIDeviceClaimController{
-		controller: c,
-		client:     c.Client(),
-		gvk:        gvk,
-		groupResource: schema.GroupResource{
-			Group:    gvk.Group,
-			Resource: resource,
-		},
-	}
-}
-
-func FromPCIDeviceClaimHandlerToHandler(sync PCIDeviceClaimHandler) generic.Handler {
-	return func(key string, obj runtime.Object) (ret runtime.Object, err error) {
-		var v *v1beta1.PCIDeviceClaim
-		if obj == nil {
-			v, err = sync(key, nil)
-		} else {
-			v, err = sync(key, obj.(*v1beta1.PCIDeviceClaim))
-		}
-		if v == nil {
-			return nil, err
-		}
-		return v, err
-	}
-}
-
-func (c *pCIDeviceClaimController) Updater() generic.Updater {
-	return func(obj runtime.Object) (runtime.Object, error) {
-		newObj, err := c.Update(obj.(*v1beta1.PCIDeviceClaim))
-		if newObj == nil {
-			return nil, err
-		}
-		return newObj, err
-	}
-}
-
-func UpdatePCIDeviceClaimDeepCopyOnChange(client PCIDeviceClaimClient, obj *v1beta1.PCIDeviceClaim, handler func(obj *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error)) (*v1beta1.PCIDeviceClaim, error) {
-	if obj == nil {
-		return obj, nil
-	}
-
-	copyObj := obj.DeepCopy()
-	newObj, err := handler(copyObj)
-	if newObj != nil {
-		copyObj = newObj
-	}
-	if obj.ResourceVersion == copyObj.ResourceVersion && !equality.Semantic.DeepEqual(obj, copyObj) {
-		return client.Update(copyObj)
-	}
-
-	return copyObj, err
-}
-
-func (c *pCIDeviceClaimController) AddGenericHandler(ctx context.Context, name string, handler generic.Handler) {
-	c.controller.RegisterHandler(ctx, name, controller.SharedControllerHandlerFunc(handler))
-}
-
-func (c *pCIDeviceClaimController) AddGenericRemoveHandler(ctx context.Context, name string, handler generic.Handler) {
-	c.AddGenericHandler(ctx, name, generic.NewRemoveHandler(name, c.Updater(), handler))
-}
-
-func (c *pCIDeviceClaimController) OnChange(ctx context.Context, name string, sync PCIDeviceClaimHandler) {
-	c.AddGenericHandler(ctx, name, FromPCIDeviceClaimHandlerToHandler(sync))
-}
-
-func (c *pCIDeviceClaimController) OnRemove(ctx context.Context, name string, sync PCIDeviceClaimHandler) {
-	c.AddGenericHandler(ctx, name, generic.NewRemoveHandler(name, c.Updater(), FromPCIDeviceClaimHandlerToHandler(sync)))
-}
-
-func (c *pCIDeviceClaimController) Enqueue(name string) {
-	c.controller.Enqueue("", name)
-}
-
-func (c *pCIDeviceClaimController) EnqueueAfter(name string, duration time.Duration) {
-	c.controller.EnqueueAfter("", name, duration)
-}
-
-func (c *pCIDeviceClaimController) Informer() cache.SharedIndexInformer {
-	return c.controller.Informer()
-}
-
-func (c *pCIDeviceClaimController) GroupVersionKind() schema.GroupVersionKind {
-	return c.gvk
-}
-
-func (c *pCIDeviceClaimController) Cache() PCIDeviceClaimCache {
-	return &pCIDeviceClaimCache{
-		indexer:  c.Informer().GetIndexer(),
-		resource: c.groupResource,
-	}
-}
-
-func (c *pCIDeviceClaimController) Create(obj *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
-	result := &v1beta1.PCIDeviceClaim{}
-	return result, c.client.Create(context.TODO(), "", obj, result, metav1.CreateOptions{})
-}
-
-func (c *pCIDeviceClaimController) Update(obj *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
-	result := &v1beta1.PCIDeviceClaim{}
-	return result, c.client.Update(context.TODO(), "", obj, result, metav1.UpdateOptions{})
-}
-
-func (c *pCIDeviceClaimController) UpdateStatus(obj *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
-	result := &v1beta1.PCIDeviceClaim{}
-	return result, c.client.UpdateStatus(context.TODO(), "", obj, result, metav1.UpdateOptions{})
-}
-
-func (c *pCIDeviceClaimController) Delete(name string, options *metav1.DeleteOptions) error {
-	if options == nil {
-		options = &metav1.DeleteOptions{}
-	}
-	return c.client.Delete(context.TODO(), "", name, *options)
-}
-
-func (c *pCIDeviceClaimController) Get(name string, options metav1.GetOptions) (*v1beta1.PCIDeviceClaim, error) {
-	result := &v1beta1.PCIDeviceClaim{}
-	return result, c.client.Get(context.TODO(), "", name, result, options)
-}
-
-func (c *pCIDeviceClaimController) List(opts metav1.ListOptions) (*v1beta1.PCIDeviceClaimList, error) {
-	result := &v1beta1.PCIDeviceClaimList{}
-	return result, c.client.List(context.TODO(), "", result, opts)
-}
-
-func (c *pCIDeviceClaimController) Watch(opts metav1.ListOptions) (watch.Interface, error) {
-	return c.client.Watch(context.TODO(), "", opts)
-}
-
-func (c *pCIDeviceClaimController) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (*v1beta1.PCIDeviceClaim, error) {
-	result := &v1beta1.PCIDeviceClaim{}
-	return result, c.client.Patch(context.TODO(), "", name, pt, data, result, metav1.PatchOptions{}, subresources...)
-}
-
-type pCIDeviceClaimCache struct {
-	indexer  cache.Indexer
-	resource schema.GroupResource
-}
-
-func (c *pCIDeviceClaimCache) Get(name string) (*v1beta1.PCIDeviceClaim, error) {
-	obj, exists, err := c.indexer.GetByKey(name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(c.resource, name)
-	}
-	return obj.(*v1beta1.PCIDeviceClaim), nil
-}
-
-func (c *pCIDeviceClaimCache) List(selector labels.Selector) (ret []*v1beta1.PCIDeviceClaim, err error) {
-
-	err = cache.ListAll(c.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1beta1.PCIDeviceClaim))
-	})
-
-	return ret, err
-}
-
-func (c *pCIDeviceClaimCache) AddIndexer(indexName string, indexer PCIDeviceClaimIndexer) {
-	utilruntime.Must(c.indexer.AddIndexers(map[string]cache.IndexFunc{
-		indexName: func(obj interface{}) (strings []string, e error) {
-			return indexer(obj.(*v1beta1.PCIDeviceClaim))
-		},
-	}))
-}
-
-func (c *pCIDeviceClaimCache) GetByIndex(indexName, key string) (result []*v1beta1.PCIDeviceClaim, err error) {
-	objs, err := c.indexer.ByIndex(indexName, key)
-	if err != nil {
-		return nil, err
-	}
-	result = make([]*v1beta1.PCIDeviceClaim, 0, len(objs))
-	for _, obj := range objs {
-		result = append(result, obj.(*v1beta1.PCIDeviceClaim))
-	}
-	return result, nil
-}
-
+// PCIDeviceClaimStatusHandler is executed for every added or modified PCIDeviceClaim. Should return the new status to be updated
 type PCIDeviceClaimStatusHandler func(obj *v1beta1.PCIDeviceClaim, status v1beta1.PCIDeviceClaimStatus) (v1beta1.PCIDeviceClaimStatus, error)
 
+// PCIDeviceClaimGeneratingHandler is the top-level handler that is executed for every PCIDeviceClaim event. It extends PCIDeviceClaimStatusHandler by a returning a slice of child objects to be passed to apply.Apply
 type PCIDeviceClaimGeneratingHandler func(obj *v1beta1.PCIDeviceClaim, status v1beta1.PCIDeviceClaimStatus) ([]runtime.Object, v1beta1.PCIDeviceClaimStatus, error)
 
+// RegisterPCIDeviceClaimStatusHandler configures a PCIDeviceClaimController to execute a PCIDeviceClaimStatusHandler for every events observed.
+// If a non-empty condition is provided, it will be updated in the status conditions for every handler execution
 func RegisterPCIDeviceClaimStatusHandler(ctx context.Context, controller PCIDeviceClaimController, condition condition.Cond, name string, handler PCIDeviceClaimStatusHandler) {
 	statusHandler := &pCIDeviceClaimStatusHandler{
 		client:    controller,
 		condition: condition,
 		handler:   handler,
 	}
-	controller.AddGenericHandler(ctx, name, FromPCIDeviceClaimHandlerToHandler(statusHandler.sync))
+	controller.AddGenericHandler(ctx, name, generic.FromObjectHandlerToHandler(statusHandler.sync))
 }
 
+// RegisterPCIDeviceClaimGeneratingHandler configures a PCIDeviceClaimController to execute a PCIDeviceClaimGeneratingHandler for every events observed, passing the returned objects to the provided apply.Apply.
+// If a non-empty condition is provided, it will be updated in the status conditions for every handler execution
 func RegisterPCIDeviceClaimGeneratingHandler(ctx context.Context, controller PCIDeviceClaimController, apply apply.Apply,
 	condition condition.Cond, name string, handler PCIDeviceClaimGeneratingHandler, opts *generic.GeneratingHandlerOptions) {
 	statusHandler := &pCIDeviceClaimGeneratingHandler{
@@ -297,6 +89,7 @@ type pCIDeviceClaimStatusHandler struct {
 	handler   PCIDeviceClaimStatusHandler
 }
 
+// sync is executed on every resource addition or modification. Executes the configured handlers and sends the updated status to the Kubernetes API
 func (a *pCIDeviceClaimStatusHandler) sync(key string, obj *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
 	if obj == nil {
 		return obj, nil
@@ -342,8 +135,10 @@ type pCIDeviceClaimGeneratingHandler struct {
 	opts  generic.GeneratingHandlerOptions
 	gvk   schema.GroupVersionKind
 	name  string
+	seen  sync.Map
 }
 
+// Remove handles the observed deletion of a resource, cascade deleting every associated resource previously applied
 func (a *pCIDeviceClaimGeneratingHandler) Remove(key string, obj *v1beta1.PCIDeviceClaim) (*v1beta1.PCIDeviceClaim, error) {
 	if obj != nil {
 		return obj, nil
@@ -353,12 +148,17 @@ func (a *pCIDeviceClaimGeneratingHandler) Remove(key string, obj *v1beta1.PCIDev
 	obj.Namespace, obj.Name = kv.RSplit(key, "/")
 	obj.SetGroupVersionKind(a.gvk)
 
+	if a.opts.UniqueApplyForResourceVersion {
+		a.seen.Delete(key)
+	}
+
 	return nil, generic.ConfigureApplyForObject(a.apply, obj, &a.opts).
 		WithOwner(obj).
 		WithSetID(a.name).
 		ApplyObjects()
 }
 
+// Handle executes the configured PCIDeviceClaimGeneratingHandler and pass the resulting objects to apply.Apply, finally returning the new status of the resource
 func (a *pCIDeviceClaimGeneratingHandler) Handle(obj *v1beta1.PCIDeviceClaim, status v1beta1.PCIDeviceClaimStatus) (v1beta1.PCIDeviceClaimStatus, error) {
 	if !obj.DeletionTimestamp.IsZero() {
 		return status, nil
@@ -368,9 +168,41 @@ func (a *pCIDeviceClaimGeneratingHandler) Handle(obj *v1beta1.PCIDeviceClaim, st
 	if err != nil {
 		return newStatus, err
 	}
+	if !a.isNewResourceVersion(obj) {
+		return newStatus, nil
+	}
 
-	return newStatus, generic.ConfigureApplyForObject(a.apply, obj, &a.opts).
+	err = generic.ConfigureApplyForObject(a.apply, obj, &a.opts).
 		WithOwner(obj).
 		WithSetID(a.name).
 		ApplyObjects(objs...)
+	if err != nil {
+		return newStatus, err
+	}
+	a.storeResourceVersion(obj)
+	return newStatus, nil
+}
+
+// isNewResourceVersion detects if a specific resource version was already successfully processed.
+// Only used if UniqueApplyForResourceVersion is set in generic.GeneratingHandlerOptions
+func (a *pCIDeviceClaimGeneratingHandler) isNewResourceVersion(obj *v1beta1.PCIDeviceClaim) bool {
+	if !a.opts.UniqueApplyForResourceVersion {
+		return true
+	}
+
+	// Apply once per resource version
+	key := obj.Namespace + "/" + obj.Name
+	previous, ok := a.seen.Load(key)
+	return !ok || previous != obj.ResourceVersion
+}
+
+// storeResourceVersion keeps track of the latest resource version of an object for which Apply was executed
+// Only used if UniqueApplyForResourceVersion is set in generic.GeneratingHandlerOptions
+func (a *pCIDeviceClaimGeneratingHandler) storeResourceVersion(obj *v1beta1.PCIDeviceClaim) {
+	if !a.opts.UniqueApplyForResourceVersion {
+		return
+	}
+
+	key := obj.Namespace + "/" + obj.Name
+	a.seen.Store(key, obj.ResourceVersion)
 }

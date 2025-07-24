@@ -3,7 +3,7 @@ package usbdevice
 import (
 	"context"
 
-	"github.com/rancher/wrangler/pkg/relatedresource"
+	"github.com/rancher/wrangler/v3/pkg/relatedresource"
 	"github.com/sirupsen/logrus"
 
 	"github.com/harvester/pcidevices/pkg/config"

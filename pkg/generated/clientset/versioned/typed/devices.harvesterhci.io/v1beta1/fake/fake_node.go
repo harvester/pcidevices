@@ -24,7 +24,6 @@ import (
 	v1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -35,26 +34,28 @@ type FakeNodes struct {
 	Fake *FakeDevicesV1beta1
 }
 
-var nodesResource = schema.GroupVersionResource{Group: "devices.harvesterhci.io", Version: "v1beta1", Resource: "nodes"}
+var nodesResource = v1beta1.SchemeGroupVersion.WithResource("nodes")
 
-var nodesKind = schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "Node"}
+var nodesKind = v1beta1.SchemeGroupVersion.WithKind("Node")
 
 // Get takes name of the node, and returns the corresponding node object, and an error if there is any.
 func (c *FakeNodes) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.Node, err error) {
+	emptyResult := &v1beta1.Node{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(nodesResource, name), &v1beta1.Node{})
+		Invokes(testing.NewRootGetActionWithOptions(nodesResource, name, options), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.Node), err
 }
 
 // List takes label and field selectors, and returns the list of Nodes that match those selectors.
 func (c *FakeNodes) List(ctx context.Context, opts v1.ListOptions) (result *v1beta1.NodeList, err error) {
+	emptyResult := &v1beta1.NodeList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(nodesResource, nodesKind, opts), &v1beta1.NodeList{})
+		Invokes(testing.NewRootListActionWithOptions(nodesResource, nodesKind, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -73,25 +74,27 @@ func (c *FakeNodes) List(ctx context.Context, opts v1.ListOptions) (result *v1be
 // Watch returns a watch.Interface that watches the requested nodes.
 func (c *FakeNodes) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(nodesResource, opts))
+		InvokesWatch(testing.NewRootWatchActionWithOptions(nodesResource, opts))
 }
 
 // Create takes the representation of a node and creates it.  Returns the server's representation of the node, and an error, if there is any.
 func (c *FakeNodes) Create(ctx context.Context, node *v1beta1.Node, opts v1.CreateOptions) (result *v1beta1.Node, err error) {
+	emptyResult := &v1beta1.Node{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(nodesResource, node), &v1beta1.Node{})
+		Invokes(testing.NewRootCreateActionWithOptions(nodesResource, node, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.Node), err
 }
 
 // Update takes the representation of a node and updates it. Returns the server's representation of the node, and an error, if there is any.
 func (c *FakeNodes) Update(ctx context.Context, node *v1beta1.Node, opts v1.UpdateOptions) (result *v1beta1.Node, err error) {
+	emptyResult := &v1beta1.Node{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(nodesResource, node), &v1beta1.Node{})
+		Invokes(testing.NewRootUpdateActionWithOptions(nodesResource, node, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.Node), err
 }
@@ -105,7 +108,7 @@ func (c *FakeNodes) Delete(ctx context.Context, name string, opts v1.DeleteOptio
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeNodes) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(nodesResource, listOpts)
+	action := testing.NewRootDeleteCollectionActionWithOptions(nodesResource, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1beta1.NodeList{})
 	return err
@@ -113,10 +116,11 @@ func (c *FakeNodes) DeleteCollection(ctx context.Context, opts v1.DeleteOptions,
 
 // Patch applies the patch and returns the patched node.
 func (c *FakeNodes) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.Node, err error) {
+	emptyResult := &v1beta1.Node{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(nodesResource, name, pt, data, subresources...), &v1beta1.Node{})
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(nodesResource, name, pt, data, opts, subresources...), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.Node), err
 }
