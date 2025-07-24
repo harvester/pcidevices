@@ -77,7 +77,7 @@ func (pdc *pciDeviceClaimValidator) Create(_ *types.Request, newObj runtime.Obje
 		pciName := fmt.Sprintf("%s (%s)", pciDev.Name, pciDev.Status.Description)
 		allUsbDevs := strings.Join(used, ", ")
 		err = fmt.Errorf("These USB devices [%s] are using the PCI USB Controller [%s], so it can't be passed through. \n If you need to pass through PCI USB controller, please detach and remove all USB devices which are using this PCI USB controller", allUsbDevs, pciName)
-		logrus.Errorf(err.Error())
+		logrus.Error(err.Error())
 		return err
 	}
 

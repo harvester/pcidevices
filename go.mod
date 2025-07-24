@@ -1,9 +1,8 @@
 module github.com/harvester/pcidevices
 
-go 1.23.4
+go 1.24.5
 
 require (
-	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/gorilla/mux v1.8.0
 	github.com/harvester/harvester v1.3.0
@@ -46,6 +45,7 @@ require (
 	github.com/cisco-open/operator-tools v0.29.0 // indirect
 	github.com/coreos/prometheus-operator v0.38.3 // indirect
 	github.com/emicklei/go-restful/v3 v3.9.0 // indirect
+	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d // indirect
 	github.com/fatih/camelcase v1.0.0 // indirect
@@ -155,7 +155,7 @@ require (
 	golang.org/x/net v0.21.0
 	golang.org/x/oauth2 v0.13.0 // indirect
 	golang.org/x/sync v0.5.0 // indirect
-	golang.org/x/sys v0.18.0
+	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/term v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
