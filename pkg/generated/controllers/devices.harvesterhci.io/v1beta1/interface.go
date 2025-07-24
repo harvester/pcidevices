@@ -21,7 +21,8 @@ package v1beta1
 import (
 	v1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/rancher/lasso/pkg/controller"
-	"github.com/rancher/wrangler/pkg/schemes"
+	"github.com/rancher/wrangler/v3/pkg/generic"
+	"github.com/rancher/wrangler/v3/pkg/schemes"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -50,27 +51,34 @@ type version struct {
 	controllerFactory controller.SharedControllerFactory
 }
 
-func (c *version) Node() NodeController {
-	return NewNodeController(schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "Node"}, "nodes", false, c.controllerFactory)
+func (v *version) Node() NodeController {
+	return generic.NewNonNamespacedController[*v1beta1.Node, *v1beta1.NodeList](schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "Node"}, "nodes", v.controllerFactory)
 }
-func (c *version) PCIDevice() PCIDeviceController {
-	return NewPCIDeviceController(schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "PCIDevice"}, "pcidevices", false, c.controllerFactory)
+
+func (v *version) PCIDevice() PCIDeviceController {
+	return generic.NewNonNamespacedController[*v1beta1.PCIDevice, *v1beta1.PCIDeviceList](schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "PCIDevice"}, "pcidevices", v.controllerFactory)
 }
-func (c *version) PCIDeviceClaim() PCIDeviceClaimController {
-	return NewPCIDeviceClaimController(schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "PCIDeviceClaim"}, "pcideviceclaims", false, c.controllerFactory)
+
+func (v *version) PCIDeviceClaim() PCIDeviceClaimController {
+	return generic.NewNonNamespacedController[*v1beta1.PCIDeviceClaim, *v1beta1.PCIDeviceClaimList](schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "PCIDeviceClaim"}, "pcideviceclaims", v.controllerFactory)
 }
-func (c *version) SRIOVGPUDevice() SRIOVGPUDeviceController {
-	return NewSRIOVGPUDeviceController(schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "SRIOVGPUDevice"}, "sriovgpudevices", false, c.controllerFactory)
+
+func (v *version) SRIOVGPUDevice() SRIOVGPUDeviceController {
+	return generic.NewNonNamespacedController[*v1beta1.SRIOVGPUDevice, *v1beta1.SRIOVGPUDeviceList](schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "SRIOVGPUDevice"}, "sriovgpudevices", v.controllerFactory)
 }
-func (c *version) SRIOVNetworkDevice() SRIOVNetworkDeviceController {
-	return NewSRIOVNetworkDeviceController(schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "SRIOVNetworkDevice"}, "sriovnetworkdevices", false, c.controllerFactory)
+
+func (v *version) SRIOVNetworkDevice() SRIOVNetworkDeviceController {
+	return generic.NewNonNamespacedController[*v1beta1.SRIOVNetworkDevice, *v1beta1.SRIOVNetworkDeviceList](schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "SRIOVNetworkDevice"}, "sriovnetworkdevices", v.controllerFactory)
 }
-func (c *version) USBDevice() USBDeviceController {
-	return NewUSBDeviceController(schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "USBDevice"}, "usbdevices", false, c.controllerFactory)
+
+func (v *version) USBDevice() USBDeviceController {
+	return generic.NewNonNamespacedController[*v1beta1.USBDevice, *v1beta1.USBDeviceList](schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "USBDevice"}, "usbdevices", v.controllerFactory)
 }
-func (c *version) USBDeviceClaim() USBDeviceClaimController {
-	return NewUSBDeviceClaimController(schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "USBDeviceClaim"}, "usbdeviceclaims", false, c.controllerFactory)
+
+func (v *version) USBDeviceClaim() USBDeviceClaimController {
+	return generic.NewNonNamespacedController[*v1beta1.USBDeviceClaim, *v1beta1.USBDeviceClaimList](schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "USBDeviceClaim"}, "usbdeviceclaims", v.controllerFactory)
 }
-func (c *version) VGPUDevice() VGPUDeviceController {
-	return NewVGPUDeviceController(schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "VGPUDevice"}, "vgpudevices", false, c.controllerFactory)
+
+func (v *version) VGPUDevice() VGPUDeviceController {
+	return generic.NewNonNamespacedController[*v1beta1.VGPUDevice, *v1beta1.VGPUDeviceList](schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "VGPUDevice"}, "vgpudevices", v.controllerFactory)
 }

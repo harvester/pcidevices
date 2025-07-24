@@ -20,262 +20,54 @@ package v1beta1
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	v1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
-	"github.com/rancher/lasso/pkg/client"
-	"github.com/rancher/lasso/pkg/controller"
-	"github.com/rancher/wrangler/pkg/apply"
-	"github.com/rancher/wrangler/pkg/condition"
-	"github.com/rancher/wrangler/pkg/generic"
-	"github.com/rancher/wrangler/pkg/kv"
+	"github.com/rancher/wrangler/v3/pkg/apply"
+	"github.com/rancher/wrangler/v3/pkg/condition"
+	"github.com/rancher/wrangler/v3/pkg/generic"
+	"github.com/rancher/wrangler/v3/pkg/kv"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/tools/cache"
 )
 
-type USBDeviceHandler func(string, *v1beta1.USBDevice) (*v1beta1.USBDevice, error)
-
+// USBDeviceController interface for managing USBDevice resources.
 type USBDeviceController interface {
-	generic.ControllerMeta
-	USBDeviceClient
-
-	OnChange(ctx context.Context, name string, sync USBDeviceHandler)
-	OnRemove(ctx context.Context, name string, sync USBDeviceHandler)
-	Enqueue(name string)
-	EnqueueAfter(name string, duration time.Duration)
-
-	Cache() USBDeviceCache
+	generic.NonNamespacedControllerInterface[*v1beta1.USBDevice, *v1beta1.USBDeviceList]
 }
 
+// USBDeviceClient interface for managing USBDevice resources in Kubernetes.
 type USBDeviceClient interface {
-	Create(*v1beta1.USBDevice) (*v1beta1.USBDevice, error)
-	Update(*v1beta1.USBDevice) (*v1beta1.USBDevice, error)
-	UpdateStatus(*v1beta1.USBDevice) (*v1beta1.USBDevice, error)
-	Delete(name string, options *metav1.DeleteOptions) error
-	Get(name string, options metav1.GetOptions) (*v1beta1.USBDevice, error)
-	List(opts metav1.ListOptions) (*v1beta1.USBDeviceList, error)
-	Watch(opts metav1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta1.USBDevice, err error)
+	generic.NonNamespacedClientInterface[*v1beta1.USBDevice, *v1beta1.USBDeviceList]
 }
 
+// USBDeviceCache interface for retrieving USBDevice resources in memory.
 type USBDeviceCache interface {
-	Get(name string) (*v1beta1.USBDevice, error)
-	List(selector labels.Selector) ([]*v1beta1.USBDevice, error)
-
-	AddIndexer(indexName string, indexer USBDeviceIndexer)
-	GetByIndex(indexName, key string) ([]*v1beta1.USBDevice, error)
+	generic.NonNamespacedCacheInterface[*v1beta1.USBDevice]
 }
 
-type USBDeviceIndexer func(obj *v1beta1.USBDevice) ([]string, error)
-
-type uSBDeviceController struct {
-	controller    controller.SharedController
-	client        *client.Client
-	gvk           schema.GroupVersionKind
-	groupResource schema.GroupResource
-}
-
-func NewUSBDeviceController(gvk schema.GroupVersionKind, resource string, namespaced bool, controller controller.SharedControllerFactory) USBDeviceController {
-	c := controller.ForResourceKind(gvk.GroupVersion().WithResource(resource), gvk.Kind, namespaced)
-	return &uSBDeviceController{
-		controller: c,
-		client:     c.Client(),
-		gvk:        gvk,
-		groupResource: schema.GroupResource{
-			Group:    gvk.Group,
-			Resource: resource,
-		},
-	}
-}
-
-func FromUSBDeviceHandlerToHandler(sync USBDeviceHandler) generic.Handler {
-	return func(key string, obj runtime.Object) (ret runtime.Object, err error) {
-		var v *v1beta1.USBDevice
-		if obj == nil {
-			v, err = sync(key, nil)
-		} else {
-			v, err = sync(key, obj.(*v1beta1.USBDevice))
-		}
-		if v == nil {
-			return nil, err
-		}
-		return v, err
-	}
-}
-
-func (c *uSBDeviceController) Updater() generic.Updater {
-	return func(obj runtime.Object) (runtime.Object, error) {
-		newObj, err := c.Update(obj.(*v1beta1.USBDevice))
-		if newObj == nil {
-			return nil, err
-		}
-		return newObj, err
-	}
-}
-
-func UpdateUSBDeviceDeepCopyOnChange(client USBDeviceClient, obj *v1beta1.USBDevice, handler func(obj *v1beta1.USBDevice) (*v1beta1.USBDevice, error)) (*v1beta1.USBDevice, error) {
-	if obj == nil {
-		return obj, nil
-	}
-
-	copyObj := obj.DeepCopy()
-	newObj, err := handler(copyObj)
-	if newObj != nil {
-		copyObj = newObj
-	}
-	if obj.ResourceVersion == copyObj.ResourceVersion && !equality.Semantic.DeepEqual(obj, copyObj) {
-		return client.Update(copyObj)
-	}
-
-	return copyObj, err
-}
-
-func (c *uSBDeviceController) AddGenericHandler(ctx context.Context, name string, handler generic.Handler) {
-	c.controller.RegisterHandler(ctx, name, controller.SharedControllerHandlerFunc(handler))
-}
-
-func (c *uSBDeviceController) AddGenericRemoveHandler(ctx context.Context, name string, handler generic.Handler) {
-	c.AddGenericHandler(ctx, name, generic.NewRemoveHandler(name, c.Updater(), handler))
-}
-
-func (c *uSBDeviceController) OnChange(ctx context.Context, name string, sync USBDeviceHandler) {
-	c.AddGenericHandler(ctx, name, FromUSBDeviceHandlerToHandler(sync))
-}
-
-func (c *uSBDeviceController) OnRemove(ctx context.Context, name string, sync USBDeviceHandler) {
-	c.AddGenericHandler(ctx, name, generic.NewRemoveHandler(name, c.Updater(), FromUSBDeviceHandlerToHandler(sync)))
-}
-
-func (c *uSBDeviceController) Enqueue(name string) {
-	c.controller.Enqueue("", name)
-}
-
-func (c *uSBDeviceController) EnqueueAfter(name string, duration time.Duration) {
-	c.controller.EnqueueAfter("", name, duration)
-}
-
-func (c *uSBDeviceController) Informer() cache.SharedIndexInformer {
-	return c.controller.Informer()
-}
-
-func (c *uSBDeviceController) GroupVersionKind() schema.GroupVersionKind {
-	return c.gvk
-}
-
-func (c *uSBDeviceController) Cache() USBDeviceCache {
-	return &uSBDeviceCache{
-		indexer:  c.Informer().GetIndexer(),
-		resource: c.groupResource,
-	}
-}
-
-func (c *uSBDeviceController) Create(obj *v1beta1.USBDevice) (*v1beta1.USBDevice, error) {
-	result := &v1beta1.USBDevice{}
-	return result, c.client.Create(context.TODO(), "", obj, result, metav1.CreateOptions{})
-}
-
-func (c *uSBDeviceController) Update(obj *v1beta1.USBDevice) (*v1beta1.USBDevice, error) {
-	result := &v1beta1.USBDevice{}
-	return result, c.client.Update(context.TODO(), "", obj, result, metav1.UpdateOptions{})
-}
-
-func (c *uSBDeviceController) UpdateStatus(obj *v1beta1.USBDevice) (*v1beta1.USBDevice, error) {
-	result := &v1beta1.USBDevice{}
-	return result, c.client.UpdateStatus(context.TODO(), "", obj, result, metav1.UpdateOptions{})
-}
-
-func (c *uSBDeviceController) Delete(name string, options *metav1.DeleteOptions) error {
-	if options == nil {
-		options = &metav1.DeleteOptions{}
-	}
-	return c.client.Delete(context.TODO(), "", name, *options)
-}
-
-func (c *uSBDeviceController) Get(name string, options metav1.GetOptions) (*v1beta1.USBDevice, error) {
-	result := &v1beta1.USBDevice{}
-	return result, c.client.Get(context.TODO(), "", name, result, options)
-}
-
-func (c *uSBDeviceController) List(opts metav1.ListOptions) (*v1beta1.USBDeviceList, error) {
-	result := &v1beta1.USBDeviceList{}
-	return result, c.client.List(context.TODO(), "", result, opts)
-}
-
-func (c *uSBDeviceController) Watch(opts metav1.ListOptions) (watch.Interface, error) {
-	return c.client.Watch(context.TODO(), "", opts)
-}
-
-func (c *uSBDeviceController) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (*v1beta1.USBDevice, error) {
-	result := &v1beta1.USBDevice{}
-	return result, c.client.Patch(context.TODO(), "", name, pt, data, result, metav1.PatchOptions{}, subresources...)
-}
-
-type uSBDeviceCache struct {
-	indexer  cache.Indexer
-	resource schema.GroupResource
-}
-
-func (c *uSBDeviceCache) Get(name string) (*v1beta1.USBDevice, error) {
-	obj, exists, err := c.indexer.GetByKey(name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(c.resource, name)
-	}
-	return obj.(*v1beta1.USBDevice), nil
-}
-
-func (c *uSBDeviceCache) List(selector labels.Selector) (ret []*v1beta1.USBDevice, err error) {
-
-	err = cache.ListAll(c.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1beta1.USBDevice))
-	})
-
-	return ret, err
-}
-
-func (c *uSBDeviceCache) AddIndexer(indexName string, indexer USBDeviceIndexer) {
-	utilruntime.Must(c.indexer.AddIndexers(map[string]cache.IndexFunc{
-		indexName: func(obj interface{}) (strings []string, e error) {
-			return indexer(obj.(*v1beta1.USBDevice))
-		},
-	}))
-}
-
-func (c *uSBDeviceCache) GetByIndex(indexName, key string) (result []*v1beta1.USBDevice, err error) {
-	objs, err := c.indexer.ByIndex(indexName, key)
-	if err != nil {
-		return nil, err
-	}
-	result = make([]*v1beta1.USBDevice, 0, len(objs))
-	for _, obj := range objs {
-		result = append(result, obj.(*v1beta1.USBDevice))
-	}
-	return result, nil
-}
-
+// USBDeviceStatusHandler is executed for every added or modified USBDevice. Should return the new status to be updated
 type USBDeviceStatusHandler func(obj *v1beta1.USBDevice, status v1beta1.USBDeviceStatus) (v1beta1.USBDeviceStatus, error)
 
+// USBDeviceGeneratingHandler is the top-level handler that is executed for every USBDevice event. It extends USBDeviceStatusHandler by a returning a slice of child objects to be passed to apply.Apply
 type USBDeviceGeneratingHandler func(obj *v1beta1.USBDevice, status v1beta1.USBDeviceStatus) ([]runtime.Object, v1beta1.USBDeviceStatus, error)
 
+// RegisterUSBDeviceStatusHandler configures a USBDeviceController to execute a USBDeviceStatusHandler for every events observed.
+// If a non-empty condition is provided, it will be updated in the status conditions for every handler execution
 func RegisterUSBDeviceStatusHandler(ctx context.Context, controller USBDeviceController, condition condition.Cond, name string, handler USBDeviceStatusHandler) {
 	statusHandler := &uSBDeviceStatusHandler{
 		client:    controller,
 		condition: condition,
 		handler:   handler,
 	}
-	controller.AddGenericHandler(ctx, name, FromUSBDeviceHandlerToHandler(statusHandler.sync))
+	controller.AddGenericHandler(ctx, name, generic.FromObjectHandlerToHandler(statusHandler.sync))
 }
 
+// RegisterUSBDeviceGeneratingHandler configures a USBDeviceController to execute a USBDeviceGeneratingHandler for every events observed, passing the returned objects to the provided apply.Apply.
+// If a non-empty condition is provided, it will be updated in the status conditions for every handler execution
 func RegisterUSBDeviceGeneratingHandler(ctx context.Context, controller USBDeviceController, apply apply.Apply,
 	condition condition.Cond, name string, handler USBDeviceGeneratingHandler, opts *generic.GeneratingHandlerOptions) {
 	statusHandler := &uSBDeviceGeneratingHandler{
@@ -297,6 +89,7 @@ type uSBDeviceStatusHandler struct {
 	handler   USBDeviceStatusHandler
 }
 
+// sync is executed on every resource addition or modification. Executes the configured handlers and sends the updated status to the Kubernetes API
 func (a *uSBDeviceStatusHandler) sync(key string, obj *v1beta1.USBDevice) (*v1beta1.USBDevice, error) {
 	if obj == nil {
 		return obj, nil
@@ -342,8 +135,10 @@ type uSBDeviceGeneratingHandler struct {
 	opts  generic.GeneratingHandlerOptions
 	gvk   schema.GroupVersionKind
 	name  string
+	seen  sync.Map
 }
 
+// Remove handles the observed deletion of a resource, cascade deleting every associated resource previously applied
 func (a *uSBDeviceGeneratingHandler) Remove(key string, obj *v1beta1.USBDevice) (*v1beta1.USBDevice, error) {
 	if obj != nil {
 		return obj, nil
@@ -353,12 +148,17 @@ func (a *uSBDeviceGeneratingHandler) Remove(key string, obj *v1beta1.USBDevice) 
 	obj.Namespace, obj.Name = kv.RSplit(key, "/")
 	obj.SetGroupVersionKind(a.gvk)
 
+	if a.opts.UniqueApplyForResourceVersion {
+		a.seen.Delete(key)
+	}
+
 	return nil, generic.ConfigureApplyForObject(a.apply, obj, &a.opts).
 		WithOwner(obj).
 		WithSetID(a.name).
 		ApplyObjects()
 }
 
+// Handle executes the configured USBDeviceGeneratingHandler and pass the resulting objects to apply.Apply, finally returning the new status of the resource
 func (a *uSBDeviceGeneratingHandler) Handle(obj *v1beta1.USBDevice, status v1beta1.USBDeviceStatus) (v1beta1.USBDeviceStatus, error) {
 	if !obj.DeletionTimestamp.IsZero() {
 		return status, nil
@@ -368,9 +168,41 @@ func (a *uSBDeviceGeneratingHandler) Handle(obj *v1beta1.USBDevice, status v1bet
 	if err != nil {
 		return newStatus, err
 	}
+	if !a.isNewResourceVersion(obj) {
+		return newStatus, nil
+	}
 
-	return newStatus, generic.ConfigureApplyForObject(a.apply, obj, &a.opts).
+	err = generic.ConfigureApplyForObject(a.apply, obj, &a.opts).
 		WithOwner(obj).
 		WithSetID(a.name).
 		ApplyObjects(objs...)
+	if err != nil {
+		return newStatus, err
+	}
+	a.storeResourceVersion(obj)
+	return newStatus, nil
+}
+
+// isNewResourceVersion detects if a specific resource version was already successfully processed.
+// Only used if UniqueApplyForResourceVersion is set in generic.GeneratingHandlerOptions
+func (a *uSBDeviceGeneratingHandler) isNewResourceVersion(obj *v1beta1.USBDevice) bool {
+	if !a.opts.UniqueApplyForResourceVersion {
+		return true
+	}
+
+	// Apply once per resource version
+	key := obj.Namespace + "/" + obj.Name
+	previous, ok := a.seen.Load(key)
+	return !ok || previous != obj.ResourceVersion
+}
+
+// storeResourceVersion keeps track of the latest resource version of an object for which Apply was executed
+// Only used if UniqueApplyForResourceVersion is set in generic.GeneratingHandlerOptions
+func (a *uSBDeviceGeneratingHandler) storeResourceVersion(obj *v1beta1.USBDevice) {
+	if !a.opts.UniqueApplyForResourceVersion {
+		return
+	}
+
+	key := obj.Namespace + "/" + obj.Name
+	a.seen.Store(key, obj.ResourceVersion)
 }

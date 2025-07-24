@@ -1,7 +1,7 @@
 package config
 
 import (
-	ctlcore "github.com/rancher/wrangler/pkg/generated/controllers/core"
+	ctlcore "github.com/rancher/wrangler/v3/pkg/generated/controllers/core"
 	"k8s.io/client-go/rest"
 	"kubevirt.io/client-go/kubecli"
 

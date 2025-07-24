@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rancher/wrangler/pkg/relatedresource"
+	"github.com/rancher/wrangler/v3/pkg/relatedresource"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/u-root/u-root/pkg/kmodule"
@@ -414,7 +414,7 @@ func (h *Handler) createDevicePlugin(
 
 func (h *Handler) permitHostDeviceInKubeVirt(pd *v1beta1.PCIDevice) error {
 	logrus.Infof("Adding %s to KubeVirt list of permitted devices", pd.Name)
-	kv, err := h.virtClient.KubeVirt(DefaultNS).Get(KubevirtCR, &v1.GetOptions{})
+	kv, err := h.virtClient.KubeVirt(DefaultNS).Get(h.ctx, KubevirtCR, v1.GetOptions{})
 	if err != nil {
 		msg := fmt.Sprintf("cannot obtain KubeVirt CR: %v", err)
 		return errors.New(msg)
@@ -422,7 +422,7 @@ func (h *Handler) permitHostDeviceInKubeVirt(pd *v1beta1.PCIDevice) error {
 
 	kvCopy := reconcileKubevirtCR(kv, pd)
 	if !reflect.DeepEqual(kv.Spec.Configuration.PermittedHostDevices, kvCopy.Spec.Configuration.PermittedHostDevices) {
-		_, err := h.virtClient.KubeVirt(DefaultNS).Update(kvCopy)
+		_, err := h.virtClient.KubeVirt(DefaultNS).Update(h.ctx, kvCopy, metav1.UpdateOptions{})
 		return err
 	}
 

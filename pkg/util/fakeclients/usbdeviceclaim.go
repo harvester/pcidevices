@@ -8,10 +8,12 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/rest"
+
+	"github.com/rancher/wrangler/v3/pkg/generic"
 
 	devicev1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/generated/clientset/versioned/typed/devices.harvesterhci.io/v1beta1"
-	devicesv1beta1ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 )
 
 const USBDeviceByAddress = "pcidevice.harvesterhci.io/usb-device-by-address"
@@ -50,6 +52,10 @@ func (p USBDeviceClaimsClient) UpdateStatus(d *devicev1beta1.USBDeviceClaim) (*d
 	return p().Update(context.TODO(), d, metav1.UpdateOptions{})
 }
 
+func (p USBDeviceClaimsClient) WithImpersonation(_ rest.ImpersonationConfig) (generic.NonNamespacedClientInterface[*devicev1beta1.USBDeviceClaim, *devicev1beta1.USBDeviceClaimList], error) {
+	panic("implement me")
+}
+
 type USBDeviceClaimsCache func() v1beta1.USBDeviceClaimInterface
 
 func (p USBDeviceClaimsCache) Get(name string) (*devicev1beta1.USBDeviceClaim, error) {
@@ -71,7 +77,7 @@ func (p USBDeviceClaimsCache) List(labels.Selector) ([]*devicev1beta1.USBDeviceC
 	return result, nil
 }
 
-func (p USBDeviceClaimsCache) AddIndexer(_ string, _ devicesv1beta1ctl.USBDeviceClaimIndexer) {
+func (p USBDeviceClaimsCache) AddIndexer(_ string, _ generic.Indexer[*devicev1beta1.USBDeviceClaim]) {
 	panic("implement me")
 }
 

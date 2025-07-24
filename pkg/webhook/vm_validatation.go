@@ -3,11 +3,12 @@ package webhook
 import (
 	"fmt"
 
-	"github.com/harvester/harvester/pkg/webhook/types"
 	admissionregv1 "k8s.io/api/admissionregistration/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubevirtv1 "kubevirt.io/api/core/v1"
+
+	"github.com/harvester/harvester/pkg/webhook/types"
 
 	"github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 )
@@ -72,6 +73,7 @@ func (vmValidator *vmDeviceHostValidator) validateDevices(vmObj *kubevirtv1.Virt
 }
 
 func (vmValidator *vmDeviceHostValidator) validateDevicesFromSameNodes(vmObj *kubevirtv1.VirtualMachine) error {
+
 	var nodeName string
 	errorMsgFormat := "device %s/%s is not on the same node in VirtualMachine.Spec.Template.Spec.Domain.Devices.HostDevices %s"
 
@@ -81,6 +83,7 @@ func (vmValidator *vmDeviceHostValidator) validateDevicesFromSameNodes(vmObj *ku
 			if !apierrors.IsNotFound(err) {
 				return err
 			}
+			usb = nil
 		}
 
 		if nodeName == "" && usb != nil {
@@ -93,6 +96,7 @@ func (vmValidator *vmDeviceHostValidator) validateDevicesFromSameNodes(vmObj *ku
 			if !apierrors.IsNotFound(err) {
 				return err
 			}
+			pci = nil
 		}
 
 		if nodeName == "" && pci != nil {

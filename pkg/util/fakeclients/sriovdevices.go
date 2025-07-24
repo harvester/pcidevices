@@ -3,15 +3,16 @@ package fakeclients
 import (
 	"context"
 
-	"github.com/rancher/wrangler/pkg/slice"
+	"github.com/rancher/wrangler/v3/pkg/generic"
+	"github.com/rancher/wrangler/v3/pkg/slice"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/rest"
 
 	pcidevicev1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/generated/clientset/versioned/typed/devices.harvesterhci.io/v1beta1"
-	pcidevicesv1beta1ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 )
 
 type SriovDevicesClient func() v1beta1.SRIOVNetworkDeviceInterface
@@ -48,6 +49,10 @@ func (s SriovDevicesClient) UpdateStatus(d *pcidevicev1beta1.SRIOVNetworkDevice)
 	return s().Update(context.TODO(), d, metav1.UpdateOptions{})
 }
 
+func (s SriovDevicesClient) WithImpersonation(_ rest.ImpersonationConfig) (generic.NonNamespacedClientInterface[*pcidevicev1beta1.SRIOVNetworkDevice, *pcidevicev1beta1.SRIOVNetworkDeviceList], error) {
+	panic("implement me")
+}
+
 type SriovDevicesCache func() v1beta1.SRIOVNetworkDeviceInterface
 
 func (s SriovDevicesCache) Get(name string) (*pcidevicev1beta1.SRIOVNetworkDevice, error) {
@@ -69,7 +74,7 @@ func (s SriovDevicesCache) List(selector labels.Selector) ([]*pcidevicev1beta1.S
 	return result, err
 }
 
-func (s SriovDevicesCache) AddIndexer(_ string, _ pcidevicesv1beta1ctl.SRIOVNetworkDeviceIndexer) {
+func (s SriovDevicesCache) AddIndexer(_ string, _ generic.Indexer[*pcidevicev1beta1.SRIOVNetworkDevice]) {
 	panic("implement me")
 }
 

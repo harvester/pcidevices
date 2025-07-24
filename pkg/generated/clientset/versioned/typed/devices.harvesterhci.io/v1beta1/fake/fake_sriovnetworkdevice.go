@@ -24,7 +24,6 @@ import (
 	v1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -35,26 +34,28 @@ type FakeSRIOVNetworkDevices struct {
 	Fake *FakeDevicesV1beta1
 }
 
-var sriovnetworkdevicesResource = schema.GroupVersionResource{Group: "devices.harvesterhci.io", Version: "v1beta1", Resource: "sriovnetworkdevices"}
+var sriovnetworkdevicesResource = v1beta1.SchemeGroupVersion.WithResource("sriovnetworkdevices")
 
-var sriovnetworkdevicesKind = schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "SRIOVNetworkDevice"}
+var sriovnetworkdevicesKind = v1beta1.SchemeGroupVersion.WithKind("SRIOVNetworkDevice")
 
 // Get takes name of the sRIOVNetworkDevice, and returns the corresponding sRIOVNetworkDevice object, and an error if there is any.
 func (c *FakeSRIOVNetworkDevices) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.SRIOVNetworkDevice, err error) {
+	emptyResult := &v1beta1.SRIOVNetworkDevice{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(sriovnetworkdevicesResource, name), &v1beta1.SRIOVNetworkDevice{})
+		Invokes(testing.NewRootGetActionWithOptions(sriovnetworkdevicesResource, name, options), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.SRIOVNetworkDevice), err
 }
 
 // List takes label and field selectors, and returns the list of SRIOVNetworkDevices that match those selectors.
 func (c *FakeSRIOVNetworkDevices) List(ctx context.Context, opts v1.ListOptions) (result *v1beta1.SRIOVNetworkDeviceList, err error) {
+	emptyResult := &v1beta1.SRIOVNetworkDeviceList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(sriovnetworkdevicesResource, sriovnetworkdevicesKind, opts), &v1beta1.SRIOVNetworkDeviceList{})
+		Invokes(testing.NewRootListActionWithOptions(sriovnetworkdevicesResource, sriovnetworkdevicesKind, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -73,36 +74,39 @@ func (c *FakeSRIOVNetworkDevices) List(ctx context.Context, opts v1.ListOptions)
 // Watch returns a watch.Interface that watches the requested sRIOVNetworkDevices.
 func (c *FakeSRIOVNetworkDevices) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(sriovnetworkdevicesResource, opts))
+		InvokesWatch(testing.NewRootWatchActionWithOptions(sriovnetworkdevicesResource, opts))
 }
 
 // Create takes the representation of a sRIOVNetworkDevice and creates it.  Returns the server's representation of the sRIOVNetworkDevice, and an error, if there is any.
 func (c *FakeSRIOVNetworkDevices) Create(ctx context.Context, sRIOVNetworkDevice *v1beta1.SRIOVNetworkDevice, opts v1.CreateOptions) (result *v1beta1.SRIOVNetworkDevice, err error) {
+	emptyResult := &v1beta1.SRIOVNetworkDevice{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(sriovnetworkdevicesResource, sRIOVNetworkDevice), &v1beta1.SRIOVNetworkDevice{})
+		Invokes(testing.NewRootCreateActionWithOptions(sriovnetworkdevicesResource, sRIOVNetworkDevice, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.SRIOVNetworkDevice), err
 }
 
 // Update takes the representation of a sRIOVNetworkDevice and updates it. Returns the server's representation of the sRIOVNetworkDevice, and an error, if there is any.
 func (c *FakeSRIOVNetworkDevices) Update(ctx context.Context, sRIOVNetworkDevice *v1beta1.SRIOVNetworkDevice, opts v1.UpdateOptions) (result *v1beta1.SRIOVNetworkDevice, err error) {
+	emptyResult := &v1beta1.SRIOVNetworkDevice{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(sriovnetworkdevicesResource, sRIOVNetworkDevice), &v1beta1.SRIOVNetworkDevice{})
+		Invokes(testing.NewRootUpdateActionWithOptions(sriovnetworkdevicesResource, sRIOVNetworkDevice, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.SRIOVNetworkDevice), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeSRIOVNetworkDevices) UpdateStatus(ctx context.Context, sRIOVNetworkDevice *v1beta1.SRIOVNetworkDevice, opts v1.UpdateOptions) (*v1beta1.SRIOVNetworkDevice, error) {
+func (c *FakeSRIOVNetworkDevices) UpdateStatus(ctx context.Context, sRIOVNetworkDevice *v1beta1.SRIOVNetworkDevice, opts v1.UpdateOptions) (result *v1beta1.SRIOVNetworkDevice, err error) {
+	emptyResult := &v1beta1.SRIOVNetworkDevice{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceAction(sriovnetworkdevicesResource, "status", sRIOVNetworkDevice), &v1beta1.SRIOVNetworkDevice{})
+		Invokes(testing.NewRootUpdateSubresourceActionWithOptions(sriovnetworkdevicesResource, "status", sRIOVNetworkDevice, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.SRIOVNetworkDevice), err
 }
@@ -116,7 +120,7 @@ func (c *FakeSRIOVNetworkDevices) Delete(ctx context.Context, name string, opts 
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeSRIOVNetworkDevices) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(sriovnetworkdevicesResource, listOpts)
+	action := testing.NewRootDeleteCollectionActionWithOptions(sriovnetworkdevicesResource, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1beta1.SRIOVNetworkDeviceList{})
 	return err
@@ -124,10 +128,11 @@ func (c *FakeSRIOVNetworkDevices) DeleteCollection(ctx context.Context, opts v1.
 
 // Patch applies the patch and returns the patched sRIOVNetworkDevice.
 func (c *FakeSRIOVNetworkDevices) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.SRIOVNetworkDevice, err error) {
+	emptyResult := &v1beta1.SRIOVNetworkDevice{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(sriovnetworkdevicesResource, name, pt, data, subresources...), &v1beta1.SRIOVNetworkDevice{})
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(sriovnetworkdevicesResource, name, pt, data, opts, subresources...), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.SRIOVNetworkDevice), err
 }

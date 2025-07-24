@@ -20,262 +20,54 @@ package v1beta1
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	v1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
-	"github.com/rancher/lasso/pkg/client"
-	"github.com/rancher/lasso/pkg/controller"
-	"github.com/rancher/wrangler/pkg/apply"
-	"github.com/rancher/wrangler/pkg/condition"
-	"github.com/rancher/wrangler/pkg/generic"
-	"github.com/rancher/wrangler/pkg/kv"
+	"github.com/rancher/wrangler/v3/pkg/apply"
+	"github.com/rancher/wrangler/v3/pkg/condition"
+	"github.com/rancher/wrangler/v3/pkg/generic"
+	"github.com/rancher/wrangler/v3/pkg/kv"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/tools/cache"
 )
 
-type SRIOVGPUDeviceHandler func(string, *v1beta1.SRIOVGPUDevice) (*v1beta1.SRIOVGPUDevice, error)
-
+// SRIOVGPUDeviceController interface for managing SRIOVGPUDevice resources.
 type SRIOVGPUDeviceController interface {
-	generic.ControllerMeta
-	SRIOVGPUDeviceClient
-
-	OnChange(ctx context.Context, name string, sync SRIOVGPUDeviceHandler)
-	OnRemove(ctx context.Context, name string, sync SRIOVGPUDeviceHandler)
-	Enqueue(name string)
-	EnqueueAfter(name string, duration time.Duration)
-
-	Cache() SRIOVGPUDeviceCache
+	generic.NonNamespacedControllerInterface[*v1beta1.SRIOVGPUDevice, *v1beta1.SRIOVGPUDeviceList]
 }
 
+// SRIOVGPUDeviceClient interface for managing SRIOVGPUDevice resources in Kubernetes.
 type SRIOVGPUDeviceClient interface {
-	Create(*v1beta1.SRIOVGPUDevice) (*v1beta1.SRIOVGPUDevice, error)
-	Update(*v1beta1.SRIOVGPUDevice) (*v1beta1.SRIOVGPUDevice, error)
-	UpdateStatus(*v1beta1.SRIOVGPUDevice) (*v1beta1.SRIOVGPUDevice, error)
-	Delete(name string, options *metav1.DeleteOptions) error
-	Get(name string, options metav1.GetOptions) (*v1beta1.SRIOVGPUDevice, error)
-	List(opts metav1.ListOptions) (*v1beta1.SRIOVGPUDeviceList, error)
-	Watch(opts metav1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta1.SRIOVGPUDevice, err error)
+	generic.NonNamespacedClientInterface[*v1beta1.SRIOVGPUDevice, *v1beta1.SRIOVGPUDeviceList]
 }
 
+// SRIOVGPUDeviceCache interface for retrieving SRIOVGPUDevice resources in memory.
 type SRIOVGPUDeviceCache interface {
-	Get(name string) (*v1beta1.SRIOVGPUDevice, error)
-	List(selector labels.Selector) ([]*v1beta1.SRIOVGPUDevice, error)
-
-	AddIndexer(indexName string, indexer SRIOVGPUDeviceIndexer)
-	GetByIndex(indexName, key string) ([]*v1beta1.SRIOVGPUDevice, error)
+	generic.NonNamespacedCacheInterface[*v1beta1.SRIOVGPUDevice]
 }
 
-type SRIOVGPUDeviceIndexer func(obj *v1beta1.SRIOVGPUDevice) ([]string, error)
-
-type sRIOVGPUDeviceController struct {
-	controller    controller.SharedController
-	client        *client.Client
-	gvk           schema.GroupVersionKind
-	groupResource schema.GroupResource
-}
-
-func NewSRIOVGPUDeviceController(gvk schema.GroupVersionKind, resource string, namespaced bool, controller controller.SharedControllerFactory) SRIOVGPUDeviceController {
-	c := controller.ForResourceKind(gvk.GroupVersion().WithResource(resource), gvk.Kind, namespaced)
-	return &sRIOVGPUDeviceController{
-		controller: c,
-		client:     c.Client(),
-		gvk:        gvk,
-		groupResource: schema.GroupResource{
-			Group:    gvk.Group,
-			Resource: resource,
-		},
-	}
-}
-
-func FromSRIOVGPUDeviceHandlerToHandler(sync SRIOVGPUDeviceHandler) generic.Handler {
-	return func(key string, obj runtime.Object) (ret runtime.Object, err error) {
-		var v *v1beta1.SRIOVGPUDevice
-		if obj == nil {
-			v, err = sync(key, nil)
-		} else {
-			v, err = sync(key, obj.(*v1beta1.SRIOVGPUDevice))
-		}
-		if v == nil {
-			return nil, err
-		}
-		return v, err
-	}
-}
-
-func (c *sRIOVGPUDeviceController) Updater() generic.Updater {
-	return func(obj runtime.Object) (runtime.Object, error) {
-		newObj, err := c.Update(obj.(*v1beta1.SRIOVGPUDevice))
-		if newObj == nil {
-			return nil, err
-		}
-		return newObj, err
-	}
-}
-
-func UpdateSRIOVGPUDeviceDeepCopyOnChange(client SRIOVGPUDeviceClient, obj *v1beta1.SRIOVGPUDevice, handler func(obj *v1beta1.SRIOVGPUDevice) (*v1beta1.SRIOVGPUDevice, error)) (*v1beta1.SRIOVGPUDevice, error) {
-	if obj == nil {
-		return obj, nil
-	}
-
-	copyObj := obj.DeepCopy()
-	newObj, err := handler(copyObj)
-	if newObj != nil {
-		copyObj = newObj
-	}
-	if obj.ResourceVersion == copyObj.ResourceVersion && !equality.Semantic.DeepEqual(obj, copyObj) {
-		return client.Update(copyObj)
-	}
-
-	return copyObj, err
-}
-
-func (c *sRIOVGPUDeviceController) AddGenericHandler(ctx context.Context, name string, handler generic.Handler) {
-	c.controller.RegisterHandler(ctx, name, controller.SharedControllerHandlerFunc(handler))
-}
-
-func (c *sRIOVGPUDeviceController) AddGenericRemoveHandler(ctx context.Context, name string, handler generic.Handler) {
-	c.AddGenericHandler(ctx, name, generic.NewRemoveHandler(name, c.Updater(), handler))
-}
-
-func (c *sRIOVGPUDeviceController) OnChange(ctx context.Context, name string, sync SRIOVGPUDeviceHandler) {
-	c.AddGenericHandler(ctx, name, FromSRIOVGPUDeviceHandlerToHandler(sync))
-}
-
-func (c *sRIOVGPUDeviceController) OnRemove(ctx context.Context, name string, sync SRIOVGPUDeviceHandler) {
-	c.AddGenericHandler(ctx, name, generic.NewRemoveHandler(name, c.Updater(), FromSRIOVGPUDeviceHandlerToHandler(sync)))
-}
-
-func (c *sRIOVGPUDeviceController) Enqueue(name string) {
-	c.controller.Enqueue("", name)
-}
-
-func (c *sRIOVGPUDeviceController) EnqueueAfter(name string, duration time.Duration) {
-	c.controller.EnqueueAfter("", name, duration)
-}
-
-func (c *sRIOVGPUDeviceController) Informer() cache.SharedIndexInformer {
-	return c.controller.Informer()
-}
-
-func (c *sRIOVGPUDeviceController) GroupVersionKind() schema.GroupVersionKind {
-	return c.gvk
-}
-
-func (c *sRIOVGPUDeviceController) Cache() SRIOVGPUDeviceCache {
-	return &sRIOVGPUDeviceCache{
-		indexer:  c.Informer().GetIndexer(),
-		resource: c.groupResource,
-	}
-}
-
-func (c *sRIOVGPUDeviceController) Create(obj *v1beta1.SRIOVGPUDevice) (*v1beta1.SRIOVGPUDevice, error) {
-	result := &v1beta1.SRIOVGPUDevice{}
-	return result, c.client.Create(context.TODO(), "", obj, result, metav1.CreateOptions{})
-}
-
-func (c *sRIOVGPUDeviceController) Update(obj *v1beta1.SRIOVGPUDevice) (*v1beta1.SRIOVGPUDevice, error) {
-	result := &v1beta1.SRIOVGPUDevice{}
-	return result, c.client.Update(context.TODO(), "", obj, result, metav1.UpdateOptions{})
-}
-
-func (c *sRIOVGPUDeviceController) UpdateStatus(obj *v1beta1.SRIOVGPUDevice) (*v1beta1.SRIOVGPUDevice, error) {
-	result := &v1beta1.SRIOVGPUDevice{}
-	return result, c.client.UpdateStatus(context.TODO(), "", obj, result, metav1.UpdateOptions{})
-}
-
-func (c *sRIOVGPUDeviceController) Delete(name string, options *metav1.DeleteOptions) error {
-	if options == nil {
-		options = &metav1.DeleteOptions{}
-	}
-	return c.client.Delete(context.TODO(), "", name, *options)
-}
-
-func (c *sRIOVGPUDeviceController) Get(name string, options metav1.GetOptions) (*v1beta1.SRIOVGPUDevice, error) {
-	result := &v1beta1.SRIOVGPUDevice{}
-	return result, c.client.Get(context.TODO(), "", name, result, options)
-}
-
-func (c *sRIOVGPUDeviceController) List(opts metav1.ListOptions) (*v1beta1.SRIOVGPUDeviceList, error) {
-	result := &v1beta1.SRIOVGPUDeviceList{}
-	return result, c.client.List(context.TODO(), "", result, opts)
-}
-
-func (c *sRIOVGPUDeviceController) Watch(opts metav1.ListOptions) (watch.Interface, error) {
-	return c.client.Watch(context.TODO(), "", opts)
-}
-
-func (c *sRIOVGPUDeviceController) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (*v1beta1.SRIOVGPUDevice, error) {
-	result := &v1beta1.SRIOVGPUDevice{}
-	return result, c.client.Patch(context.TODO(), "", name, pt, data, result, metav1.PatchOptions{}, subresources...)
-}
-
-type sRIOVGPUDeviceCache struct {
-	indexer  cache.Indexer
-	resource schema.GroupResource
-}
-
-func (c *sRIOVGPUDeviceCache) Get(name string) (*v1beta1.SRIOVGPUDevice, error) {
-	obj, exists, err := c.indexer.GetByKey(name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(c.resource, name)
-	}
-	return obj.(*v1beta1.SRIOVGPUDevice), nil
-}
-
-func (c *sRIOVGPUDeviceCache) List(selector labels.Selector) (ret []*v1beta1.SRIOVGPUDevice, err error) {
-
-	err = cache.ListAll(c.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1beta1.SRIOVGPUDevice))
-	})
-
-	return ret, err
-}
-
-func (c *sRIOVGPUDeviceCache) AddIndexer(indexName string, indexer SRIOVGPUDeviceIndexer) {
-	utilruntime.Must(c.indexer.AddIndexers(map[string]cache.IndexFunc{
-		indexName: func(obj interface{}) (strings []string, e error) {
-			return indexer(obj.(*v1beta1.SRIOVGPUDevice))
-		},
-	}))
-}
-
-func (c *sRIOVGPUDeviceCache) GetByIndex(indexName, key string) (result []*v1beta1.SRIOVGPUDevice, err error) {
-	objs, err := c.indexer.ByIndex(indexName, key)
-	if err != nil {
-		return nil, err
-	}
-	result = make([]*v1beta1.SRIOVGPUDevice, 0, len(objs))
-	for _, obj := range objs {
-		result = append(result, obj.(*v1beta1.SRIOVGPUDevice))
-	}
-	return result, nil
-}
-
+// SRIOVGPUDeviceStatusHandler is executed for every added or modified SRIOVGPUDevice. Should return the new status to be updated
 type SRIOVGPUDeviceStatusHandler func(obj *v1beta1.SRIOVGPUDevice, status v1beta1.SRIOVGPUDeviceStatus) (v1beta1.SRIOVGPUDeviceStatus, error)
 
+// SRIOVGPUDeviceGeneratingHandler is the top-level handler that is executed for every SRIOVGPUDevice event. It extends SRIOVGPUDeviceStatusHandler by a returning a slice of child objects to be passed to apply.Apply
 type SRIOVGPUDeviceGeneratingHandler func(obj *v1beta1.SRIOVGPUDevice, status v1beta1.SRIOVGPUDeviceStatus) ([]runtime.Object, v1beta1.SRIOVGPUDeviceStatus, error)
 
+// RegisterSRIOVGPUDeviceStatusHandler configures a SRIOVGPUDeviceController to execute a SRIOVGPUDeviceStatusHandler for every events observed.
+// If a non-empty condition is provided, it will be updated in the status conditions for every handler execution
 func RegisterSRIOVGPUDeviceStatusHandler(ctx context.Context, controller SRIOVGPUDeviceController, condition condition.Cond, name string, handler SRIOVGPUDeviceStatusHandler) {
 	statusHandler := &sRIOVGPUDeviceStatusHandler{
 		client:    controller,
 		condition: condition,
 		handler:   handler,
 	}
-	controller.AddGenericHandler(ctx, name, FromSRIOVGPUDeviceHandlerToHandler(statusHandler.sync))
+	controller.AddGenericHandler(ctx, name, generic.FromObjectHandlerToHandler(statusHandler.sync))
 }
 
+// RegisterSRIOVGPUDeviceGeneratingHandler configures a SRIOVGPUDeviceController to execute a SRIOVGPUDeviceGeneratingHandler for every events observed, passing the returned objects to the provided apply.Apply.
+// If a non-empty condition is provided, it will be updated in the status conditions for every handler execution
 func RegisterSRIOVGPUDeviceGeneratingHandler(ctx context.Context, controller SRIOVGPUDeviceController, apply apply.Apply,
 	condition condition.Cond, name string, handler SRIOVGPUDeviceGeneratingHandler, opts *generic.GeneratingHandlerOptions) {
 	statusHandler := &sRIOVGPUDeviceGeneratingHandler{
@@ -297,6 +89,7 @@ type sRIOVGPUDeviceStatusHandler struct {
 	handler   SRIOVGPUDeviceStatusHandler
 }
 
+// sync is executed on every resource addition or modification. Executes the configured handlers and sends the updated status to the Kubernetes API
 func (a *sRIOVGPUDeviceStatusHandler) sync(key string, obj *v1beta1.SRIOVGPUDevice) (*v1beta1.SRIOVGPUDevice, error) {
 	if obj == nil {
 		return obj, nil
@@ -342,8 +135,10 @@ type sRIOVGPUDeviceGeneratingHandler struct {
 	opts  generic.GeneratingHandlerOptions
 	gvk   schema.GroupVersionKind
 	name  string
+	seen  sync.Map
 }
 
+// Remove handles the observed deletion of a resource, cascade deleting every associated resource previously applied
 func (a *sRIOVGPUDeviceGeneratingHandler) Remove(key string, obj *v1beta1.SRIOVGPUDevice) (*v1beta1.SRIOVGPUDevice, error) {
 	if obj != nil {
 		return obj, nil
@@ -353,12 +148,17 @@ func (a *sRIOVGPUDeviceGeneratingHandler) Remove(key string, obj *v1beta1.SRIOVG
 	obj.Namespace, obj.Name = kv.RSplit(key, "/")
 	obj.SetGroupVersionKind(a.gvk)
 
+	if a.opts.UniqueApplyForResourceVersion {
+		a.seen.Delete(key)
+	}
+
 	return nil, generic.ConfigureApplyForObject(a.apply, obj, &a.opts).
 		WithOwner(obj).
 		WithSetID(a.name).
 		ApplyObjects()
 }
 
+// Handle executes the configured SRIOVGPUDeviceGeneratingHandler and pass the resulting objects to apply.Apply, finally returning the new status of the resource
 func (a *sRIOVGPUDeviceGeneratingHandler) Handle(obj *v1beta1.SRIOVGPUDevice, status v1beta1.SRIOVGPUDeviceStatus) (v1beta1.SRIOVGPUDeviceStatus, error) {
 	if !obj.DeletionTimestamp.IsZero() {
 		return status, nil
@@ -368,9 +168,41 @@ func (a *sRIOVGPUDeviceGeneratingHandler) Handle(obj *v1beta1.SRIOVGPUDevice, st
 	if err != nil {
 		return newStatus, err
 	}
+	if !a.isNewResourceVersion(obj) {
+		return newStatus, nil
+	}
 
-	return newStatus, generic.ConfigureApplyForObject(a.apply, obj, &a.opts).
+	err = generic.ConfigureApplyForObject(a.apply, obj, &a.opts).
 		WithOwner(obj).
 		WithSetID(a.name).
 		ApplyObjects(objs...)
+	if err != nil {
+		return newStatus, err
+	}
+	a.storeResourceVersion(obj)
+	return newStatus, nil
+}
+
+// isNewResourceVersion detects if a specific resource version was already successfully processed.
+// Only used if UniqueApplyForResourceVersion is set in generic.GeneratingHandlerOptions
+func (a *sRIOVGPUDeviceGeneratingHandler) isNewResourceVersion(obj *v1beta1.SRIOVGPUDevice) bool {
+	if !a.opts.UniqueApplyForResourceVersion {
+		return true
+	}
+
+	// Apply once per resource version
+	key := obj.Namespace + "/" + obj.Name
+	previous, ok := a.seen.Load(key)
+	return !ok || previous != obj.ResourceVersion
+}
+
+// storeResourceVersion keeps track of the latest resource version of an object for which Apply was executed
+// Only used if UniqueApplyForResourceVersion is set in generic.GeneratingHandlerOptions
+func (a *sRIOVGPUDeviceGeneratingHandler) storeResourceVersion(obj *v1beta1.SRIOVGPUDevice) {
+	if !a.opts.UniqueApplyForResourceVersion {
+		return
+	}
+
+	key := obj.Namespace + "/" + obj.Name
+	a.seen.Store(key, obj.ResourceVersion)
 }
