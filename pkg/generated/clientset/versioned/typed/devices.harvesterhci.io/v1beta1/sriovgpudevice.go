@@ -20,14 +20,13 @@ package v1beta1
 
 import (
 	"context"
-	"time"
 
 	v1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	scheme "github.com/harvester/pcidevices/pkg/generated/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	rest "k8s.io/client-go/rest"
+	gentype "k8s.io/client-go/gentype"
 )
 
 // SRIOVGPUDevicesGetter has a method to return a SRIOVGPUDeviceInterface.
@@ -40,6 +39,7 @@ type SRIOVGPUDevicesGetter interface {
 type SRIOVGPUDeviceInterface interface {
 	Create(ctx context.Context, sRIOVGPUDevice *v1beta1.SRIOVGPUDevice, opts v1.CreateOptions) (*v1beta1.SRIOVGPUDevice, error)
 	Update(ctx context.Context, sRIOVGPUDevice *v1beta1.SRIOVGPUDevice, opts v1.UpdateOptions) (*v1beta1.SRIOVGPUDevice, error)
+	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
 	UpdateStatus(ctx context.Context, sRIOVGPUDevice *v1beta1.SRIOVGPUDevice, opts v1.UpdateOptions) (*v1beta1.SRIOVGPUDevice, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
@@ -52,133 +52,18 @@ type SRIOVGPUDeviceInterface interface {
 
 // sRIOVGPUDevices implements SRIOVGPUDeviceInterface
 type sRIOVGPUDevices struct {
-	client rest.Interface
+	*gentype.ClientWithList[*v1beta1.SRIOVGPUDevice, *v1beta1.SRIOVGPUDeviceList]
 }
 
 // newSRIOVGPUDevices returns a SRIOVGPUDevices
 func newSRIOVGPUDevices(c *DevicesV1beta1Client) *sRIOVGPUDevices {
 	return &sRIOVGPUDevices{
-		client: c.RESTClient(),
+		gentype.NewClientWithList[*v1beta1.SRIOVGPUDevice, *v1beta1.SRIOVGPUDeviceList](
+			"sriovgpudevices",
+			c.RESTClient(),
+			scheme.ParameterCodec,
+			"",
+			func() *v1beta1.SRIOVGPUDevice { return &v1beta1.SRIOVGPUDevice{} },
+			func() *v1beta1.SRIOVGPUDeviceList { return &v1beta1.SRIOVGPUDeviceList{} }),
 	}
-}
-
-// Get takes name of the sRIOVGPUDevice, and returns the corresponding sRIOVGPUDevice object, and an error if there is any.
-func (c *sRIOVGPUDevices) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.SRIOVGPUDevice, err error) {
-	result = &v1beta1.SRIOVGPUDevice{}
-	err = c.client.Get().
-		Resource("sriovgpudevices").
-		Name(name).
-		VersionedParams(&options, scheme.ParameterCodec).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// List takes label and field selectors, and returns the list of SRIOVGPUDevices that match those selectors.
-func (c *sRIOVGPUDevices) List(ctx context.Context, opts v1.ListOptions) (result *v1beta1.SRIOVGPUDeviceList, err error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	result = &v1beta1.SRIOVGPUDeviceList{}
-	err = c.client.Get().
-		Resource("sriovgpudevices").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Watch returns a watch.Interface that watches the requested sRIOVGPUDevices.
-func (c *sRIOVGPUDevices) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	opts.Watch = true
-	return c.client.Get().
-		Resource("sriovgpudevices").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Watch(ctx)
-}
-
-// Create takes the representation of a sRIOVGPUDevice and creates it.  Returns the server's representation of the sRIOVGPUDevice, and an error, if there is any.
-func (c *sRIOVGPUDevices) Create(ctx context.Context, sRIOVGPUDevice *v1beta1.SRIOVGPUDevice, opts v1.CreateOptions) (result *v1beta1.SRIOVGPUDevice, err error) {
-	result = &v1beta1.SRIOVGPUDevice{}
-	err = c.client.Post().
-		Resource("sriovgpudevices").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(sRIOVGPUDevice).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Update takes the representation of a sRIOVGPUDevice and updates it. Returns the server's representation of the sRIOVGPUDevice, and an error, if there is any.
-func (c *sRIOVGPUDevices) Update(ctx context.Context, sRIOVGPUDevice *v1beta1.SRIOVGPUDevice, opts v1.UpdateOptions) (result *v1beta1.SRIOVGPUDevice, err error) {
-	result = &v1beta1.SRIOVGPUDevice{}
-	err = c.client.Put().
-		Resource("sriovgpudevices").
-		Name(sRIOVGPUDevice.Name).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(sRIOVGPUDevice).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *sRIOVGPUDevices) UpdateStatus(ctx context.Context, sRIOVGPUDevice *v1beta1.SRIOVGPUDevice, opts v1.UpdateOptions) (result *v1beta1.SRIOVGPUDevice, err error) {
-	result = &v1beta1.SRIOVGPUDevice{}
-	err = c.client.Put().
-		Resource("sriovgpudevices").
-		Name(sRIOVGPUDevice.Name).
-		SubResource("status").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(sRIOVGPUDevice).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Delete takes name of the sRIOVGPUDevice and deletes it. Returns an error if one occurs.
-func (c *sRIOVGPUDevices) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	return c.client.Delete().
-		Resource("sriovgpudevices").
-		Name(name).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *sRIOVGPUDevices) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	var timeout time.Duration
-	if listOpts.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
-	}
-	return c.client.Delete().
-		Resource("sriovgpudevices").
-		VersionedParams(&listOpts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// Patch applies the patch and returns the patched sRIOVGPUDevice.
-func (c *sRIOVGPUDevices) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.SRIOVGPUDevice, err error) {
-	result = &v1beta1.SRIOVGPUDevice{}
-	err = c.client.Patch(pt).
-		Resource("sriovgpudevices").
-		Name(name).
-		SubResource(subresources...).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(data).
-		Do(ctx).
-		Into(result)
-	return
 }

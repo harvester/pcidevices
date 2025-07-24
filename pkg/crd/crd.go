@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/rancher/wrangler/pkg/crd"
-	"github.com/rancher/wrangler/pkg/yaml"
+	"github.com/rancher/wrangler/v3/pkg/crd"
+	"github.com/rancher/wrangler/v3/pkg/yaml"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"

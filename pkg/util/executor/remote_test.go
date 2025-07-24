@@ -8,9 +8,7 @@ import (
 	"testing"
 	"time"
 
-	envCluster "github.com/harvester/harvester/tests/framework/cluster"
-	"github.com/harvester/harvester/tests/framework/env"
-	"github.com/rancher/wrangler/pkg/clients"
+	"github.com/rancher/wrangler/v3/pkg/clients"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -20,6 +18,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
+	envCluster "github.com/harvester/harvester/tests/framework/cluster"
+	"github.com/harvester/harvester/tests/framework/env"
 )
 
 var (

@@ -24,7 +24,6 @@ import (
 	v1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -35,26 +34,28 @@ type FakeVGPUDevices struct {
 	Fake *FakeDevicesV1beta1
 }
 
-var vgpudevicesResource = schema.GroupVersionResource{Group: "devices.harvesterhci.io", Version: "v1beta1", Resource: "vgpudevices"}
+var vgpudevicesResource = v1beta1.SchemeGroupVersion.WithResource("vgpudevices")
 
-var vgpudevicesKind = schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "VGPUDevice"}
+var vgpudevicesKind = v1beta1.SchemeGroupVersion.WithKind("VGPUDevice")
 
 // Get takes name of the vGPUDevice, and returns the corresponding vGPUDevice object, and an error if there is any.
 func (c *FakeVGPUDevices) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.VGPUDevice, err error) {
+	emptyResult := &v1beta1.VGPUDevice{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(vgpudevicesResource, name), &v1beta1.VGPUDevice{})
+		Invokes(testing.NewRootGetActionWithOptions(vgpudevicesResource, name, options), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.VGPUDevice), err
 }
 
 // List takes label and field selectors, and returns the list of VGPUDevices that match those selectors.
 func (c *FakeVGPUDevices) List(ctx context.Context, opts v1.ListOptions) (result *v1beta1.VGPUDeviceList, err error) {
+	emptyResult := &v1beta1.VGPUDeviceList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(vgpudevicesResource, vgpudevicesKind, opts), &v1beta1.VGPUDeviceList{})
+		Invokes(testing.NewRootListActionWithOptions(vgpudevicesResource, vgpudevicesKind, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -73,36 +74,39 @@ func (c *FakeVGPUDevices) List(ctx context.Context, opts v1.ListOptions) (result
 // Watch returns a watch.Interface that watches the requested vGPUDevices.
 func (c *FakeVGPUDevices) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(vgpudevicesResource, opts))
+		InvokesWatch(testing.NewRootWatchActionWithOptions(vgpudevicesResource, opts))
 }
 
 // Create takes the representation of a vGPUDevice and creates it.  Returns the server's representation of the vGPUDevice, and an error, if there is any.
 func (c *FakeVGPUDevices) Create(ctx context.Context, vGPUDevice *v1beta1.VGPUDevice, opts v1.CreateOptions) (result *v1beta1.VGPUDevice, err error) {
+	emptyResult := &v1beta1.VGPUDevice{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(vgpudevicesResource, vGPUDevice), &v1beta1.VGPUDevice{})
+		Invokes(testing.NewRootCreateActionWithOptions(vgpudevicesResource, vGPUDevice, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.VGPUDevice), err
 }
 
 // Update takes the representation of a vGPUDevice and updates it. Returns the server's representation of the vGPUDevice, and an error, if there is any.
 func (c *FakeVGPUDevices) Update(ctx context.Context, vGPUDevice *v1beta1.VGPUDevice, opts v1.UpdateOptions) (result *v1beta1.VGPUDevice, err error) {
+	emptyResult := &v1beta1.VGPUDevice{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(vgpudevicesResource, vGPUDevice), &v1beta1.VGPUDevice{})
+		Invokes(testing.NewRootUpdateActionWithOptions(vgpudevicesResource, vGPUDevice, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.VGPUDevice), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeVGPUDevices) UpdateStatus(ctx context.Context, vGPUDevice *v1beta1.VGPUDevice, opts v1.UpdateOptions) (*v1beta1.VGPUDevice, error) {
+func (c *FakeVGPUDevices) UpdateStatus(ctx context.Context, vGPUDevice *v1beta1.VGPUDevice, opts v1.UpdateOptions) (result *v1beta1.VGPUDevice, err error) {
+	emptyResult := &v1beta1.VGPUDevice{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceAction(vgpudevicesResource, "status", vGPUDevice), &v1beta1.VGPUDevice{})
+		Invokes(testing.NewRootUpdateSubresourceActionWithOptions(vgpudevicesResource, "status", vGPUDevice, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.VGPUDevice), err
 }
@@ -116,7 +120,7 @@ func (c *FakeVGPUDevices) Delete(ctx context.Context, name string, opts v1.Delet
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeVGPUDevices) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(vgpudevicesResource, listOpts)
+	action := testing.NewRootDeleteCollectionActionWithOptions(vgpudevicesResource, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1beta1.VGPUDeviceList{})
 	return err
@@ -124,10 +128,11 @@ func (c *FakeVGPUDevices) DeleteCollection(ctx context.Context, opts v1.DeleteOp
 
 // Patch applies the patch and returns the patched vGPUDevice.
 func (c *FakeVGPUDevices) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.VGPUDevice, err error) {
+	emptyResult := &v1beta1.VGPUDevice{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(vgpudevicesResource, name, pt, data, subresources...), &v1beta1.VGPUDevice{})
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(vgpudevicesResource, name, pt, data, opts, subresources...), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.VGPUDevice), err
 }

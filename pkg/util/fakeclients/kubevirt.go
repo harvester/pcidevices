@@ -4,9 +4,13 @@ import (
 	"context"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/rest"
 	kubevirtapiv1 "kubevirt.io/api/core/v1"
+
+	"github.com/rancher/wrangler/v3/pkg/generic"
 
 	kubevirtv1 "github.com/harvester/pcidevices/pkg/generated/clientset/versioned/typed/kubevirt.io/v1"
 )
@@ -43,4 +47,8 @@ func (k KubeVirtClient) Patch(_, _ string, _ types.PatchType, _ []byte, _ ...str
 
 func (k KubeVirtClient) UpdateStatus(d *kubevirtapiv1.KubeVirt) (*kubevirtapiv1.KubeVirt, error) {
 	return k(d.Namespace).Update(context.TODO(), d, metav1.UpdateOptions{})
+}
+
+func (k KubeVirtClient) WithImpersonation(_ rest.ImpersonationConfig) (generic.ClientInterface[*kubevirtapiv1.KubeVirt, *kubevirtapiv1.KubeVirtList], error) {
+	panic("implement me")
 }

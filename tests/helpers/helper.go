@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/rancher/wrangler/pkg/gvk"
-	"github.com/rancher/wrangler/pkg/unstructured"
+	"github.com/rancher/wrangler/v3/pkg/gvk"
+	"github.com/rancher/wrangler/v3/pkg/unstructured"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
