@@ -286,7 +286,7 @@ func (h *Handler) startDevicePlugin(
 // whiteListGPU checks if VGPU type is already whitelisted in the kubevirt CR.
 // if not it does the whitelisting
 func (h *Handler) whiteListVGPU(vgpu *v1beta1.VGPUDevice) error {
-	kv, err := h.virtClient.KubeVirt(DefaultNS).Get(KubevirtCR, &metav1.GetOptions{})
+	kv, err := h.virtClient.KubeVirt(DefaultNS).Get(h.ctx, KubevirtCR, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("error looking up kubevirt CR: %v", err)
 	}
@@ -308,7 +308,7 @@ func (h *Handler) whiteListVGPU(vgpu *v1beta1.VGPUDevice) error {
 		ExternalResourceProvider: true,
 	})
 
-	_, err = h.virtClient.KubeVirt(DefaultNS).Update(kv)
+	_, err = h.virtClient.KubeVirt(DefaultNS).Update(h.ctx, kv, metav1.UpdateOptions{})
 	return err
 }
 

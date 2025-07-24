@@ -24,7 +24,6 @@ import (
 	v1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -35,26 +34,28 @@ type FakeUSBDevices struct {
 	Fake *FakeDevicesV1beta1
 }
 
-var usbdevicesResource = schema.GroupVersionResource{Group: "devices.harvesterhci.io", Version: "v1beta1", Resource: "usbdevices"}
+var usbdevicesResource = v1beta1.SchemeGroupVersion.WithResource("usbdevices")
 
-var usbdevicesKind = schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "USBDevice"}
+var usbdevicesKind = v1beta1.SchemeGroupVersion.WithKind("USBDevice")
 
 // Get takes name of the uSBDevice, and returns the corresponding uSBDevice object, and an error if there is any.
 func (c *FakeUSBDevices) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.USBDevice, err error) {
+	emptyResult := &v1beta1.USBDevice{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(usbdevicesResource, name), &v1beta1.USBDevice{})
+		Invokes(testing.NewRootGetActionWithOptions(usbdevicesResource, name, options), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.USBDevice), err
 }
 
 // List takes label and field selectors, and returns the list of USBDevices that match those selectors.
 func (c *FakeUSBDevices) List(ctx context.Context, opts v1.ListOptions) (result *v1beta1.USBDeviceList, err error) {
+	emptyResult := &v1beta1.USBDeviceList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(usbdevicesResource, usbdevicesKind, opts), &v1beta1.USBDeviceList{})
+		Invokes(testing.NewRootListActionWithOptions(usbdevicesResource, usbdevicesKind, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -73,25 +74,27 @@ func (c *FakeUSBDevices) List(ctx context.Context, opts v1.ListOptions) (result 
 // Watch returns a watch.Interface that watches the requested uSBDevices.
 func (c *FakeUSBDevices) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(usbdevicesResource, opts))
+		InvokesWatch(testing.NewRootWatchActionWithOptions(usbdevicesResource, opts))
 }
 
 // Create takes the representation of a uSBDevice and creates it.  Returns the server's representation of the uSBDevice, and an error, if there is any.
 func (c *FakeUSBDevices) Create(ctx context.Context, uSBDevice *v1beta1.USBDevice, opts v1.CreateOptions) (result *v1beta1.USBDevice, err error) {
+	emptyResult := &v1beta1.USBDevice{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(usbdevicesResource, uSBDevice), &v1beta1.USBDevice{})
+		Invokes(testing.NewRootCreateActionWithOptions(usbdevicesResource, uSBDevice, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.USBDevice), err
 }
 
 // Update takes the representation of a uSBDevice and updates it. Returns the server's representation of the uSBDevice, and an error, if there is any.
 func (c *FakeUSBDevices) Update(ctx context.Context, uSBDevice *v1beta1.USBDevice, opts v1.UpdateOptions) (result *v1beta1.USBDevice, err error) {
+	emptyResult := &v1beta1.USBDevice{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(usbdevicesResource, uSBDevice), &v1beta1.USBDevice{})
+		Invokes(testing.NewRootUpdateActionWithOptions(usbdevicesResource, uSBDevice, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.USBDevice), err
 }
@@ -105,7 +108,7 @@ func (c *FakeUSBDevices) Delete(ctx context.Context, name string, opts v1.Delete
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeUSBDevices) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(usbdevicesResource, listOpts)
+	action := testing.NewRootDeleteCollectionActionWithOptions(usbdevicesResource, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1beta1.USBDeviceList{})
 	return err
@@ -113,10 +116,11 @@ func (c *FakeUSBDevices) DeleteCollection(ctx context.Context, opts v1.DeleteOpt
 
 // Patch applies the patch and returns the patched uSBDevice.
 func (c *FakeUSBDevices) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.USBDevice, err error) {
+	emptyResult := &v1beta1.USBDevice{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(usbdevicesResource, name, pt, data, subresources...), &v1beta1.USBDevice{})
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(usbdevicesResource, name, pt, data, opts, subresources...), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.USBDevice), err
 }

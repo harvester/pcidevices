@@ -8,9 +8,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 
+	"k8s.io/client-go/rest"
+
+	"github.com/rancher/wrangler/v3/pkg/generic"
+
 	pcidevicev1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/generated/clientset/versioned/typed/devices.harvesterhci.io/v1beta1"
-	pcidevicesv1beta1ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 )
 
 type PCIDeviceClaimsClient func() v1beta1.PCIDeviceClaimInterface
@@ -47,6 +50,10 @@ func (p PCIDeviceClaimsClient) UpdateStatus(d *pcidevicev1beta1.PCIDeviceClaim) 
 	return p().Update(context.TODO(), d, metav1.UpdateOptions{})
 }
 
+func (p PCIDeviceClaimsClient) WithImpersonation(_ rest.ImpersonationConfig) (generic.NonNamespacedClientInterface[*pcidevicev1beta1.PCIDeviceClaim, *pcidevicev1beta1.PCIDeviceClaimList], error) {
+	panic("implement me")
+}
+
 type PCIDeviceClaimsCache func() v1beta1.PCIDeviceClaimInterface
 
 func (p PCIDeviceClaimsCache) Get(name string) (*pcidevicev1beta1.PCIDeviceClaim, error) {
@@ -57,7 +64,7 @@ func (p PCIDeviceClaimsCache) List(labels.Selector) ([]*pcidevicev1beta1.PCIDevi
 	panic("implement me")
 }
 
-func (p PCIDeviceClaimsCache) AddIndexer(_ string, _ pcidevicesv1beta1ctl.PCIDeviceClaimIndexer) {
+func (p PCIDeviceClaimsCache) AddIndexer(_ string, _ generic.Indexer[*pcidevicev1beta1.PCIDeviceClaim]) {
 	panic("implement me")
 }
 

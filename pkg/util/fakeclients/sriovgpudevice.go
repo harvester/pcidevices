@@ -3,14 +3,15 @@ package fakeclients
 import (
 	"context"
 
+	"github.com/rancher/wrangler/v3/pkg/generic"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/rest"
 
 	pcidevicev1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/generated/clientset/versioned/typed/devices.harvesterhci.io/v1beta1"
-	pcidevicesv1beta1ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 )
 
 type SriovGPUDevicesClient func() v1beta1.SRIOVGPUDeviceInterface
@@ -47,6 +48,10 @@ func (s SriovGPUDevicesClient) UpdateStatus(d *pcidevicev1beta1.SRIOVGPUDevice) 
 	return s().Update(context.TODO(), d, metav1.UpdateOptions{})
 }
 
+func (s SriovGPUDevicesClient) WithImpersonation(_ rest.ImpersonationConfig) (generic.NonNamespacedClientInterface[*pcidevicev1beta1.SRIOVGPUDevice, *pcidevicev1beta1.SRIOVGPUDeviceList], error) {
+	panic("implement me")
+}
+
 type SriovGPUDevicesCache func() v1beta1.SRIOVGPUDeviceInterface
 
 func (s SriovGPUDevicesCache) Get(name string) (*pcidevicev1beta1.SRIOVGPUDevice, error) {
@@ -68,7 +73,7 @@ func (s SriovGPUDevicesCache) List(selector labels.Selector) ([]*pcidevicev1beta
 	return result, err
 }
 
-func (s SriovGPUDevicesCache) AddIndexer(_ string, _ pcidevicesv1beta1ctl.SRIOVGPUDeviceIndexer) {
+func (s SriovGPUDevicesCache) AddIndexer(_ string, _ generic.Indexer[*pcidevicev1beta1.SRIOVGPUDevice]) {
 	panic("implement me")
 }
 

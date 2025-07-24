@@ -24,7 +24,6 @@ import (
 	v1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -35,26 +34,28 @@ type FakeSRIOVGPUDevices struct {
 	Fake *FakeDevicesV1beta1
 }
 
-var sriovgpudevicesResource = schema.GroupVersionResource{Group: "devices.harvesterhci.io", Version: "v1beta1", Resource: "sriovgpudevices"}
+var sriovgpudevicesResource = v1beta1.SchemeGroupVersion.WithResource("sriovgpudevices")
 
-var sriovgpudevicesKind = schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "SRIOVGPUDevice"}
+var sriovgpudevicesKind = v1beta1.SchemeGroupVersion.WithKind("SRIOVGPUDevice")
 
 // Get takes name of the sRIOVGPUDevice, and returns the corresponding sRIOVGPUDevice object, and an error if there is any.
 func (c *FakeSRIOVGPUDevices) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.SRIOVGPUDevice, err error) {
+	emptyResult := &v1beta1.SRIOVGPUDevice{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(sriovgpudevicesResource, name), &v1beta1.SRIOVGPUDevice{})
+		Invokes(testing.NewRootGetActionWithOptions(sriovgpudevicesResource, name, options), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.SRIOVGPUDevice), err
 }
 
 // List takes label and field selectors, and returns the list of SRIOVGPUDevices that match those selectors.
 func (c *FakeSRIOVGPUDevices) List(ctx context.Context, opts v1.ListOptions) (result *v1beta1.SRIOVGPUDeviceList, err error) {
+	emptyResult := &v1beta1.SRIOVGPUDeviceList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(sriovgpudevicesResource, sriovgpudevicesKind, opts), &v1beta1.SRIOVGPUDeviceList{})
+		Invokes(testing.NewRootListActionWithOptions(sriovgpudevicesResource, sriovgpudevicesKind, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -73,36 +74,39 @@ func (c *FakeSRIOVGPUDevices) List(ctx context.Context, opts v1.ListOptions) (re
 // Watch returns a watch.Interface that watches the requested sRIOVGPUDevices.
 func (c *FakeSRIOVGPUDevices) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewRootWatchAction(sriovgpudevicesResource, opts))
+		InvokesWatch(testing.NewRootWatchActionWithOptions(sriovgpudevicesResource, opts))
 }
 
 // Create takes the representation of a sRIOVGPUDevice and creates it.  Returns the server's representation of the sRIOVGPUDevice, and an error, if there is any.
 func (c *FakeSRIOVGPUDevices) Create(ctx context.Context, sRIOVGPUDevice *v1beta1.SRIOVGPUDevice, opts v1.CreateOptions) (result *v1beta1.SRIOVGPUDevice, err error) {
+	emptyResult := &v1beta1.SRIOVGPUDevice{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(sriovgpudevicesResource, sRIOVGPUDevice), &v1beta1.SRIOVGPUDevice{})
+		Invokes(testing.NewRootCreateActionWithOptions(sriovgpudevicesResource, sRIOVGPUDevice, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.SRIOVGPUDevice), err
 }
 
 // Update takes the representation of a sRIOVGPUDevice and updates it. Returns the server's representation of the sRIOVGPUDevice, and an error, if there is any.
 func (c *FakeSRIOVGPUDevices) Update(ctx context.Context, sRIOVGPUDevice *v1beta1.SRIOVGPUDevice, opts v1.UpdateOptions) (result *v1beta1.SRIOVGPUDevice, err error) {
+	emptyResult := &v1beta1.SRIOVGPUDevice{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(sriovgpudevicesResource, sRIOVGPUDevice), &v1beta1.SRIOVGPUDevice{})
+		Invokes(testing.NewRootUpdateActionWithOptions(sriovgpudevicesResource, sRIOVGPUDevice, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.SRIOVGPUDevice), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeSRIOVGPUDevices) UpdateStatus(ctx context.Context, sRIOVGPUDevice *v1beta1.SRIOVGPUDevice, opts v1.UpdateOptions) (*v1beta1.SRIOVGPUDevice, error) {
+func (c *FakeSRIOVGPUDevices) UpdateStatus(ctx context.Context, sRIOVGPUDevice *v1beta1.SRIOVGPUDevice, opts v1.UpdateOptions) (result *v1beta1.SRIOVGPUDevice, err error) {
+	emptyResult := &v1beta1.SRIOVGPUDevice{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceAction(sriovgpudevicesResource, "status", sRIOVGPUDevice), &v1beta1.SRIOVGPUDevice{})
+		Invokes(testing.NewRootUpdateSubresourceActionWithOptions(sriovgpudevicesResource, "status", sRIOVGPUDevice, opts), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.SRIOVGPUDevice), err
 }
@@ -116,7 +120,7 @@ func (c *FakeSRIOVGPUDevices) Delete(ctx context.Context, name string, opts v1.D
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeSRIOVGPUDevices) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewRootDeleteCollectionAction(sriovgpudevicesResource, listOpts)
+	action := testing.NewRootDeleteCollectionActionWithOptions(sriovgpudevicesResource, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1beta1.SRIOVGPUDeviceList{})
 	return err
@@ -124,10 +128,11 @@ func (c *FakeSRIOVGPUDevices) DeleteCollection(ctx context.Context, opts v1.Dele
 
 // Patch applies the patch and returns the patched sRIOVGPUDevice.
 func (c *FakeSRIOVGPUDevices) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.SRIOVGPUDevice, err error) {
+	emptyResult := &v1beta1.SRIOVGPUDevice{}
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(sriovgpudevicesResource, name, pt, data, subresources...), &v1beta1.SRIOVGPUDevice{})
+		Invokes(testing.NewRootPatchSubresourceActionWithOptions(sriovgpudevicesResource, name, pt, data, opts, subresources...), emptyResult)
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1beta1.SRIOVGPUDevice), err
 }

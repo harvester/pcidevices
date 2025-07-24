@@ -7,10 +7,12 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/rest"
+
+	"github.com/rancher/wrangler/v3/pkg/generic"
 
 	pcidevicev1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/generated/clientset/versioned/typed/devices.harvesterhci.io/v1beta1"
-	pcidevicesv1beta1ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/util/common"
 )
 
@@ -50,6 +52,10 @@ func (s VGPUDeviceClient) UpdateStatus(d *pcidevicev1beta1.VGPUDevice) (*pcidevi
 	return s().Update(context.TODO(), d, metav1.UpdateOptions{})
 }
 
+func (s VGPUDeviceClient) WithImpersonation(_ rest.ImpersonationConfig) (generic.NonNamespacedClientInterface[*pcidevicev1beta1.VGPUDevice, *pcidevicev1beta1.VGPUDeviceList], error) {
+	panic("implement me")
+}
+
 type VGPUDeviceCache func() v1beta1.VGPUDeviceInterface
 
 func (s VGPUDeviceCache) Get(name string) (*pcidevicev1beta1.VGPUDevice, error) {
@@ -71,7 +77,7 @@ func (s VGPUDeviceCache) List(selector labels.Selector) ([]*pcidevicev1beta1.VGP
 	return result, err
 }
 
-func (s VGPUDeviceCache) AddIndexer(_ string, _ pcidevicesv1beta1ctl.VGPUDeviceIndexer) {
+func (s VGPUDeviceCache) AddIndexer(_ string, _ generic.Indexer[*pcidevicev1beta1.VGPUDevice]) {
 	panic("implement me")
 }
 

@@ -414,6 +414,9 @@ spec:
                 type: string
               enabled:
                 type: boolean
+              message:
+                nullable: true
+                type: string
               nodeName:
                 nullable: true
                 type: string
@@ -424,6 +427,9 @@ spec:
                 nullable: true
                 type: string
               resourceName:
+                nullable: true
+                type: string
+              status:
                 nullable: true
                 type: string
               vendorID:
@@ -907,6 +913,9 @@ spec:
               type: string
             enabled:
               type: boolean
+            message:
+              nullable: true
+              type: string
             nodeName:
               nullable: true
               type: string
@@ -917,6 +926,9 @@ spec:
               nullable: true
               type: string
             resourceName:
+              nullable: true
+              type: string
+            status:
               nullable: true
               type: string
             vendorID:
