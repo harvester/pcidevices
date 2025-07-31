@@ -31,6 +31,7 @@ func init() {
 }
 
 type Interface interface {
+	MigConfiguration() MigConfigurationController
 	Node() NodeController
 	PCIDevice() PCIDeviceController
 	PCIDeviceClaim() PCIDeviceClaimController
@@ -49,6 +50,10 @@ func New(controllerFactory controller.SharedControllerFactory) Interface {
 
 type version struct {
 	controllerFactory controller.SharedControllerFactory
+}
+
+func (v *version) MigConfiguration() MigConfigurationController {
+	return generic.NewNonNamespacedController[*v1beta1.MigConfiguration, *v1beta1.MigConfigurationList](schema.GroupVersionKind{Group: "devices.harvesterhci.io", Version: "v1beta1", Kind: "MigConfiguration"}, "migconfigurations", v.controllerFactory)
 }
 
 func (v *version) Node() NodeController {

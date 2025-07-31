@@ -3,6 +3,7 @@ module github.com/harvester/pcidevices
 go 1.24.5
 
 require (
+	github.com/NVIDIA/go-nvlib v0.8.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gorilla/mux v1.8.1
 	github.com/harvester/harvester v1.6.0-rc3
@@ -20,7 +21,6 @@ require (
 	github.com/urfave/cli/v2 v2.11.1
 	github.com/vishvananda/netlink v1.3.1-0.20250206174618-62fb240731fa
 	github.com/vishvananda/netns v0.0.5
-	gitlab.com/nvidia/cloud-native/go-nvlib v0.0.0-20230818092907-09424fdc8884
 	google.golang.org/grpc v1.72.2
 	k8s.io/api v0.33.1
 	k8s.io/apimachinery v0.33.1

@@ -144,6 +144,14 @@ func List() []crd.CRD {
 				WithColumn("PCI Address", ".status.pciAddress").
 				WithColumn("User Name", ".spec.userName")
 		}),
+		newCRD(&devices.MigConfiguration{}, func(c crd.CRD) crd.CRD {
+			c.NonNamespace = true
+			return c.
+				WithColumn("Node Name", ".spec.nodeName").
+				WithColumn("Address", ".spec.gpuAddress").
+				WithColumn("Enabled", ".spec.enabled").
+				WithColumn("Status", ".status.status")
+		}),
 	}
 }
 
