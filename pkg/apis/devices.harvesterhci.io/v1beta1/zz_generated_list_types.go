@@ -26,6 +26,23 @@ import (
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
+// MigConfigurationList is a list of MigConfiguration resources
+type MigConfigurationList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+
+	Items []MigConfiguration `json:"items"`
+}
+
+func NewMigConfiguration(namespace, name string, obj MigConfiguration) *MigConfiguration {
+	obj.APIVersion, obj.Kind = SchemeGroupVersion.WithKind("MigConfiguration").ToAPIVersionAndKind()
+	obj.Name = name
+	obj.Namespace = namespace
+	return &obj
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
 // NodeList is a list of Node resources
 type NodeList struct {
 	metav1.TypeMeta `json:",inline"`

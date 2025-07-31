@@ -490,6 +490,94 @@ spec:
     storage: true
     subresources:
       status: {}
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: migconfigurations.devices.harvesterhci.io
+spec:
+  group: devices.harvesterhci.io
+  names:
+    kind: MigConfiguration
+    plural: migconfigurations
+    singular: migconfiguration
+  preserveUnknownFields: false
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.nodeName
+      name: Node Name
+      type: string
+    - jsonPath: .spec.gpuAddress
+      name: Address
+      type: string
+    - jsonPath: .spec.enabled
+      name: Enabled
+      type: string
+    - jsonPath: .status.status
+      name: Status
+      type: string
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              enabled:
+                type: boolean
+              gpuAddress:
+                nullable: true
+                type: string
+              nodeName:
+                nullable: true
+                type: string
+              profileSpec:
+                items:
+                  properties:
+                    id:
+                      type: integer
+                    name:
+                      nullable: true
+                      type: string
+                    requested:
+                      type: integer
+                  type: object
+                nullable: true
+                type: array
+            type: object
+          status:
+            properties:
+              profileStatus:
+                items:
+                  properties:
+                    available:
+                      type: integer
+                    id:
+                      type: integer
+                    name:
+                      nullable: true
+                      type: string
+                    total:
+                      type: integer
+                    vGPUID:
+                      items:
+                        nullable: true
+                        type: string
+                      nullable: true
+                      type: array
+                  type: object
+                nullable: true
+                type: array
+              status:
+                nullable: true
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
 {{- else -}}
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
@@ -982,6 +1070,95 @@ spec:
               nullable: true
               type: string
             pciAddress:
+              nullable: true
+              type: string
+          type: object
+      type: object
+  version: v1beta1
+  versions:
+  - name: v1beta1
+    served: true
+    storage: true
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: migconfigurations.devices.harvesterhci.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.nodeName
+    name: Node Name
+    type: string
+  - JSONPath: .spec.gpuAddress
+    name: Address
+    type: string
+  - JSONPath: .spec.enabled
+    name: Enabled
+    type: string
+  - JSONPath: .status.status
+    name: Status
+    type: string
+  group: devices.harvesterhci.io
+  names:
+    kind: MigConfiguration
+    plural: migconfigurations
+    singular: migconfiguration
+  preserveUnknownFields: false
+  scope: Cluster
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            enabled:
+              type: boolean
+            gpuAddress:
+              nullable: true
+              type: string
+            nodeName:
+              nullable: true
+              type: string
+            profileSpec:
+              items:
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    nullable: true
+                    type: string
+                  requested:
+                    type: integer
+                type: object
+              nullable: true
+              type: array
+          type: object
+        status:
+          properties:
+            profileStatus:
+              items:
+                properties:
+                  available:
+                    type: integer
+                  id:
+                    type: integer
+                  name:
+                    nullable: true
+                    type: string
+                  total:
+                    type: integer
+                  vGPUID:
+                    items:
+                      nullable: true
+                      type: string
+                    nullable: true
+                    type: array
+                type: object
+              nullable: true
+              type: array
+            status:
               nullable: true
               type: string
           type: object

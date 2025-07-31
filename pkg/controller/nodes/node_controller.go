@@ -30,23 +30,24 @@ const (
 )
 
 type handler struct {
-	ctx                      context.Context
-	sriovCache               ctl.SRIOVNetworkDeviceCache
-	sriovClient              ctl.SRIOVNetworkDeviceClient
-	pciDeviceClient          ctl.PCIDeviceClient
-	pciDeviceCache           ctl.PCIDeviceCache
-	nodeName                 string
-	vlanConfigCache          ctlnetworkv1beta1.VlanConfigCache
-	coreNodeCache            ctlcorev1.NodeCache
-	coreNodeCtl              ctlcorev1.NodeController
-	nodeCtl                  ctl.NodeController
-	sriovNetworkDeviceCache  ctl.SRIOVNetworkDeviceCache
-	vGPUController           ctl.VGPUDeviceController
-	pciDeviceClaimController ctl.PCIDeviceClaimController
-	sriovGPUController       ctl.SRIOVGPUDeviceController
-	usbCtl                   ctl.USBDeviceController
-	usbClaimCtl              ctl.USBDeviceClaimController
-	virtClient               kubecli.KubevirtClient
+	ctx                        context.Context
+	sriovCache                 ctl.SRIOVNetworkDeviceCache
+	sriovClient                ctl.SRIOVNetworkDeviceClient
+	pciDeviceClient            ctl.PCIDeviceClient
+	pciDeviceCache             ctl.PCIDeviceCache
+	nodeName                   string
+	vlanConfigCache            ctlnetworkv1beta1.VlanConfigCache
+	coreNodeCache              ctlcorev1.NodeCache
+	coreNodeCtl                ctlcorev1.NodeController
+	nodeCtl                    ctl.NodeController
+	sriovNetworkDeviceCache    ctl.SRIOVNetworkDeviceCache
+	vGPUController             ctl.VGPUDeviceController
+	pciDeviceClaimController   ctl.PCIDeviceClaimController
+	sriovGPUController         ctl.SRIOVGPUDeviceController
+	usbCtl                     ctl.USBDeviceController
+	usbClaimCtl                ctl.USBDeviceClaimController
+	virtClient                 kubecli.KubevirtClient
+	migConfigurationController ctl.MigConfigurationController
 }
 
 const (
@@ -66,25 +67,27 @@ func Register(ctx context.Context, management *config.FactoryManager) error {
 	usbClaimCtl := management.DeviceFactory.Devices().V1beta1().USBDeviceClaim()
 	virtClient := management.KubevirtClient
 	nodeName := os.Getenv(v1beta1.NodeEnvVarName)
+	migConfigurationController := management.DeviceFactory.Devices().V1beta1().MigConfiguration()
 
 	h := &handler{
-		ctx:                      ctx,
-		sriovCache:               sriovCtl.Cache(),
-		sriovClient:              sriovCtl,
-		pciDeviceClient:          pciDeviceCtl,
-		pciDeviceCache:           pciDeviceCtl.Cache(),
-		nodeName:                 nodeName,
-		coreNodeCache:            coreNodeCtl.Cache(),
-		coreNodeCtl:              coreNodeCtl,
-		vlanConfigCache:          vlanConfigCache,
-		nodeCtl:                  nodeCtl,
-		sriovNetworkDeviceCache:  sriovCtl.Cache(),
-		vGPUController:           vGPUController,
-		pciDeviceClaimController: pciDeviceClaimController,
-		sriovGPUController:       sriovGPUController,
-		usbCtl:                   usbCtl,
-		usbClaimCtl:              usbClaimCtl,
-		virtClient:               virtClient,
+		ctx:                        ctx,
+		sriovCache:                 sriovCtl.Cache(),
+		sriovClient:                sriovCtl,
+		pciDeviceClient:            pciDeviceCtl,
+		pciDeviceCache:             pciDeviceCtl.Cache(),
+		nodeName:                   nodeName,
+		coreNodeCache:              coreNodeCtl.Cache(),
+		coreNodeCtl:                coreNodeCtl,
+		vlanConfigCache:            vlanConfigCache,
+		nodeCtl:                    nodeCtl,
+		sriovNetworkDeviceCache:    sriovCtl.Cache(),
+		vGPUController:             vGPUController,
+		pciDeviceClaimController:   pciDeviceClaimController,
+		sriovGPUController:         sriovGPUController,
+		usbCtl:                     usbCtl,
+		usbClaimCtl:                usbClaimCtl,
+		virtClient:                 virtClient,
+		migConfigurationController: migConfigurationController,
 	}
 
 	nodeCtl.OnChange(ctx, reconcilePCIDevices, h.reconcileNodeDevices)
@@ -121,7 +124,7 @@ func (h *handler) reconcileNodeDevices(name string, node *v1beta1.Node) (*v1beta
 	if err != nil {
 		return nil, fmt.Errorf("error setting up sriov devices for node %s: %v", h.nodeName, err)
 	}
-	gpuhelper, _ := gpudevice.NewHandler(h.ctx, h.sriovGPUController, h.vGPUController, h.pciDeviceClaimController, nil, nil, nil)
+	gpuhelper, _ := gpudevice.NewHandler(h.ctx, h.sriovGPUController, h.vGPUController, h.pciDeviceClaimController, h.migConfigurationController, nil, nil, nil)
 	err = gpuhelper.SetupSRIOVGPUDevices()
 	if err != nil {
 		return nil, fmt.Errorf("error setting up SRIOV GPU devices for node %s: %v", h.nodeName, err)
