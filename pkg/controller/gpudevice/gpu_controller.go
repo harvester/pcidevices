@@ -8,9 +8,9 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/NVIDIA/go-nvlib/pkg/nvpci"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
-	"gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvpci"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,22 +31,24 @@ const (
 )
 
 type Handler struct {
-	ctx                 context.Context
-	nodeName            string
-	sriovGPUCache       ctl.SRIOVGPUDeviceCache
-	vGPUCache           ctl.VGPUDeviceCache
-	sriovGPUClient      ctl.SRIOVGPUDeviceClient
-	vGPUController      ctl.VGPUDeviceController
-	vGPUClient          ctl.VGPUDeviceClient
-	pciDeviceClaimCache ctl.PCIDeviceClaimCache
-	executor            executor.Executor
-	options             []nvpci.Option
-	vGPUDevicePlugins   map[string]*deviceplugins.VGPUDevicePlugin
-	virtClient          kubecli.KubevirtClient
-	cfg                 *rest.Config
+	ctx                        context.Context
+	nodeName                   string
+	sriovGPUCache              ctl.SRIOVGPUDeviceCache
+	vGPUCache                  ctl.VGPUDeviceCache
+	sriovGPUClient             ctl.SRIOVGPUDeviceClient
+	vGPUController             ctl.VGPUDeviceController
+	vGPUClient                 ctl.VGPUDeviceClient
+	pciDeviceClaimCache        ctl.PCIDeviceClaimCache
+	migConfigurationCache      ctl.MigConfigurationCache
+	migConfigurationController ctl.MigConfigurationController
+	executor                   executor.Executor
+	options                    []nvpci.Option
+	vGPUDevicePlugins          map[string]*deviceplugins.VGPUDevicePlugin
+	virtClient                 kubecli.KubevirtClient
+	cfg                        *rest.Config
 }
 
-func NewHandler(ctx context.Context, sriovGPUController ctl.SRIOVGPUDeviceController, vGPUController ctl.VGPUDeviceController, pciDeviceClaim ctl.PCIDeviceClaimController, virtClient kubecli.KubevirtClient, options []nvpci.Option, cfg *rest.Config) (*Handler, error) {
+func NewHandler(ctx context.Context, sriovGPUController ctl.SRIOVGPUDeviceController, vGPUController ctl.VGPUDeviceController, pciDeviceClaim ctl.PCIDeviceClaimController, migConfigurationController ctl.MigConfigurationController, virtClient kubecli.KubevirtClient, options []nvpci.Option, cfg *rest.Config) (*Handler, error) {
 	nodeName := os.Getenv(v1beta1.NodeEnvVarName)
 
 	// initial a default local executor.
@@ -55,19 +57,21 @@ func NewHandler(ctx context.Context, sriovGPUController ctl.SRIOVGPUDeviceContro
 	commandExecutor := executor.NewLocalExecutor(os.Environ())
 
 	return &Handler{
-		ctx:                 ctx,
-		sriovGPUCache:       sriovGPUController.Cache(),
-		sriovGPUClient:      sriovGPUController,
-		vGPUCache:           vGPUController.Cache(),
-		vGPUClient:          vGPUController,
-		pciDeviceClaimCache: pciDeviceClaim.Cache(),
-		executor:            commandExecutor,
-		nodeName:            nodeName,
-		options:             options,
-		vGPUDevicePlugins:   make(map[string]*deviceplugins.VGPUDevicePlugin),
-		virtClient:          virtClient,
-		vGPUController:      vGPUController,
-		cfg:                 cfg,
+		ctx:                        ctx,
+		sriovGPUCache:              sriovGPUController.Cache(),
+		sriovGPUClient:             sriovGPUController,
+		vGPUCache:                  vGPUController.Cache(),
+		vGPUClient:                 vGPUController,
+		pciDeviceClaimCache:        pciDeviceClaim.Cache(),
+		migConfigurationCache:      migConfigurationController.Cache(),
+		migConfigurationController: migConfigurationController,
+		executor:                   commandExecutor,
+		nodeName:                   nodeName,
+		options:                    options,
+		vGPUDevicePlugins:          make(map[string]*deviceplugins.VGPUDevicePlugin),
+		virtClient:                 virtClient,
+		vGPUController:             vGPUController,
+		cfg:                        cfg,
 	}, nil
 }
 
@@ -77,20 +81,23 @@ func Register(ctx context.Context, management *config.FactoryManager) error {
 	vGPUController := management.DeviceFactory.Devices().V1beta1().VGPUDevice()
 	pciDeviceClaimController := management.DeviceFactory.Devices().V1beta1().PCIDeviceClaim()
 	podController := management.CoreFactory.Core().V1().Pod()
+	migConfigurationController := management.DeviceFactory.Devices().V1beta1().MigConfiguration()
 
 	clientConfig := kubecli.DefaultClientConfig(&pflag.FlagSet{})
 	virtClient, err := kubecli.GetKubevirtClientFromClientConfig(clientConfig)
 	if err != nil {
 		return err
 	}
-	h, err := NewHandler(ctx, sriovGPUController, vGPUController, pciDeviceClaimController, virtClient, nil, management.Cfg)
+	h, err := NewHandler(ctx, sriovGPUController, vGPUController, pciDeviceClaimController, migConfigurationController, virtClient, nil, management.Cfg)
 	if err != nil {
 		return err
 	}
 	sriovGPUController.OnChange(ctx, "on-gpu-change", h.OnGPUChange)
+	sriovGPUController.OnChange(ctx, "gpu-mig-reconcillation", h.reconcileMIGConfiguration)
 	vGPUController.OnChange(ctx, "on-vgpu-change", h.OnVGPUChange)
 	vGPUController.OnChange(ctx, "update-plugins", h.reconcileEnabledVGPUPlugins)
 	podController.OnChange(ctx, "watch-driver-pods", h.setupRemoteExecutor)
+	migConfigurationController.OnChange(ctx, "on-migconfiguration-change", h.OnMIGChange)
 	return nil
 }
 
@@ -116,7 +123,7 @@ func (h *Handler) OnGPUChange(_ string, gpu *v1beta1.SRIOVGPUDevice) (*v1beta1.S
 		gpu.Status = *gpuStatus
 		return h.sriovGPUClient.UpdateStatus(gpu)
 	}
-	return nil, nil
+	return gpu, nil
 }
 
 // SetupSRIOVGPUDevices is called by the node controller to reconcile objects on startup and predefined intervals
@@ -266,4 +273,89 @@ func isNotDriverPod(pod *corev1.Pod) bool {
 	}
 
 	return true
+}
+
+// setupMigconfiguration will check if GPU suports MIG instances
+// and accordingly creates a MIGConfigurationObject if one is not already present
+func (h *Handler) setupMigConfiguration(gpu *v1beta1.SRIOVGPUDevice) error {
+	// check if GPU supports MIG instances
+	ok, err := gpuhelper.IsMigConfigurationNeeded(h.executor, gpu.Spec.Address)
+	if err != nil {
+		return fmt.Errorf("error checking if GPU supports MIG instances: %w", err)
+	}
+
+	// if GPU does not support MIG instances
+	// then no MIGConfiguration object is created
+	if !ok {
+		logrus.Debugf("skipping GPU device %s, as it does not support MIG instances", gpu.Name)
+		return nil
+	}
+
+	// enable MIGMode on device, this is idempotent so can be run multiple times
+	if err := gpuhelper.EnableMIGMode(h.executor, gpu.Spec.Address); err != nil {
+		return fmt.Errorf("error enable MIG Mode: %w", err)
+	}
+
+	// MIGConfiguration object has same name as GPU Name so we can use that to lookup existing device
+	obj, err := h.migConfigurationCache.Get(gpu.Name)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("error looking up MIG Configuration: %w", err)
+	}
+
+	if obj != nil {
+		// existing object found, nothing else is needed
+		return nil
+	}
+
+	migConfiguration, err := gpuhelper.GenerateMIGConfiguration(h.executor, gpu.Spec.Address, gpu.Name)
+	if err != nil {
+		return fmt.Errorf("error generating MIG Configuration: %w", err)
+	}
+
+	migStatus, err := gpuhelper.GenerateMIGConfigurationStatus(h.executor, gpu.Spec.Address)
+	if err != nil {
+		return fmt.Errorf("error generating MIG configuration status: %w", err)
+	}
+
+	migConfiguration.Spec.NodeName = gpu.Spec.NodeName
+	if instanceCount(migStatus) > 0 {
+		migConfiguration.Spec.Enabled = true
+	}
+
+	migConfiguration.OwnerReferences = []metav1.OwnerReference{
+		{
+			APIVersion: gpu.APIVersion,
+			Kind:       gpu.Kind,
+			Name:       gpu.Name,
+			UID:        gpu.UID,
+		},
+	}
+	// setup a new MIG configuration object
+	migObject, err := h.migConfigurationController.Create(migConfiguration)
+	if err != nil {
+		return fmt.Errorf("error setting up MIG configuration: %w", err)
+	}
+
+	migObject.Status = *migStatus
+
+	_, err = h.migConfigurationController.UpdateStatus(migObject)
+	return err
+}
+
+func (h *Handler) reconcileMIGConfiguration(_ string, gpu *v1beta1.SRIOVGPUDevice) (*v1beta1.SRIOVGPUDevice, error) {
+	if gpu.Spec.Enabled {
+		return gpu, h.setupMigConfiguration(gpu)
+	}
+
+	// trigger deletion of MIGConfiguration object
+	_, err := h.migConfigurationCache.Get(gpu.Name)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// object does not exist, no further action needed
+			return gpu, nil
+		}
+		return gpu, err
+	}
+
+	return gpu, h.migConfigurationController.Delete(gpu.Name, &metav1.DeleteOptions{})
 }

@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/NVIDIA/go-nvlib/pkg/nvpci"
 	"github.com/sirupsen/logrus"
-	"gitlab.com/nvidia/cloud-native/go-nvlib/pkg/nvpci"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
@@ -103,7 +103,7 @@ func IdentifyVGPU(options []nvpci.Option, nodeName string) ([]*v1beta1.VGPUDevic
 	}
 
 	for _, v := range nvidiaDevices {
-		if v.IsGPU() && v.IsVF {
+		if v.IsGPU() && v.SriovInfo.IsVF() {
 			dev, err := generateVGPUDevice(v, nodeName)
 			if err != nil {
 				return nil, err

@@ -28,6 +28,10 @@ type FakeDevicesV1beta1 struct {
 	*testing.Fake
 }
 
+func (c *FakeDevicesV1beta1) MigConfigurations() v1beta1.MigConfigurationInterface {
+	return &FakeMigConfigurations{c}
+}
+
 func (c *FakeDevicesV1beta1) Nodes() v1beta1.NodeInterface {
 	return &FakeNodes{c}
 }
