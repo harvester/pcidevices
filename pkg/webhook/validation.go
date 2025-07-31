@@ -26,6 +26,7 @@ func Validation(clients *Clients) (http.Handler, []types.Resource, error) {
 			clients.DeviceFactory.Devices().V1beta1().VGPUDevice().Cache(),
 		),
 		NewUSBDeviceValidator(),
+		NewMIGConfigurationValidator(clients.DeviceFactory.Devices().V1beta1().VGPUDevice().Cache()),
 	}
 
 	router := webhook.NewRouter()

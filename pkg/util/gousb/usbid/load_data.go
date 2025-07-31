@@ -27,8 +27,8 @@ import "time"
 //
 // The baked-in data was last generated:
 //
-// 2025-07-25 00:15:34.359109453 +0000 UTC m=+1.508945651
-var LastUpdate = time.Unix(0, 1753402534359109453)
+// 2025-08-22 16:07:44.519359417 +1000 AEST m=+1.186429492
+var LastUpdate = time.Unix(0, 1755842864519359417)
 
 const usbIDListData = `#
 #	List of USB ID's
@@ -41,8 +41,8 @@ const usbIDListData = `#
 #	The latest version can be obtained from
 #		http://www.linux-usb.org/usb.ids
 #
-# Version: 2025.04.01
-# Date:    2025-04-01 20:34:02
+# Version: 2025.07.26
+# Date:    2025-07-26 20:34:01
 #
 
 # Vendors, devices and interfaces. Please keep sorted.
@@ -91,6 +91,8 @@ const usbIDListData = `#
 	0112  Card Reader
 017c  MLK
 	145f  Trust Deskset
+019c  mek
+	0042  mek_42
 0200  TP-Link
 	0201  MA180 UMTS Modem
 0204  Chipsbank Microelectronics Co., Ltd
@@ -101,6 +103,9 @@ const usbIDListData = `#
 0231  Sonuus Limited
 02ad  HUMAX Co., Ltd.
 	138c  PVR Mass Storage
+0300  Ajazz
+	1010  Akp153E Desktop Controller
+	1020  AKP153R Desktop Controller
 0303  Mini Automation Controller
 0324  OCZ Technology Inc
 	bc06  OCZ ATV USB 2.0 Flash Drive
@@ -127,7 +132,7 @@ const usbIDListData = `#
 	0015  ATAPI Enclosure
 	2123  SiPix StyleCam Deluxe
 	8004  Aox 99001
-03e9  Thesys Microelectronics
+03e9  Melexis (formerly Thesys Microelectronics)
 03ea  Data Broadcasting Corp.
 03eb  Atmel Corp.
 	0902  4-Port Hub
@@ -289,6 +294,8 @@ const usbIDListData = `#
 	0423  HS-COMBO Cardreader
 	042a  LaserJet M1132 MFP
 	0441  Prime [NW280AA, G8X92AA]
+	046b  Dock G5
+	0483  Engage Go 10 Tablet
 	0504  DeskJet 885c
 	0505  ScanJet 2100c
 	0507  DVD+RW
@@ -298,6 +305,7 @@ const usbIDListData = `#
 	0517  LaserJet 1000
 	051d  Bluetooth Interface
 	052a  LaserJet M1212nf MFP
+	0583  Engage Go 10 Tablet
 	0601  ScanJet 6300c
 	0604  DeskJet 840c
 	0605  ScanJet 2200c
@@ -307,6 +315,7 @@ const usbIDListData = `#
 	0624  Bluetooth Dongle
 	0641  X1200 Optical Mouse
 	0653  DeskJet 3700 series
+	0683  Engage Go 10 Tablet
 	0701  ScanJet 5300c/5370c
 	0704  DeskJet 825c
 	0705  ScanJet 4400c
@@ -357,6 +366,7 @@ const usbIDListData = `#
 	1102  PhotoSmart 240 series
 	1104  DeskJet 959c
 	1105  ScanJet 5470c/5490c
+	110c  Pocket Media Drive
 	1111  OfficeJet v60
 	1116  Jornada 568 Pocket PC
 	1117  LaserJet 1300n
@@ -1045,6 +1055,7 @@ const usbIDListData = `#
 	3000  Optical dual-touch panel
 	3001  Optical Touch Screen
 	3008  Optical Touch Screen
+	4033  HD Webcam
 	a060  HD Webcam
 0409  NEC Corp.
 	0011  PC98 Series Layout Keyboard Mouse
@@ -1061,6 +1072,7 @@ const usbIDListData = `#
 	004e  SuperScript 1400 Series
 	004f  Wireless Keyboard with One-touch start buttons
 	0050  7-port hub
+	0056  uPD720133 IDE bridge
 	0058  HighSpeed Hub
 	0059  HighSpeed Hub
 	005a  HighSpeed Hub
@@ -1518,6 +1530,7 @@ const usbIDListData = `#
 	4095  Live! Cam Sync HD [VF0770]
 	4097  Live! Cam Chat HD [VF0700/VF0790]
 	4099  Creative VF0800 [RealSense Camera SR300]
+	40a3  Live! Cam V3 2K [VF-0900]
 	4100  Nomad Jukebox 2
 	4101  Nomad Jukebox 3
 	4102  NOMAD MuVo^2
@@ -1991,6 +2004,7 @@ const usbIDListData = `#
 	010d  3500-4500 series
 	010f  6500 series
 	0142  X3650 (Printer, Scanner, Copier)
+	01bd  S800 Series Scanner
 	01fa  S310 series
 	020e  RICOH Aficio SP 4410SF
 	4303  Xerox WorkCentre Pro 412
@@ -2014,6 +2028,7 @@ const usbIDListData = `#
 	9a10  34UC88-B
 	9a11  34UC88-B
 	9a39  27UP850 - WK.AEUDCSN - External Monitor 4K
+	9a57  UltraGear Monitor
 	9c01  LGE Sync
 043f  RadiSys Corp.
 0440  Eizo Nanao Corp.
@@ -2039,6 +2054,7 @@ const usbIDListData = `#
 044d  Siemens Nixdorf AG
 044e  Alps Electric Co., Ltd
 	1104  Japanese Keyboard
+	1218  Electric Touchpad
 	2002  MD-5500 Printer
 	2014  Bluetooth Device
 	3001  UGTZ4 Bluetooth
@@ -2769,6 +2785,8 @@ const usbIDListData = `#
 	0180  Strait 3.0
 	01a4  MC 2.1 Mouse
 	01a6  MX BOARD 2.0S FL RGB DE Keyboard
+	0201  Smart Board 1150
+	0202  Smart Terminal 1150
 	b090  Keyboard
 	b091  Mouse
 	c099  Stream Keyboard TKL
@@ -2883,6 +2901,7 @@ const usbIDListData = `#
 	08dd  QuickCam for Notebooks
 	08e0  QuickCam Express
 	08e1  Labtec Webcam
+	08e4  C505e HD Webcam
 	08e5  C920 PRO HD Webcam
 	08f0  QuickCam Messenger
 	08f1  QuickCam Express
@@ -3034,6 +3053,7 @@ const usbIDListData = `#
 	c08e  G MX518 Gaming Mouse (MU0053)
 	c092  G102/G203 LIGHTSYNC Gaming Mouse
 	c093  M500s Optical Mouse
+	c09d  G102 LIGHTSYNC Gaming Mouse
 	c101  UltraX Media Remote
 	c110  Harmony 785/880/885 Remote
 	c111  Harmony 525 Remote
@@ -3092,6 +3112,7 @@ const usbIDListData = `#
 	c24d  G710 Gaming Keyboard
 	c24e  G500s Laser Gaming Mouse
 	c24f  G29 Driving Force Racing Wheel [PS3]
+	c251  GamePanel for Dell XPS M1730
 	c260  G29 Driving Force Racing Wheel [PS4]
 	c262  G920 Driving Force Racing Wheel
 	c281  WingMan Force
@@ -3105,6 +3126,7 @@ const usbIDListData = `#
 	c295  Momo Force Steering Wheel
 	c298  Driving Force Pro
 	c299  G25 Racing Wheel
+	c29a  Driving Force GT
 	c29b  G27 Racing Wheel
 	c29c  Speed Force Wireless Wheel for Wii
 	c2a0  Wingman Force Feedback Mouse
@@ -3142,6 +3164,7 @@ const usbIDListData = `#
 	c335  G910 Orion Spectrum Mechanical Keyboard
 	c336  G213 Prodigy Gaming Keyboard
 	c33a  G413 Gaming Keyboard
+	c33e  G915 Mechanical Keyboard
 	c33f  G815 Mechanical Keyboard
 	c401  TrackMan Marble Wheel
 	c402  Marble Mouse (2-button)
@@ -3391,6 +3414,7 @@ const usbIDListData = `#
 047c  Dell Computer Corp.
 	ffff  UPS Tower 500W LV
 047d  Kensington
+	00f2  VeriMark Desktop
 	1001  Mouse*in*a*Box
 	1002  Expert Mouse Pro
 	1003  Orbit TrackBall
@@ -3590,6 +3614,7 @@ const usbIDListData = `#
 0485  Nokia Monitors
 0486  ASUS Computers, Inc.
 	0185  EeePC T91MT HID Touch Panel
+	573c  Xreal Light Microcontroller
 0487  Stewart Connector
 0488  Cirque Corp.
 0489  Foxconn / Hon Hai
@@ -3695,6 +3720,7 @@ const usbIDListData = `#
 	1033  DGX-505
 	1037  PSR-E403
 	103c  MOTIF-RACK ES
+	1045  MM6
 	1054  S90XS Keyboard/Music Synthesizer
 	160f  P-105
 	1613  Clavinova CLP535
@@ -3924,9 +3950,11 @@ const usbIDListData = `#
 	106d  S750 Printer
 	106e  S820D
 	1070  S530D
+	1071  Sony MPR-501
 	1072  I850 Printer
 	1073  I550 Printer
 	1074  S330 Printer
+	1075  Sony MPR-505
 	1076  i70
 	1077  i950
 	107a  S830D
@@ -4085,6 +4113,7 @@ const usbIDListData = `#
 	178a  PIXMA MG3600 Series
 	178d  PIXMA MG6853
 	180b  PIXMA MG3000 series
+	183b  PIXMA MG3110 Series
 	1856  PIXMA TS6250
 	1900  CanoScan LiDE 90
 	1901  CanoScan 8800F
@@ -4092,6 +4121,7 @@ const usbIDListData = `#
 	1905  CanoScan LiDE 200
 	1906  CanoScan 5600F
 	1907  CanoScan LiDE 700F
+	1908  CanoScan 9000F
 	1909  CanoScan LiDE 110
 	190a  CanoScan LiDE 210
 	190d  CanoScan 9000F Mark II
@@ -4653,6 +4683,7 @@ const usbIDListData = `#
 	0434  D610
 	0436  D810
 	043f  D5600
+	0455  Z50II
 	0f03  PD-10 Wireless Printer Adapter
 	4000  Coolscan LS 40 ED
 	4001  LS 50 ED/Coolscan V ED
@@ -4939,11 +4970,19 @@ const usbIDListData = `#
 	0891  Stylus Office BX535WD
 	0892  Stylus Office BX935FWD
 	0893  EP-774A
+	08d1  L220/L360 Series
 	0e03  Thermal Receipt Printer [TM-T20]
+	0e31  Thermal Receipt Printer [TM-L100]
 	1114  XP-440 [Expression Home Small-in-One Printer]
 	1115  ES-0133 [Expression Home XP-342]
 	1129  ET-4750 [WorkForce ET-4750 EcoTank All-in-One]
 	1168  Workforce WF-7820/7840 Series
+	1186  ET-2820 Series [ET-2820 EcoTank All-in-One]
+	118a  ET-2810/L3250 Series [EcoTank ET-2810/L3250]
+	118b  ET-2850/L4260 Series [EcoTank ET-2850/L4260]
+	11b0  XP-4200 Series [Expression Home XP-4200]
+	11b9  ET-2830/L3550 Series [EcoTank ET-2830/L3550]
+	11c8  ET-2860/L3270 Series [EcoTank ET-2860/L3270]
 04b9  Rainbow Technologies, Inc.
 	0300  SafeNet USB SuperPro/UltraPro
 	1000  iKey 1000 Token
@@ -5028,6 +5067,9 @@ const usbIDListData = `#
 	1303  i3 Micro Module
 	1304  i3 Module
 	1305  i3 Multi Sensing Module
+	1400  Javelin Module Recovery
+	1401  Javelin Module
+	1500  Gas sensor demo board
 04c1  U.S. Robotics (3Com)
 	0020  56K Voice Pro
 	0022  56K Voice Pro
@@ -5066,7 +5108,9 @@ const usbIDListData = `#
 	11f3  fi-6130Z
 	125a  PalmSecure Sensor Device - MP
 	132e  fi-7160
+	1526  PalmSecure-F Pro
 	159f  ScanSnap iX1500
+	15ff  Fi-8170 Document Scanner [Ricoh fi-8170: High Performance Desktop Scanner - PFU]
 	200f  Sigma DP2 (Mass Storage)
 	2010  Sigma DP2 (PictBridge)
 	201d  SATA 3.0 6Gbit/s Adaptor [GROOVY]
@@ -5099,6 +5143,7 @@ const usbIDListData = `#
 	300f  Atheros AR3012 Bluetooth
 	3014  Qualcomm Atheros Bluetooth
 	3015  Qualcomm Atheros QCA9377 Bluetooth
+	3802  MediaTek Bluetooth MT7921
 	7022  HP HD Webcam
 	7025  HP HD Webcam
 	7046  TOSHIBA Web Camera - HD
@@ -15365,6 +15410,12 @@ const usbIDListData = `#
 0e23  Liou Yuane Enterprise Co., Ltd
 0e25  VinChip Systems, Inc.
 0e26  J-Phone East Co., Ltd
+0e2c  Materialise Motion NV
+	0012  footscan pressure plate (0.5m)
+	0013  footscan pressure plate (1.0m)
+	0018  footscan 2D interface box
+	0020  footscan pressure plate (1.5m)
+	002d  footscan heavy duty pressure plate (1.0m)
 0e2e  Brady Worldwide, Inc.
 	000b  BMP 51
 	000c  BMP 61

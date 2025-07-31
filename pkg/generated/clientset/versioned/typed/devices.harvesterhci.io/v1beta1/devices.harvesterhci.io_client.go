@@ -28,6 +28,7 @@ import (
 
 type DevicesV1beta1Interface interface {
 	RESTClient() rest.Interface
+	MigConfigurationsGetter
 	NodesGetter
 	PCIDevicesGetter
 	PCIDeviceClaimsGetter
@@ -41,6 +42,10 @@ type DevicesV1beta1Interface interface {
 // DevicesV1beta1Client is used to interact with features provided by the devices.harvesterhci.io group.
 type DevicesV1beta1Client struct {
 	restClient rest.Interface
+}
+
+func (c *DevicesV1beta1Client) MigConfigurations() MigConfigurationInterface {
+	return newMigConfigurations(c)
 }
 
 func (c *DevicesV1beta1Client) Nodes() NodeInterface {

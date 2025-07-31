@@ -18,6 +18,8 @@ limitations under the License.
 
 package v1beta1
 
+type MigConfigurationExpansion interface{}
+
 type NodeExpansion interface{}
 
 type PCIDeviceExpansion interface{}
