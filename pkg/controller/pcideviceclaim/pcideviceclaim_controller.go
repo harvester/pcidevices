@@ -588,6 +588,11 @@ func (h *Handler) bindDeviceToOriginalDriver(pd *v1beta1.PCIDevice) error {
 		return nil
 	}
 
+	orgDriverPath := "/sys/bus/pci/drivers/" + orgDriver
+	if deviceBoundToDriver(orgDriverPath, address) {
+		return nil
+	}
+
 	logrus.Debugf("Binding device %s [%s] to %s", pd.Name, address, orgDriver)
 	file, err := os.OpenFile(fmt.Sprintf("/sys/bus/pci/drivers/%s/bind", orgDriver), os.O_WRONLY, 0200)
 	if err != nil {
