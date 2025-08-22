@@ -22,7 +22,7 @@ package main
 import (
 	"bytes"
 	"flag"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"text/template"
@@ -54,7 +54,7 @@ func main() {
 	}
 	defer resp.Body.Close()
 
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		logrus.Fatalf("failed to read %q: %s", *remote, err)
 	}
@@ -68,7 +68,7 @@ func main() {
 	logrus.Printf("  Loaded %d Vendor IDs", len(ids))
 	logrus.Printf("  Loaded %d Class IDs", len(cls))
 
-	rawTemplate, err := ioutil.ReadFile(*dataFile)
+	rawTemplate, err := os.ReadFile(*dataFile)
 	if err != nil {
 		logrus.Fatalf("failed to read template %q: %s", *dataFile, err)
 	}

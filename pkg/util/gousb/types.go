@@ -55,6 +55,4 @@ type InterfaceSetting struct {
 	SubClass Class
 	// Protocol is USB protocol code, as defined by the USB spe.c
 	Protocol Protocol
-
-	iInterface int // index of a string descriptor describing this interface.
 }

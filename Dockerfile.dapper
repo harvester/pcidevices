@@ -15,13 +15,13 @@ RUN export K8S_VERSION=1.24.2 && \
     tar -C /usr/local/kubebuilder --strip-components=1 -zvxf envtest-bins.tar.gz
 
 ## install golangci
-RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.64.8
+RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s latest
 
 # The docker version in dapper is too old to have buildx. Install it manually.
 RUN curl -sSfL https://github.com/docker/buildx/releases/download/v0.13.1/buildx-v0.13.1.linux-${ARCH} -o buildx-v0.13.1.linux-${ARCH} && \
     chmod +x buildx-v0.13.1.linux-${ARCH} && \
     mv buildx-v0.13.1.linux-${ARCH} /usr/local/bin/buildx
-    
+
 ENV GO111MODULE on
 ENV DAPPER_ENV REPO TAG DRONE_TAG
 ENV DAPPER_SOURCE /go/src/github.com/harvester/pcidevices/

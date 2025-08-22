@@ -287,7 +287,7 @@ func (h *DevHandler) getList(localUSBDevices map[int][]*deviceplugins.USBDevice,
 }
 
 func usbDeviceName(nodeName string, localUSBDevice *deviceplugins.USBDevice) string {
-	devicePath := strings.Replace(localUSBDevice.DevicePath, "/dev/bus/usb/", "", -1)
+	devicePath := strings.ReplaceAll(localUSBDevice.DevicePath, "/dev/bus/usb/", "")
 	devicePath = strings.Join(strings.Split(devicePath, "/"), "")
 	name := fmt.Sprintf("%s-%04x-%04x-%s", nodeName, localUSBDevice.Vendor, localUSBDevice.Product, devicePath)
 	return name

@@ -81,9 +81,15 @@ func Setup(ctx context.Context, cfg *rest.Config, _ *runtime.Scheme) error {
 	kubevirtFactory, err := ctlkubevirt.NewFactoryFromConfigWithOptions(cfg, &ctlkubevirt.FactoryOptions{
 		SharedControllerFactory: factory,
 	})
+	if err != nil {
+		return fmt.Errorf("error building kubevirt controllers: %v", err)
+	}
 
 	clientConfig := kubecli.DefaultClientConfig(&pflag.FlagSet{})
 	virtClient, err := kubecli.GetKubevirtClientFromClientConfig(clientConfig)
+	if err != nil {
+		return fmt.Errorf("cannot obtain KubeVirt client: %v", err)
+	}
 
 	management := config.NewFactoryManager(
 		deviceFactory,

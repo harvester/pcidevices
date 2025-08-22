@@ -133,7 +133,7 @@ func (plugin *USBDevicePlugin) startDevicePlugin() error {
 	}
 
 	plugin.server = grpc.NewServer([]grpc.ServerOption{}...)
-	defer plugin.stopDevicePlugin()
+	defer plugin.stopDevicePlugin() //nolint:errcheck
 
 	pluginapi.RegisterDevicePluginServer(plugin.server, plugin)
 

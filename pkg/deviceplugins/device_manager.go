@@ -100,7 +100,7 @@ func (d *PCIDevice) GetID() string {
 }
 
 func NewPCIDevicePlugin(ctx context.Context, pciDevices []*PCIDevice, resourceName string) *PCIDevicePlugin {
-	serverSock := SocketPath(strings.Replace(resourceName, "/", "-", -1))
+	serverSock := SocketPath(strings.ReplaceAll(resourceName, "/", "-"))
 	iommuToPCIMap := make(map[string]string)
 
 	initHandler()
