@@ -14,6 +14,7 @@ import (
 	ctlcorev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/json"
@@ -364,7 +365,15 @@ func (h *Handler) OnVMIDeletion(_ string, vmi *kubevirtv1.VirtualMachineInstance
 
 	vmObj, err := h.vmCache.Get(vmi.Namespace, vmi.Name)
 	if err != nil {
-		return vmi, fmt.Errorf("error fetching vm object for vmi %s/%s: %v", vmi.Namespace, vmi.Name, err)
+		if k8serrors.IsNotFound(err) {
+			// vm is deleted
+			return vmi, nil
+		} else {
+			return vmi, fmt.Errorf("error fetching vm object for vmi %s/%s: %v", vmi.Namespace, vmi.Name, err)
+		}
+	}
+	if vmObj.DeletionTimestamp != nil {
+		return vmi, nil
 	}
 
 	if vmi.Status.NodeName != h.nodeName {
