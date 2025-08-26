@@ -368,9 +368,8 @@ func (h *Handler) OnVMIDeletion(_ string, vmi *kubevirtv1.VirtualMachineInstance
 		if k8serrors.IsNotFound(err) {
 			// vm is deleted
 			return vmi, nil
-		} else {
-			return vmi, fmt.Errorf("error fetching vm object for vmi %s/%s: %v", vmi.Namespace, vmi.Name, err)
 		}
+		return vmi, fmt.Errorf("error fetching vm object for vmi %s/%s: %v", vmi.Namespace, vmi.Name, err)
 	}
 	if vmObj.DeletionTimestamp != nil {
 		return vmi, nil
