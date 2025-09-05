@@ -88,7 +88,7 @@ func Classify(val interface{}) string {
 			}
 			return fmt.Sprintf("%s (%s)", c, s)
 		}
-		return fmt.Sprintf("%s", c)
+		return c.String()
 	}
 	return fmt.Sprintf("Unknown %d.%d.%d", class, sub, proto)
 }

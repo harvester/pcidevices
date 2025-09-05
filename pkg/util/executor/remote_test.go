@@ -45,43 +45,56 @@ func TestMain(t *testing.M) {
 
 	cfg, err = clientcmd.ClientConfig()
 	if err != nil {
-		cluster.Cleanup(lw)
+		if err = cluster.Cleanup(lw); err != nil {
+			log.Fatalf("error cleaning up cluster: %v", err)
+		}
 		log.Fatalf("error fetching config %v", err)
 	}
 
 	err = corev1.AddToScheme(rs)
 	if err != nil {
-		cluster.Cleanup(lw)
+		if err = cluster.Cleanup(lw); err != nil {
+			log.Fatalf("error cleaning up cluster: %v", err)
+		}
 		log.Fatalf("error generating kubernetes client %v", err)
 	}
 
 	err = appsv1.AddToScheme(rs)
 	if err != nil {
-		cluster.Cleanup(lw)
+		if err = cluster.Cleanup(lw); err != nil {
+			log.Fatalf("error cleaning up cluster: %v", err)
+		}
 		log.Fatalf("error generating kubernetes client %v", err)
 	}
 	client, err = kubernetes.NewForConfig(cfg)
 	if err != nil {
-		cluster.Cleanup(lw)
+		if err = cluster.Cleanup(lw); err != nil {
+			log.Fatalf("error cleaning up cluster: %v", err)
+		}
 		log.Fatalf("error generating kubernetes client %v", err)
 	}
 
 	wranglerClients, err := clients.New(clientcmd, nil)
 	if err != nil {
-		cluster.Cleanup(lw)
+		if err = cluster.Cleanup(lw); err != nil {
+			log.Fatalf("error cleaning up cluster: %v", err)
+		}
 		log.Fatalf("error generating kubernetes client %v", err)
 	}
 
 	client = wranglerClients.K8s
 	if err := waitForKubeProxy(lw); err != nil {
-		cluster.Cleanup(lw)
+		if err = cluster.Cleanup(lw); err != nil {
+			log.Fatalf("error cleaning up cluster: %v", err)
+		}
 		log.Fatalf("error querying ds: %v", err)
 	}
 
 	code := t.Run()
-	cluster.Cleanup(lw)
+	if err = cluster.Cleanup(lw); err != nil {
+		log.Fatalf("error cleaning up cluster: %v", err)
+	}
 	os.Exit(code)
-
 }
 
 func Test_RemoteCommandExecutor(t *testing.T) {

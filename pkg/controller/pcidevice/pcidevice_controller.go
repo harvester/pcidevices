@@ -66,7 +66,7 @@ func (h *Handler) ReconcilePCIDevices(nodename string) error {
 					logrus.Infof("[PCIDeviceController] Device %s does not exist", name)
 
 					// Create the PCIDevice CR if it doesn't exist
-					var pdToCreate v1beta1.PCIDevice = v1beta1.NewPCIDeviceForHostname(dev, nodename)
+					pdToCreate := v1beta1.NewPCIDeviceForHostname(dev, nodename)
 					logrus.Infof("Creating PCI Device: %s\n", pdToCreate.Name)
 
 					logrus.Debugf("querying sriov network device ownership for pcidevice: %s", pdToCreate.Name)

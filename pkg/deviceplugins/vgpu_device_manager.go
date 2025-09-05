@@ -74,7 +74,7 @@ func (dp *VGPUDevicePlugin) GetCount() int {
 }
 
 func NewVGPUDevicePlugin(ctx context.Context, vGPUList []string, resourceName string) *VGPUDevicePlugin {
-	serverSock := SocketPath(strings.Replace(resourceName, "/", "-", -1))
+	serverSock := SocketPath(strings.ReplaceAll(resourceName, "/", "-"))
 
 	devs := constructVGPUDPIdevices(vGPUList)
 	dpi := &VGPUDevicePlugin{
@@ -417,6 +417,9 @@ func (dp *VGPUDevicePlugin) PreStartContainer(_ context.Context, _ *pluginapi.Pr
 }
 
 func (dp *VGPUDevicePlugin) setInitialized(initialized bool) {
+	if dp == nil {
+		return
+	}
 	dp.lock.Lock()
 	dp.initialized = initialized
 	dp.lock.Unlock()
@@ -424,6 +427,9 @@ func (dp *VGPUDevicePlugin) setInitialized(initialized bool) {
 
 // This function adds the VGPU UUID to device plugin for corresponding VGPU type
 func (dp *VGPUDevicePlugin) AddDevice(uuid string) error {
+	if dp == nil {
+		return nil
+	}
 	var exists bool
 	dp.lock.Lock()
 	defer dp.lock.Unlock()
@@ -455,12 +461,13 @@ func (dp *VGPUDevicePlugin) MarkVGPUDeviceAsHealthy(uuid string) {
 // This function removes the VGPU ID from device plugin and also updates
 // devs being reconilled by VGPUDevicePlugin
 func (dp *VGPUDevicePlugin) RemoveDevice(uuid string) error {
+	if dp == nil {
+		return nil
+	}
 	dp.lock.Lock()
 	defer dp.lock.Unlock()
-	if dp != nil {
-		logrus.Infof("Removing %s from device plugin", uuid)
-		dp.MarkVGPUDeviceAsUnHealthy(uuid)
-	}
+	logrus.Infof("Removing %s from device plugin", uuid)
+	dp.MarkVGPUDeviceAsUnHealthy(uuid)
 
 	for i, dev := range dp.devs {
 		if dev.ID == uuid {

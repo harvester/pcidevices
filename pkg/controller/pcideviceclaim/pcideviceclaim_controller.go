@@ -16,7 +16,6 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/u-root/u-root/pkg/kmodule"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 	"kubevirt.io/client-go/kubecli"
@@ -414,7 +413,7 @@ func (h *Handler) createDevicePlugin(
 
 func (h *Handler) permitHostDeviceInKubeVirt(pd *v1beta1.PCIDevice) error {
 	logrus.Infof("Adding %s to KubeVirt list of permitted devices", pd.Name)
-	kv, err := h.virtClient.KubeVirt(DefaultNS).Get(h.ctx, KubevirtCR, v1.GetOptions{})
+	kv, err := h.virtClient.KubeVirt(DefaultNS).Get(h.ctx, KubevirtCR, metav1.GetOptions{})
 	if err != nil {
 		msg := fmt.Sprintf("cannot obtain KubeVirt CR: %v", err)
 		return errors.New(msg)
