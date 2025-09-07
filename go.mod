@@ -189,7 +189,7 @@ replace (
 	k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.24.10
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.24.10
 	kubevirt.io/api => github.com/kubevirt/api v0.54.0
-	kubevirt.io/client-go => github.com/kubevirt/client-go v0.54.0
+	kubevirt.io/client-go => github.com/kubevirt/client-go v0.59.2
 	kubevirt.io/containerized-data-importer-api => kubevirt.io/containerized-data-importer-api v1.47.0
 	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.11.2
 )
