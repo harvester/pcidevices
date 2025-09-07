@@ -154,7 +154,7 @@ replace (
 	github.com/harvester/harvester-network-controller => github.com/harvester/harvester-network-controller v0.3.2-rc1
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20191219222812-2987a591a72c
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20200521150516-05eb9880269c
-	github.com/rancher/rancher => github.com/rancher/rancher v0.0.0-20230124173128-2207cfed1803
+	github.com/rancher/rancher => github.com/rancher/rancher v0.63.1
 	github.com/rancher/rancher/pkg/apis => github.com/rancher/rancher/pkg/apis v0.0.0-20230124173128-2207cfed1803
 	github.com/rancher/rancher/pkg/client => github.com/rancher/rancher/pkg/client v0.0.0-20230124173128-2207cfed1803
 	github.com/u-root/u-root => github.com/u-root/u-root v0.10.0
