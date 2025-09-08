@@ -181,8 +181,8 @@ func VGPUDeviceByResourceName(obj *v1beta1.VGPUDevice) ([]string, error) {
 func GeneratevGPUDeviceName(deviceName string) string {
 	deviceName = strings.TrimSpace(deviceName)
 	//deviceName = strings.ToUpper(deviceName)
-	deviceName = strings.Replace(deviceName, "/", "_", -1)
-	deviceName = strings.Replace(deviceName, ".", "_", -1)
+	deviceName = strings.ReplaceAll(deviceName, "/", "_")
+	deviceName = strings.ReplaceAll(deviceName, ".", "_")
 	//deviceName = strings.Replace(deviceName, "-", "_", -1)
 	reg, _ := regexp.Compile(`\s+`)
 	deviceName = reg.ReplaceAllString(deviceName, "_")

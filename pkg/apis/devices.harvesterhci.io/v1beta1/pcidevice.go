@@ -105,8 +105,8 @@ func resourceName(dev *pci.Device) string {
 	if dev.Product.Name != util.UNKNOWN {
 		productCleaned := strings.TrimSpace(dev.Product.Name)
 		productCleaned = strings.ToUpper(productCleaned)
-		productCleaned = strings.Replace(productCleaned, "/", "_", -1)
-		productCleaned = strings.Replace(productCleaned, ".", "_", -1)
+		productCleaned = strings.ReplaceAll(productCleaned, "/", "_")
+		productCleaned = strings.ReplaceAll(productCleaned, ".", "_")
 		reg, _ := regexp.Compile(`\s+`)
 		productCleaned = reg.ReplaceAllString(productCleaned, "_") // Replace all spaces with underscore
 		reg, _ = regexp.Compile("[^a-zA-Z0-9_.]+")

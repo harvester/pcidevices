@@ -1,7 +1,6 @@
 package usbdevice
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
@@ -23,8 +22,4 @@ func (cl *commonLabel) labels() map[string]string {
 	return map[string]string{
 		"nodename": cl.nodeName,
 	}
-}
-
-func (cl *commonLabel) selector() string {
-	return fmt.Sprintf("nodename=%s", cl.nodeName)
 }

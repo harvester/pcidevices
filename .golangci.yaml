@@ -1,0 +1,41 @@
+version: 2
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - govet
+    - gosec
+    - ineffassign
+    - staticcheck
+    - unused
+    - prealloc
+  formatters:
+    enable:
+      - gofmt
+  settings:
+    goimports:
+      local-prefixes: github.com/harvester/pcidevices
+  exclude-files:
+    - /zz_generated_
+    - _generated
+  exclude-dirs:
+    - generated
+  exclusions:
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - staticcheck
+        text: "QF1003:" # could use tagged switch on errCode (staticcheck)
+      - linters:
+          - staticcheck
+        text: "QF1008:" # could remove embedded field from selector (staticcheck)
+      - linters:
+          - staticcheck
+        text: "SA1019:" # function is deprecated (staticcheck)
+run:
+  timeout: 5m
+  tests: true
