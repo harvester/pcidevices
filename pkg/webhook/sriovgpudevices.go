@@ -6,6 +6,8 @@ import (
 
 	kubevirtctl "github.com/harvester/harvester/pkg/generated/controllers/kubevirt.io/v1"
 	"github.com/harvester/harvester/pkg/webhook/types"
+	ctlcorev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
+	"github.com/sirupsen/logrus"
 	admissionregv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -15,11 +17,13 @@ import (
 type sriovGPUValidator struct {
 	types.DefaultValidator
 	kubevirtCache kubevirtctl.VirtualMachineCache
+	nodeCache     ctlcorev1.NodeCache
 }
 
-func NewSRIOVGPUValidator(kubevirtCache kubevirtctl.VirtualMachineCache) types.Validator {
+func NewSRIOVGPUValidator(kubevirtCache kubevirtctl.VirtualMachineCache, nodeCache ctlcorev1.NodeCache) types.Validator {
 	return &sriovGPUValidator{
 		kubevirtCache: kubevirtCache,
+		nodeCache:     nodeCache,
 	}
 }
 
@@ -55,6 +59,20 @@ func (v *sriovGPUValidator) Update(_ *types.Request, oldObj runtime.Object, newO
 
 func (v *sriovGPUValidator) Delete(_ *types.Request, obj runtime.Object) error {
 	gpuObj := obj.(*devicesv1beta1.SRIOVGPUDevice)
+
+	ok, err := isNodeDeleted(v.nodeCache, gpuObj.Spec.NodeName)
+	if err != nil {
+		err := fmt.Errorf("error looking up node for SRIOVGPU %s from node cache: %w", gpuObj.Name, err)
+		logrus.Error(err)
+		return err
+	}
+
+	// node related to sriovgpu is no longer present, no need to validate further
+	// allow deletion of object
+	if ok {
+		return nil
+	}
+
 	if gpuObj.Spec.Enabled {
 		return fmt.Errorf("please disable gpuDevice %s before deletion", gpuObj.Name)
 	}

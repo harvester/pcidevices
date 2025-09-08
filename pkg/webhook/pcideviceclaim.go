@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	ctlcorev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	"github.com/sirupsen/logrus"
 	admissionregv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -21,14 +22,16 @@ type pciDeviceClaimValidator struct {
 	kubevirtCache       kubevirtctl.VirtualMachineCache
 	usbDeviceClaimCache v1beta1.USBDeviceClaimCache
 	usbDeviceCache      v1beta1.USBDeviceCache
+	nodeCache           ctlcorev1.NodeCache
 }
 
-func NewPCIDeviceClaimValidator(deviceCache v1beta1.PCIDeviceCache, kubevirtCache kubevirtctl.VirtualMachineCache, usbDeviceClaimCache v1beta1.USBDeviceClaimCache, usbDeviceCache v1beta1.USBDeviceCache) types.Validator {
+func NewPCIDeviceClaimValidator(deviceCache v1beta1.PCIDeviceCache, kubevirtCache kubevirtctl.VirtualMachineCache, usbDeviceClaimCache v1beta1.USBDeviceClaimCache, usbDeviceCache v1beta1.USBDeviceCache, nodeCache ctlcorev1.NodeCache) types.Validator {
 	return &pciDeviceClaimValidator{
 		deviceCache:         deviceCache,
 		usbDeviceClaimCache: usbDeviceClaimCache,
 		usbDeviceCache:      usbDeviceCache,
 		kubevirtCache:       kubevirtCache,
+		nodeCache:           nodeCache,
 	}
 }
 
@@ -86,6 +89,20 @@ func (pdc *pciDeviceClaimValidator) Create(_ *types.Request, newObj runtime.Obje
 
 func (pdc *pciDeviceClaimValidator) Delete(_ *types.Request, oldObj runtime.Object) error {
 	pciClaimObj := oldObj.(*devicesv1beta1.PCIDeviceClaim)
+
+	ok, err := isNodeDeleted(pdc.nodeCache, pciClaimObj.Spec.NodeName)
+	if err != nil {
+		err := fmt.Errorf("error looking up node for PCIDeviceClaim %s from node cache: %w", pciClaimObj.Name, err)
+		logrus.Error(err)
+		return err
+	}
+
+	// node related to pcideviceclaim is no longer present, no need to validate further
+	// allow deletion of object
+	if ok {
+		return nil
+	}
+
 	vms, err := pdc.kubevirtCache.GetByIndex(VMByPCIDeviceClaim, pciClaimObj.Name)
 	if err != nil {
 		return err

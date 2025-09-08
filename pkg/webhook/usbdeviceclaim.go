@@ -3,6 +3,7 @@ package webhook
 import (
 	"fmt"
 
+	ctlcorev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	"github.com/sirupsen/logrus"
 	admissionregv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -16,7 +17,8 @@ import (
 type usbDeviceClaimValidator struct {
 	types.DefaultValidator
 
-	vmCache kubevirtctl.VirtualMachineCache
+	vmCache   kubevirtctl.VirtualMachineCache
+	nodeCache ctlcorev1.NodeCache
 }
 
 func (udc *usbDeviceClaimValidator) Resource() types.Resource {
@@ -33,14 +35,29 @@ func (udc *usbDeviceClaimValidator) Resource() types.Resource {
 	}
 }
 
-func NewUSBDeviceClaimValidator(vmCache kubevirtctl.VirtualMachineCache) types.Validator {
+func NewUSBDeviceClaimValidator(vmCache kubevirtctl.VirtualMachineCache, nodeCache ctlcorev1.NodeCache) types.Validator {
 	return &usbDeviceClaimValidator{
-		vmCache: vmCache,
+		vmCache:   vmCache,
+		nodeCache: nodeCache,
 	}
 }
 
 func (udc *usbDeviceClaimValidator) Delete(_ *types.Request, oldObj runtime.Object) error {
 	usbClaimObj := oldObj.(*devicesv1beta1.USBDeviceClaim)
+
+	ok, err := isNodeDeleted(udc.nodeCache, usbClaimObj.Status.NodeName)
+	if err != nil {
+		err := fmt.Errorf("error looking up node for usbdeviceclaim %s from node cache: %w", usbClaimObj.Name, err)
+		logrus.Error(err)
+		return err
+	}
+
+	// node related to usbdeviceclaim is no longer present, no need to validate further
+	// allow deletion of object
+	if ok {
+		return nil
+	}
+
 	vms, err := udc.vmCache.GetByIndex(VMByUSBDeviceClaim, usbClaimObj.Name)
 	if err != nil {
 		return err
