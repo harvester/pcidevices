@@ -26,6 +26,21 @@ var (
 			VFAddresses:  []string{node1dev1.Status.Address, node1dev2.Status.Address},
 		},
 	}
+
+	sriovDeviceEnabledOnDeletedNode = &devices.SRIOVNetworkDevice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "node2-eno1",
+		},
+		Spec: devices.SRIOVNetworkDeviceSpec{
+			Address:  "0000:04:00.0",
+			NodeName: "node2",
+			NumVFs:   1,
+		},
+		Status: devices.SRIOVNetworkDeviceStatus{
+			VFPCIDevices: []string{node2dev1.Name},
+			VFAddresses:  []string{node2dev1.Status.Address},
+		},
+	}
 )
 
 func Test_DisableSRIOVDeviceWithClaims(t *testing.T) {
@@ -35,6 +50,7 @@ func Test_DisableSRIOVDeviceWithClaims(t *testing.T) {
 	pciDeviceClaimCache := fakeclients.PCIDeviceClaimsCache(fakeClient.DevicesV1beta1().PCIDeviceClaims)
 	sriovValidator := sriovNetworkDeviceValidator{
 		claimCache: pciDeviceClaimCache,
+		nodeCache:  nodeCache,
 	}
 
 	newObj := sriovDeviceEnabled.DeepCopy()
@@ -50,6 +66,7 @@ func Test_DisableSRIOVDeviceWithoutClaims(t *testing.T) {
 	pciDeviceClaimCache := fakeclients.PCIDeviceClaimsCache(fakeClient.DevicesV1beta1().PCIDeviceClaims)
 	sriovValidator := sriovNetworkDeviceValidator{
 		claimCache: pciDeviceClaimCache,
+		nodeCache:  nodeCache,
 	}
 
 	newObj := sriovDeviceEnabled.DeepCopy()
@@ -65,6 +82,7 @@ func Test_DeleteSRIOVDeviceWithClaims(t *testing.T) {
 	pciDeviceClaimCache := fakeclients.PCIDeviceClaimsCache(fakeClient.DevicesV1beta1().PCIDeviceClaims)
 	sriovValidator := sriovNetworkDeviceValidator{
 		claimCache: pciDeviceClaimCache,
+		nodeCache:  nodeCache,
 	}
 
 	err := sriovValidator.Delete(nil, sriovDeviceEnabled)
@@ -78,8 +96,23 @@ func Test_DeleteSRIOVDeviceWithoutClaims(t *testing.T) {
 	pciDeviceClaimCache := fakeclients.PCIDeviceClaimsCache(fakeClient.DevicesV1beta1().PCIDeviceClaims)
 	sriovValidator := sriovNetworkDeviceValidator{
 		claimCache: pciDeviceClaimCache,
+		nodeCache:  nodeCache,
 	}
 
 	err := sriovValidator.Delete(nil, sriovDeviceEnabled)
 	assert.NoError(err, "expected validation to pass")
+}
+
+func Test_DeleteSRIOVDeviceWithClaimsOnDeletedNode(t *testing.T) {
+	assert := require.New(t)
+	fakeClient := fake.NewSimpleClientset(node2dev1Claim, node1dev1Claim, node1dev2Claim)
+
+	pciDeviceClaimCache := fakeclients.PCIDeviceClaimsCache(fakeClient.DevicesV1beta1().PCIDeviceClaims)
+	sriovValidator := sriovNetworkDeviceValidator{
+		claimCache: pciDeviceClaimCache,
+		nodeCache:  nodeCache,
+	}
+
+	err := sriovValidator.Delete(nil, sriovDeviceEnabledOnDeletedNode)
+	assert.Error(err, "expected validation to pass")
 }

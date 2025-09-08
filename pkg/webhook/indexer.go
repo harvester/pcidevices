@@ -3,6 +3,8 @@ package webhook
 import (
 	"fmt"
 
+	ctlcorev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
@@ -56,4 +58,17 @@ func iommuGroupByNodeName(obj *v1beta1.PCIDevice) ([]string, error) {
 
 func usbDeviceClaimByAddress(obj *v1beta1.USBDeviceClaim) ([]string, error) {
 	return []string{fmt.Sprintf("%s-%s", obj.Status.NodeName, obj.Status.PCIAddress)}, nil
+}
+
+// isNodeDeleted checks if nodeObject exists
+func isNodeDeleted(nodeCache ctlcorev1.NodeCache, nodeName string) (bool, error) {
+	_, err := nodeCache.Get(nodeName)
+	if err == nil {
+		return false, nil
+	}
+	if apierrors.IsNotFound(err) {
+		// node object does not exist
+		return true, nil
+	}
+	return false, err
 }

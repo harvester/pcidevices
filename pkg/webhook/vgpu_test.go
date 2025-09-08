@@ -21,7 +21,8 @@ var (
 			Name: "vgpu1",
 		},
 		Spec: devicesv1beta1.VGPUDeviceSpec{
-			Enabled: true,
+			Enabled:  true,
+			NodeName: "node1",
 		},
 	}
 
@@ -30,7 +31,8 @@ var (
 			Name: "vgpu1",
 		},
 		Spec: devicesv1beta1.VGPUDeviceSpec{
-			Enabled: false,
+			Enabled:  false,
+			NodeName: "node1",
 		},
 	}
 	oldFreeVGPU = &devicesv1beta1.VGPUDevice{
@@ -38,7 +40,8 @@ var (
 			Name: "vgpu2",
 		},
 		Spec: devicesv1beta1.VGPUDeviceSpec{
-			Enabled: true,
+			Enabled:  true,
+			NodeName: "node1",
 		},
 	}
 
@@ -47,7 +50,8 @@ var (
 			Name: "vgpu2",
 		},
 		Spec: devicesv1beta1.VGPUDeviceSpec{
-			Enabled: false,
+			Enabled:  false,
+			NodeName: "node1",
 		},
 	}
 
@@ -56,7 +60,8 @@ var (
 			Name: "vgpu1",
 		},
 		Spec: devicesv1beta1.VGPUDeviceSpec{
-			Enabled: false,
+			Enabled:  false,
+			NodeName: "node1",
 		},
 		Status: devicesv1beta1.VGPUDeviceStatus{
 			AvailableTypes: map[string]string{
@@ -70,7 +75,18 @@ var (
 			Name: "vgpu1",
 		},
 		Spec: devicesv1beta1.VGPUDeviceSpec{
-			Enabled: true,
+			Enabled:  true,
+			NodeName: "node1",
+		},
+	}
+
+	newEnabledVGPUMissingNode = &devicesv1beta1.VGPUDevice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "vgpu1",
+		},
+		Spec: devicesv1beta1.VGPUDeviceSpec{
+			Enabled:  true,
+			NodeName: "node2",
 		},
 	}
 
@@ -142,7 +158,7 @@ func Test_VGPUUpdates(t *testing.T) {
 	assert := require.New(t)
 	harvesterfakeClient := harvesterfake.NewSimpleClientset(vm1, vm2)
 	virtualMachineCache := fakeclients.VirtualMachineCache(harvesterfakeClient.KubevirtV1().VirtualMachines)
-	vGPUValidator := NewVGPUValidator(virtualMachineCache)
+	vGPUValidator := NewVGPUValidator(virtualMachineCache, nodeCache)
 	for _, v := range testCases {
 		err := vGPUValidator.Update(nil, v.oldVGPU, v.newVGPU)
 		if v.expectError {
@@ -168,15 +184,19 @@ func Test_VGPUDeletion(t *testing.T) {
 			gpu:         newFreeVGPU,
 			expectError: false,
 		},
+		{
+			name:        "vgpu is enabled but on deleted node",
+			gpu:         newEnabledVGPUMissingNode,
+			expectError: false,
+		},
 	}
 
 	assert := require.New(t)
 	harvesterfakeClient := harvesterfake.NewSimpleClientset(vm1, vm2)
 	virtualMachineCache := fakeclients.VirtualMachineCache(harvesterfakeClient.KubevirtV1().VirtualMachines)
-	vGPUValidator := NewVGPUValidator(virtualMachineCache)
+	vGPUValidator := NewVGPUValidator(virtualMachineCache, nodeCache)
 	for _, v := range testCases {
 		err := vGPUValidator.Delete(nil, v.gpu)
-		t.Log(err)
 		if v.expectError {
 			assert.Error(err, fmt.Sprintf("expected to find error for test case %s", v.name))
 		} else {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
+	ctlcorev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	"github.com/sirupsen/logrus"
 
 	admissionregv1 "k8s.io/api/admissionregistration/v1"
@@ -18,11 +19,13 @@ import (
 type vgpuValidator struct {
 	types.DefaultValidator
 	kubevirtCache kubevirtctl.VirtualMachineCache
+	nodeCache     ctlcorev1.NodeCache
 }
 
-func NewVGPUValidator(kubevirtCache kubevirtctl.VirtualMachineCache) types.Validator {
+func NewVGPUValidator(kubevirtCache kubevirtctl.VirtualMachineCache, nodeCache ctlcorev1.NodeCache) types.Validator {
 	return &vgpuValidator{
 		kubevirtCache: kubevirtCache,
+		nodeCache:     nodeCache,
 	}
 }
 
@@ -62,6 +65,20 @@ func (v *vgpuValidator) Update(_ *types.Request, oldObj runtime.Object, newObj r
 
 func (v *vgpuValidator) Delete(_ *types.Request, obj runtime.Object) error {
 	vGPUObj := obj.(*devicesv1beta1.VGPUDevice)
+
+	ok, err := isNodeDeleted(v.nodeCache, vGPUObj.Spec.NodeName)
+	if err != nil {
+		err := fmt.Errorf("error looking up node for vGPU %s from node cache: %w", vGPUObj.Name, err)
+		logrus.Error(err)
+		return err
+	}
+
+	// node related to vgpudevice is no longer present, no need to validate further
+	// allow deletion of object
+	if ok {
+		return nil
+	}
+
 	return checkVGPUUsage(v.kubevirtCache, vGPUObj.Name)
 }
 
