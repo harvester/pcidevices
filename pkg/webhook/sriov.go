@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/harvester/harvester/pkg/webhook/types"
+	ctlcorev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	"github.com/sirupsen/logrus"
 	admissionregv1 "k8s.io/api/admissionregistration/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -17,11 +18,13 @@ import (
 type sriovNetworkDeviceValidator struct {
 	types.DefaultValidator
 	claimCache v1beta1.PCIDeviceClaimCache
+	nodeCache  ctlcorev1.NodeCache
 }
 
-func NewSriovNetworkDeviceValidator(claimCache v1beta1.PCIDeviceClaimCache) types.Validator {
+func NewSriovNetworkDeviceValidator(claimCache v1beta1.PCIDeviceClaimCache, nodeCache ctlcorev1.NodeCache) types.Validator {
 	return &sriovNetworkDeviceValidator{
 		claimCache: claimCache,
+		nodeCache:  nodeCache,
 	}
 }
 

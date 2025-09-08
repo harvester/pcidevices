@@ -103,6 +103,17 @@ var (
 		},
 	}
 
+	node2dev1Claim = &devicesv1beta1.PCIDeviceClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "node2dev1",
+		},
+		Spec: devicesv1beta1.PCIDeviceClaimSpec{
+			UserName: "admin",
+			NodeName: "node2",
+			Address:  "0000:04:10.0",
+		},
+	}
+
 	vmWithIommuDevice = &kubevirtv1.VirtualMachine{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "vm-with-iommu-devices",

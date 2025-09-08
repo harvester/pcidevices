@@ -10,22 +10,27 @@ import (
 
 func Validation(clients *Clients) (http.Handler, []types.Resource, error) {
 	validators := []types.Validator{
-		NewSriovNetworkDeviceValidator(clients.DeviceFactory.Devices().V1beta1().PCIDeviceClaim().Cache()),
+		NewSriovNetworkDeviceValidator(clients.DeviceFactory.Devices().V1beta1().PCIDeviceClaim().Cache(),
+			clients.CoreFactory.Core().V1().Node().Cache()),
 		NewPCIDeviceClaimValidator(
 			clients.DeviceFactory.Devices().V1beta1().PCIDevice().Cache(),
 			clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache(),
 			clients.DeviceFactory.Devices().V1beta1().USBDeviceClaim().Cache(),
 			clients.DeviceFactory.Devices().V1beta1().USBDevice().Cache(),
+			clients.CoreFactory.Core().V1().Node().Cache(),
 		),
-		NewVGPUValidator(clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()),
-		NewSRIOVGPUValidator(clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()),
-		NewUSBDeviceClaimValidator(clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache()),
+		NewVGPUValidator(clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache(),
+			clients.CoreFactory.Core().V1().Node().Cache()),
+		NewSRIOVGPUValidator(clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache(),
+			clients.CoreFactory.Core().V1().Node().Cache()),
+		NewUSBDeviceClaimValidator(clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache(),
+			clients.CoreFactory.Core().V1().Node().Cache()),
 		NewDeviceHostValidation(
 			clients.DeviceFactory.Devices().V1beta1().USBDevice().Cache(),
 			clients.DeviceFactory.Devices().V1beta1().PCIDevice().Cache(),
 			clients.DeviceFactory.Devices().V1beta1().VGPUDevice().Cache(),
 		),
-		NewUSBDeviceValidator(),
+		NewUSBDeviceValidator(clients.CoreFactory.Core().V1().Node().Cache()),
 		NewMIGConfigurationValidator(clients.DeviceFactory.Devices().V1beta1().VGPUDevice().Cache()),
 	}
 

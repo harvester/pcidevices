@@ -30,6 +30,9 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "usbdevice1",
 		},
+		Status: devicesv1beta1.USBDeviceClaimStatus{
+			NodeName: "node1",
+		},
 	}
 
 	vmWithValidUSBDeviceName = &kubevirtv1.VirtualMachine{
@@ -57,13 +60,61 @@ var (
 			},
 		},
 	}
+
+	usbdevice2 = &devicesv1beta1.USBDevice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "usbdevice2",
+		},
+		Status: devicesv1beta1.USBDeviceStatus{
+			NodeName:     "node2",
+			ResourceName: "fake.com/device1",
+			VendorID:     "8086",
+			ProductID:    "1166",
+			DevicePath:   "/dev/bus/002/001",
+		},
+	}
+
+	usbdeviceclaim2 = &devicesv1beta1.USBDeviceClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "usbdevice2",
+		},
+		Status: devicesv1beta1.USBDeviceClaimStatus{
+			NodeName: "node2",
+		},
+	}
+
+	vmWithValidUSBDeviceName2 = &kubevirtv1.VirtualMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "vm-with-usb-devices2",
+			Namespace: "default",
+			Annotations: map[string]string{
+				devicesv1beta1.DeviceAllocationKey: `{"hostdevices":{"fake.com/device1":["usbdevice2"]}}`,
+			},
+		},
+		Spec: kubevirtv1.VirtualMachineSpec{
+			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Domain: kubevirtv1.DomainSpec{
+						Devices: kubevirtv1.Devices{
+							HostDevices: []kubevirtv1.HostDevice{
+								{
+									Name:       usbdevice2.Name,
+									DeviceName: usbdevice2.Status.ResourceName,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 )
 
 func Test_UploadUSBDeviceClaimNotInUse(t *testing.T) {
 	assert := require.New(t)
 	harvesterfakeClient := harvesterfake.NewSimpleClientset()
 	vmCache := fakeclients.VirtualMachineCache(harvesterfakeClient.KubevirtV1().VirtualMachines)
-	usbValidator := NewUSBDeviceClaimValidator(vmCache)
+	usbValidator := NewUSBDeviceClaimValidator(vmCache, nodeCache)
 	old := usbdeviceclaim1.DeepCopy()
 	old.Spec.UserName = "admin"
 	newOne := usbdeviceclaim1.DeepCopy()
@@ -78,7 +129,7 @@ func Test_DeleteUSBDeviceClaimInUse(t *testing.T) {
 	assert := require.New(t)
 	harvesterfakeClient := harvesterfake.NewSimpleClientset(vmWithValidUSBDeviceName)
 	vmCache := fakeclients.VirtualMachineCache(harvesterfakeClient.KubevirtV1().VirtualMachines)
-	usbValidator := NewUSBDeviceClaimValidator(vmCache)
+	usbValidator := NewUSBDeviceClaimValidator(vmCache, nodeCache)
 	err := usbValidator.Delete(nil, usbdeviceclaim1)
 	assert.Error(err, "expected to get error")
 	assert.Equal("usbdeviceclaim usbdevice1 is still in use by vm vm-with-usb-devices/default", err.Error())
@@ -88,7 +139,16 @@ func Test_DeleteUSBDeviceClaimNotInUse(t *testing.T) {
 	assert := require.New(t)
 	harvesterfakeClient := harvesterfake.NewSimpleClientset(vmWithoutValidDeviceName)
 	vmCache := fakeclients.VirtualMachineCache(harvesterfakeClient.KubevirtV1().VirtualMachines)
-	usbValidator := NewUSBDeviceClaimValidator(vmCache)
+	usbValidator := NewUSBDeviceClaimValidator(vmCache, nodeCache)
 	err := usbValidator.Delete(nil, usbdeviceclaim1)
 	assert.NoError(err, "expected no error during validation")
+}
+
+func Test_DeleteUSBDeviceClaimInUseWithMissingNode(t *testing.T) {
+	assert := require.New(t)
+	harvesterfakeClient := harvesterfake.NewSimpleClientset(vmWithValidUSBDeviceName, vmWithValidUSBDeviceName2)
+	vmCache := fakeclients.VirtualMachineCache(harvesterfakeClient.KubevirtV1().VirtualMachines)
+	usbValidator := NewUSBDeviceClaimValidator(vmCache, nodeCache)
+	err := usbValidator.Delete(nil, usbdeviceclaim2)
+	assert.NoError(err, "expected to get no error as  node2 does not exist in cache")
 }
