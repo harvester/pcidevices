@@ -261,7 +261,7 @@ func generateProfileInstanceMap(info []string) map[string][]string {
 		// profileID is element 4 in the array
 		// instanceID is element 5 in the array
 
-		ids, _ := profileMap[elements[3]]
+		ids := profileMap[elements[3]]
 		if !slices.Contains(ids, elements[4]) {
 			ids = append(ids, elements[4])
 		}

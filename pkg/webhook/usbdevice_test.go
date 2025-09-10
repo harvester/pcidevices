@@ -22,12 +22,26 @@ var (
 			DevicePath:   "/dev/bus/002/001",
 		},
 	}
+
+	usbdeviceMissingNode = &devicesv1beta1.USBDevice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "usbdevice4",
+		},
+		Status: devicesv1beta1.USBDeviceStatus{
+			NodeName:     "node2",
+			ResourceName: "fake.com/device1",
+			VendorID:     "8086",
+			ProductID:    "1166",
+			DevicePath:   "/dev/bus/002/001",
+			Enabled:      true,
+		},
+	}
 )
 
 func Test_DeleteUSBDeviceInUse(t *testing.T) {
 	usbdevice3.Status.Enabled = true
 	assert := require.New(t)
-	usbValidator := NewUSBDeviceValidator()
+	usbValidator := NewUSBDeviceValidator(nodeCache)
 	err := usbValidator.Delete(nil, usbdevice3)
 	assert.Error(err, "expected to get error")
 	assert.Equal("usbdevice usbdevice3 is still in use", err.Error())
@@ -36,7 +50,14 @@ func Test_DeleteUSBDeviceInUse(t *testing.T) {
 func Test_DeleteUSBDeviceNotInUse(t *testing.T) {
 	usbdevice3.Status.Enabled = false
 	assert := require.New(t)
-	usbValidator := NewUSBDeviceValidator()
+	usbValidator := NewUSBDeviceValidator(nodeCache)
 	err := usbValidator.Delete(nil, usbdevice3)
+	assert.NoError(err)
+}
+
+func Test_DeleteUSBDeviceOnDeletedNode(t *testing.T) {
+	assert := require.New(t)
+	usbValidator := NewUSBDeviceValidator(nodeCache)
+	err := usbValidator.Delete(nil, usbdeviceMissingNode)
 	assert.NoError(err)
 }

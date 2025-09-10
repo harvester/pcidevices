@@ -8,11 +8,14 @@ import (
 	"github.com/rancher/lasso/pkg/cache"
 	"github.com/rancher/lasso/pkg/client"
 	"github.com/rancher/lasso/pkg/controller"
+	"github.com/rancher/wrangler/pkg/leader"
 	ctlcore "github.com/rancher/wrangler/v3/pkg/generated/controllers/core"
 	"github.com/rancher/wrangler/v3/pkg/generic"
 	"github.com/rancher/wrangler/v3/pkg/start"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/workqueue"
 	"kubevirt.io/client-go/kubecli"
@@ -44,6 +47,10 @@ func Setup(ctx context.Context, cfg *rest.Config, _ *runtime.Scheme) error {
 		return err
 	}
 
+	k8sclient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		return err
+	}
 	cacheFactory := cache.NewSharedCachedFactory(clientFactory, nil)
 
 	rateLimit := workqueue.NewItemExponentialFailureRateLimiter(5*time.Millisecond, 5*time.Minute)
@@ -109,7 +116,6 @@ func Setup(ctx context.Context, cfg *rest.Config, _ *runtime.Scheme) error {
 		usbdevice.Register,
 		nodes.Register,
 		sriovdevice.Register,
-		nodecleanup.Register,
 		gpudevice.Register,
 		virtualmachine.Register,
 	}
@@ -119,6 +125,15 @@ func Setup(ctx context.Context, cfg *rest.Config, _ *runtime.Scheme) error {
 			return fmt.Errorf("error registering controller: %v", err)
 		}
 	}
+
+	// need to ensure leader election runs for nodecleanup controller
+	go leader.RunOrDie(ctx, "harvester-system", "pcidevices-node-cleanup", k8sclient, func(ctx context.Context) {
+		logrus.Info("starting leader election for nodecleanup controller")
+		if err := nodecleanup.Register(ctx, management); err != nil {
+			panic(err)
+		}
+		<-ctx.Done()
+	})
 
 	if err := start.All(ctx, 2, coreFactory, networkFactory, deviceFactory, kubevirtFactory); err != nil {
 		return fmt.Errorf("error starting controllers :%v", err)

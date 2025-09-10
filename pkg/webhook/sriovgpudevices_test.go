@@ -4,11 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/stretchr/testify/require"
-
 	harvesterfake "github.com/harvester/harvester/pkg/generated/clientset/versioned/fake"
+	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	devicesv1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/util/fakeclients"
@@ -20,7 +18,8 @@ var (
 			Name: "inuse-gpu1",
 		},
 		Spec: devicesv1beta1.SRIOVGPUDeviceSpec{
-			Enabled: true,
+			Enabled:  true,
+			NodeName: "node1",
 		},
 		Status: devicesv1beta1.SRIOVGPUDeviceStatus{
 			VGPUDevices: []string{
@@ -34,7 +33,8 @@ var (
 			Name: "inuse-gpu1",
 		},
 		Spec: devicesv1beta1.SRIOVGPUDeviceSpec{
-			Enabled: false,
+			Enabled:  false,
+			NodeName: "node1",
 		},
 		Status: devicesv1beta1.SRIOVGPUDeviceStatus{
 			VGPUDevices: []string{
@@ -48,7 +48,8 @@ var (
 			Name: "free-gpu2",
 		},
 		Spec: devicesv1beta1.SRIOVGPUDeviceSpec{
-			Enabled: true,
+			Enabled:  true,
+			NodeName: "node1",
 		},
 		Status: devicesv1beta1.SRIOVGPUDeviceStatus{
 			VGPUDevices: []string{
@@ -62,7 +63,23 @@ var (
 			Name: "free-gpu2",
 		},
 		Spec: devicesv1beta1.SRIOVGPUDeviceSpec{
-			Enabled: false,
+			Enabled:  false,
+			NodeName: "node1",
+		},
+		Status: devicesv1beta1.SRIOVGPUDeviceStatus{
+			VGPUDevices: []string{
+				"vgpu2",
+			},
+		},
+	}
+
+	inUseGPUOnDeletedNode = &devicesv1beta1.SRIOVGPUDevice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "inuse-gpu2",
+		},
+		Spec: devicesv1beta1.SRIOVGPUDeviceSpec{
+			Enabled:  false,
+			NodeName: "node2",
 		},
 		Status: devicesv1beta1.SRIOVGPUDeviceStatus{
 			VGPUDevices: []string{
@@ -95,7 +112,7 @@ func Test_SriovGPUUpdate(t *testing.T) {
 	assert := require.New(t)
 	harvesterfakeClient := harvesterfake.NewSimpleClientset(vm1, vm2)
 	virtualMachineCache := fakeclients.VirtualMachineCache(harvesterfakeClient.KubevirtV1().VirtualMachines)
-	sriovGPUValidator := NewSRIOVGPUValidator(virtualMachineCache)
+	sriovGPUValidator := NewSRIOVGPUValidator(virtualMachineCache, nodeCache)
 	for _, v := range testCases {
 		err := sriovGPUValidator.Update(nil, v.oldSRIOVGPU, v.newSRIOVGPU)
 		if v.expectError {
@@ -121,12 +138,17 @@ func Test_SriovGPUDelete(t *testing.T) {
 			gpu:         newFreeGPU,
 			expectError: false,
 		},
+		{
+			name:        "gpu is enabled on deleted node",
+			gpu:         inUseGPUOnDeletedNode,
+			expectError: false,
+		},
 	}
 
 	assert := require.New(t)
 	harvesterfakeClient := harvesterfake.NewSimpleClientset(vm1, vm2)
 	virtualMachineCache := fakeclients.VirtualMachineCache(harvesterfakeClient.KubevirtV1().VirtualMachines)
-	sriovGPUValidator := NewSRIOVGPUValidator(virtualMachineCache)
+	sriovGPUValidator := NewSRIOVGPUValidator(virtualMachineCache, nodeCache)
 	for _, v := range testCases {
 		err := sriovGPUValidator.Delete(nil, v.gpu)
 		if v.expectError {
