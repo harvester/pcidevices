@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/fsnotify/fsnotify v1.6.0
-	github.com/gorilla/mux v1.8.0
+	github.com/gorilla/mux v1.8.1
 	github.com/harvester/harvester v1.2.1
 	github.com/harvester/harvester-network-controller v0.3.1
 	github.com/jaypipes/ghw v0.9.0
@@ -14,13 +14,13 @@ require (
 	github.com/onsi/gomega v1.27.6
 	github.com/rancher/dynamiclistener v0.3.6
 	github.com/rancher/lasso v0.0.0-20230830164424-d684fdeb6f29
-	github.com/rancher/wrangler v1.1.1
+	github.com/rancher/wrangler v1.1.2
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
 	github.com/u-root/u-root v7.0.0+incompatible
 	github.com/urfave/cli/v2 v2.11.1
 	github.com/vishvananda/netlink v1.2.1-beta.2
-	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74
+	github.com/vishvananda/netns v0.0.5
 	google.golang.org/grpc v1.60.1
 	k8s.io/api v0.28.5
 	k8s.io/apimachinery v0.28.5
@@ -111,7 +111,7 @@ require (
 	github.com/prometheus/common v0.44.0 // indirect
 	github.com/prometheus/procfs v0.11.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/spf13/pflag v1.0.5
+	github.com/spf13/pflag v1.0.10
 	github.com/ulikunitz/xz v0.5.8 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
@@ -152,11 +152,11 @@ replace (
 	github.com/emicklei/go-restful => github.com/emicklei/go-restful v2.16.0+incompatible
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.5.5
 	github.com/harvester/harvester-network-controller => github.com/harvester/harvester-network-controller v0.3.2-rc1
-	github.com/openshift/api => github.com/openshift/api v0.0.0-20191219222812-2987a591a72c
-	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20200521150516-05eb9880269c
+	github.com/openshift/api => github.com/openshift/api e515d9c65abd
+	github.com/openshift/client-go => github.com/openshift/client-go 6193816ae379
 	github.com/rancher/rancher => github.com/rancher/rancher v0.0.0-20230124173128-2207cfed1803
-	github.com/rancher/rancher/pkg/apis => github.com/rancher/rancher/pkg/apis v0.0.0-20230124173128-2207cfed1803
-	github.com/rancher/rancher/pkg/client => github.com/rancher/rancher/pkg/client v0.0.0-20230124173128-2207cfed1803
+	github.com/rancher/rancher/pkg/apis => github.com/rancher/rancher/pkg/apis 58abf492671b
+	github.com/rancher/rancher/pkg/client => github.com/rancher/rancher/pkg/client 58abf492671b
 	github.com/u-root/u-root => github.com/u-root/u-root v0.10.0
 	golang.org/x/net => golang.org/x/net v0.17.0
 	golang.org/x/text => golang.org/x/text v0.3.8
@@ -177,7 +177,7 @@ replace (
 	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.24.10
 	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.24.10
 	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.24.10
-	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20220803162953-67bda5d908f1
+	k8s.io/kube-openapi => k8s.io/kube-openapi 589584f1c912
 	k8s.io/kube-proxy => k8s.io/kube-proxy v0.24.10
 	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.24.10
 	k8s.io/kubectl => k8s.io/kubectl v0.24.2
