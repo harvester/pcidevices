@@ -62,12 +62,17 @@ func usbDeviceClaimByAddress(obj *v1beta1.USBDeviceClaim) ([]string, error) {
 
 // isNodeDeleted checks if nodeObject exists
 func isNodeDeleted(nodeCache ctlcorev1.NodeCache, nodeName string) (bool, error) {
-	_, err := nodeCache.Get(nodeName)
-	if err == nil {
-		return false, nil
+	nodeObj, err := nodeCache.Get(nodeName)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// node object does not exist
+			return true, nil
+		}
+		return false, err
 	}
-	if apierrors.IsNotFound(err) {
-		// node object does not exist
+
+	// node can be ignored to allow cleanup of resources
+	if !nodeObj.DeletionTimestamp.IsZero() {
 		return true, nil
 	}
 	return false, err
