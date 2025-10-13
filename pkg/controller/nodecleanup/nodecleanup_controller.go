@@ -37,6 +37,7 @@ func (h *Handler) OnRemove(_ string, node *v1.Node) (*v1.Node, error) {
 	}
 
 	cleanupFuncs := []func(*v1.Node) error{
+		h.removeNodeObject,
 		h.removePCIDeviceClaimsOnNode,
 		h.removePCIDevicesOnNode,
 		h.removeSRIOVNetworkDevicesOnNode,
@@ -44,7 +45,6 @@ func (h *Handler) OnRemove(_ string, node *v1.Node) (*v1.Node, error) {
 		h.removeUSBDevicesOnNode,
 		h.removeSRIOVGPUDevicesOnNode,
 		h.removeVGPUDevicesOnNode,
-		h.removeNodeObject,
 	}
 
 	for _, fn := range cleanupFuncs {
