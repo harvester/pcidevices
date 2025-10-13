@@ -15,6 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/u-root/u-root/pkg/kmodule"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubevirtv1 "kubevirt.io/api/core/v1"
@@ -111,6 +112,12 @@ func (h *Handler) OnRemove(_ string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCID
 	// Get PCIDevice for the PCIDeviceClaim
 	pd, err := h.getPCIDeviceForClaim(pdc)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			logrus.Infof("pcidevice for pcideviceclaim %s not found, it may have been deleted already", pdc.Name)
+			// device not found, nothing to do
+			// we can't disable it either
+			return pdc, nil
+		}
 		logrus.Errorf("Error getting claim's device: %s", err)
 		return pdc, err
 	}
