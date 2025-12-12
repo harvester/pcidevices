@@ -14,6 +14,5 @@ RUN if [ "$TARGETPLATFORM" != "linux/amd64" ] && [ "$TARGETPLATFORM" != "linux/a
 
 ENV ARCH=${TARGETPLATFORM#linux/}
 
-RUN /sbin/update-pciids
 COPY bin/pcidevices-${ARCH} /bin/pcidevices
 ENTRYPOINT ["pcidevices"]
