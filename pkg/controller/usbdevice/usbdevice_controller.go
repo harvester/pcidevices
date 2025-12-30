@@ -113,7 +113,7 @@ func (h *DevHandler) WatchUSBDevices(ctx context.Context) error {
 				return
 			case <-orChan(watcher.Events, h.reconcileSignal):
 				// we need reconcile whatever there is a change in /dev/bus/usb/xxx or reconcile signal is received
-				if err := h.reconcile(); err != nil {
+				if err := h.Reconcile(); err != nil {
 					logrus.Errorf("failed to reconcile USB devices: %v", err)
 				}
 			case err, ok := <-watcher.Errors:
@@ -129,7 +129,7 @@ func (h *DevHandler) WatchUSBDevices(ctx context.Context) error {
 	return nil
 }
 
-func (h *DevHandler) reconcile() error {
+func (h *DevHandler) Reconcile() error {
 	nodeName := cl.nodeName
 
 	localUSBDevices, err := walkUSBDevices()
