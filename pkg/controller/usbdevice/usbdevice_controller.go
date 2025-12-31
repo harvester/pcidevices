@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -111,7 +112,26 @@ func (h *DevHandler) WatchUSBDevices(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 				return
-			case <-orChan(watcher.Events, h.reconcileSignal):
+			case event := <-watcher.Events:
+				logrus.Debugf("fsnotify event: %s, operation: %s", event, event.Op.String())
+
+				/*
+					After enabling passthrough USB controller PCI device, the dir under /dev/bus/usb/ will disappear.
+					Then, the watcher will automatically remove dir.
+					We should add it manually after disbling passthrough.
+				*/
+				if event.Op&fsnotify.Create == fsnotify.Create {
+					if info, err := os.Stat(event.Name); err == nil && info.IsDir() {
+						if err := watcher.Add(event.Name); err != nil {
+							logrus.Errorf("failed to add new directory to watcher: %v", err)
+						}
+					}
+				}
+				select {
+				case h.reconcileSignal <- struct{}{}:
+				default:
+				}
+			case <-h.reconcileSignal:
 				// we need reconcile whatever there is a change in /dev/bus/usb/xxx or reconcile signal is received
 				if err := h.Reconcile(); err != nil {
 					logrus.Errorf("failed to reconcile USB devices: %v", err)
@@ -300,16 +320,4 @@ func isStatusChanged(existed *v1beta1.USBDevice, localUSBDevice *deviceplugins.U
 
 func resourceName(name string) string {
 	return fmt.Sprintf("%s%s", KubeVirtResourcePrefix, name)
-}
-
-func orChan[T any, V any](ch1 chan T, ch2 <-chan V) <-chan struct{} {
-	orDone := make(chan struct{})
-	go func() {
-		defer close(orDone)
-		select {
-		case <-ch1:
-		case <-ch2:
-		}
-	}()
-	return orDone
 }
