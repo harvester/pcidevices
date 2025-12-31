@@ -24,7 +24,7 @@ func Register(ctx context.Context, management *config.FactoryManager) error {
 	usbDeviceClaimController := NewClaimHandler(usbDeviceCtrl.Cache(), usbDeviceClaimCtrl, usbDeviceCtrl, virtClient, handler.reconcileSignal)
 
 	// Initial reconcile
-	if err := handler.reconcile(); err != nil {
+	if err := handler.Reconcile(); err != nil {
 		logrus.Errorf("error initial reconcile usb devices: %v", err)
 		return err
 	}

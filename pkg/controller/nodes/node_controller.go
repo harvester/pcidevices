@@ -21,6 +21,7 @@ import (
 	"github.com/harvester/pcidevices/pkg/controller/gpudevice"
 	"github.com/harvester/pcidevices/pkg/controller/pcidevice"
 	"github.com/harvester/pcidevices/pkg/controller/sriovdevice"
+	"github.com/harvester/pcidevices/pkg/controller/usbdevice"
 	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/util/nichelper"
 )
@@ -116,6 +117,12 @@ func (h *handler) reconcileNodeDevices(name string, node *v1beta1.Node) (*v1beta
 	err = pciHandler.ReconcilePCIDevices(h.nodeName)
 	if err != nil {
 		return nil, fmt.Errorf("error reconciling pcidevices for node %s: %v", h.nodeName, err)
+	}
+
+	usbHandler := usbdevice.NewHandler(h.usbCtl, h.usbClaimCtl, h.usbCtl.Cache(), h.usbClaimCtl.Cache())
+	err = usbHandler.Reconcile()
+	if err != nil {
+		return nil, fmt.Errorf("error reconciling usbdevices for node %s: %v", h.nodeName, err)
 	}
 
 	// additional steps for sriov reconcile
