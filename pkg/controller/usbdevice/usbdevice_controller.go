@@ -120,7 +120,7 @@ func (h *DevHandler) WatchUSBDevices(ctx context.Context) error {
 					Then, the watcher will automatically remove dir.
 					We should add it manually after disbling passthrough.
 				*/
-				if event.Op&fsnotify.Create == fsnotify.Create {
+				if isCreateEvent(event.Op) {
 					if info, err := os.Stat(event.Name); err == nil && info.IsDir() {
 						if err := watcher.Add(event.Name); err != nil {
 							logrus.Errorf("failed to add new directory to watcher: %v", err)
@@ -320,4 +320,8 @@ func isStatusChanged(existed *v1beta1.USBDevice, localUSBDevice *deviceplugins.U
 
 func resourceName(name string) string {
 	return fmt.Sprintf("%s%s", KubeVirtResourcePrefix, name)
+}
+
+func isCreateEvent(op fsnotify.Op) bool {
+	return op&fsnotify.Create == fsnotify.Create
 }
