@@ -114,19 +114,12 @@ func (h *DevHandler) WatchUSBDevices(ctx context.Context) error {
 				return
 			case event := <-watcher.Events:
 				logrus.Debugf("fsnotify event: %s, operation: %s", event, event.Op.String())
-
 				/*
 					After enabling passthrough USB controller PCI device, the dir under /dev/bus/usb/ will disappear.
 					Then, the watcher will automatically remove dir.
 					We should add it manually after disbling passthrough.
 				*/
-				if isCreateEvent(event.Op) {
-					if info, err := os.Stat(event.Name); err == nil && info.IsDir() {
-						if err := watcher.Add(event.Name); err != nil {
-							logrus.Errorf("failed to add new directory to watcher: %v", err)
-						}
-					}
-				}
+				h.handleNewDirectory(watcher, event)
 				select {
 				case h.reconcileSignal <- struct{}{}:
 				default:
@@ -324,4 +317,19 @@ func resourceName(name string) string {
 
 func isCreateEvent(op fsnotify.Op) bool {
 	return op&fsnotify.Create == fsnotify.Create
+}
+
+func (h *DevHandler) handleNewDirectory(watcher *fsnotify.Watcher, event fsnotify.Event) {
+	if !isCreateEvent(event.Op) {
+		return
+	}
+
+	info, err := os.Stat(event.Name)
+	if err != nil || !info.IsDir() {
+		return
+	}
+
+	if err := watcher.Add(event.Name); err != nil {
+		logrus.Errorf("failed to add new directory to watcher: %v", err)
+	}
 }
