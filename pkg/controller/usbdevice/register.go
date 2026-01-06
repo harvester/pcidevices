@@ -34,6 +34,8 @@ func Register(ctx context.Context, management *config.FactoryManager) error {
 		return err
 	}
 
+	go handler.WatchReconcile(ctx)
+
 	usbDeviceClaimCtrl.OnChange(ctx, "usbClaimClient-device-claim", usbDeviceClaimController.OnUSBDeviceClaimChanged)
 	usbDeviceClaimCtrl.OnRemove(ctx, "usbClaimClient-device-claim-remove", usbDeviceClaimController.OnRemove)
 	relatedresource.WatchClusterScoped(ctx, "USBDeviceToClaimReconcile", handler.OnDeviceChange, usbDeviceClaimCtrl, usbDeviceCtrl)
