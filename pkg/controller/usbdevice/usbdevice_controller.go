@@ -120,15 +120,7 @@ func (h *DevHandler) WatchUSBDevices(ctx context.Context) error {
 					We should add it manually after disbling passthrough.
 				*/
 				h.handleNewDirectory(watcher, event)
-				select {
-				case h.reconcileSignal <- struct{}{}:
-				default:
-				}
-			case <-h.reconcileSignal:
-				// we need reconcile whatever there is a change in /dev/bus/usb/xxx or reconcile signal is received
-				if err := h.Reconcile(); err != nil {
-					logrus.Errorf("failed to reconcile USB devices: %v", err)
-				}
+				h.reconcileSignal <- struct{}{}
 			case err, ok := <-watcher.Errors:
 				if !ok {
 					return
@@ -140,6 +132,20 @@ func (h *DevHandler) WatchUSBDevices(ctx context.Context) error {
 	}()
 
 	return nil
+}
+
+func (h *DevHandler) WatchReconcile(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-h.reconcileSignal:
+			// we need reconcile whatever there is a change in /dev/bus/usb/xxx or reconcile signal is received
+			if err := h.Reconcile(); err != nil {
+				logrus.Errorf("failed to reconcile USB devices: %v", err)
+			}
+		}
+	}
 }
 
 func (h *DevHandler) Reconcile() error {
