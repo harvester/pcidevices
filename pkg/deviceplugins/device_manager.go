@@ -60,7 +60,6 @@ type PCIDevicePlugin struct {
 	devs          []*pluginapi.Device
 	server        *grpc.Server
 	socketPath    string
-	stop          <-chan struct{}
 	health        chan deviceHealth
 	devicePath    string
 	resourceName  string
@@ -150,9 +149,8 @@ func constructDPIdevices(pciDevices []*PCIDevice, iommuToPCIMap map[string]strin
 var defaultBackoffTime = []time.Duration{1 * time.Second, 2 * time.Second, 5 * time.Second, 10 * time.Second}
 
 // Set Started is used after a call to Start. It's purpose is to set the private starter properly
-func (dp *PCIDevicePlugin) SetStarted(stop chan struct{}) {
+func (dp *PCIDevicePlugin) SetStarted() {
 	c := dp.starter
-	c.stopChan = stop
 	c.started = true
 	logrus.Infof("Started DevicePlugin: %s", dp.resourceName)
 }
@@ -166,9 +164,8 @@ func (dp *PCIDevicePlugin) Stop() error {
 }
 
 // Start starts the device plugin
-func (dp *PCIDevicePlugin) Start(stop <-chan struct{}) (err error) {
+func (dp *PCIDevicePlugin) Start() (err error) {
 	logger := log.DefaultLogger()
-	dp.stop = stop
 	dp.done = make(chan struct{})
 	dp.deregistered = make(chan struct{})
 
@@ -235,8 +232,6 @@ func (dp *PCIDevicePlugin) ListAndWatch(_ *pluginapi.Empty, s pluginapi.DevicePl
 				return err
 			}
 			logrus.Debugf("Sending ListAndWatchResponse for device with dpi.devs = %v", dp.devs)
-		case <-dp.stop:
-			done = true
 		case <-dp.done:
 			done = true
 		}
@@ -350,8 +345,6 @@ func (dp *PCIDevicePlugin) healthCheck() error {
 
 	for {
 		select {
-		case <-dp.stop:
-			return nil
 		case err := <-watcher.Errors:
 			logger.Reason(err).Errorf("error watching devices and device plugin directory")
 		case event := <-watcher.Events:
