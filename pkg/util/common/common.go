@@ -137,7 +137,12 @@ func generateDeviceAllocationDetails(allocationDetails string) (*v1beta1.Allocat
 }
 
 func generateDeviceInfo(devices map[string][]string) []string {
-	var allDevices []string
+	total := 0
+	for _, v := range devices {
+		total += len(v)
+	}
+
+	allDevices := make([]string, 0, total)
 	for _, v := range devices {
 		allDevices = append(allDevices, v...)
 	}
