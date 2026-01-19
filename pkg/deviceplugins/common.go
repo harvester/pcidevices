@@ -158,7 +158,7 @@ func IsChanClosed(ch <-chan struct{}) bool {
 
 func formatVFIODeviceSpecs(devID string) []*v1beta1.DeviceSpec {
 	// always add /dev/vfio/vfio device as well
-	devSpecs := make([]*v1beta1.DeviceSpec, 0)
+	devSpecs := make([]*v1beta1.DeviceSpec, 0, 2)
 	devSpecs = append(devSpecs, &v1beta1.DeviceSpec{
 		HostPath:      vfioMount,
 		ContainerPath: vfioMount,

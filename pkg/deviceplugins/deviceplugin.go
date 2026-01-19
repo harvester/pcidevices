@@ -46,7 +46,7 @@ func Create(ctx context.Context,
 	pdsWithSameResourceName []*v1beta1.PCIDevice,
 ) *PCIDevicePlugin {
 	// Check if there are any PCIDevicePlugins with that resourceName
-	pcidevs := []*PCIDevice{}
+	pcidevs := make([]*PCIDevice, 0, len(pdsWithSameResourceName))
 	for _, pd := range pdsWithSameResourceName {
 		pcidevs = append(pcidevs, &PCIDevice{
 			pciID:      pd.Status.Address,
