@@ -80,7 +80,7 @@ var (
 func Test_reconcileVGPUSetup(t *testing.T) {
 	assert := require.New(t)
 	client := fake.NewSimpleClientset(missingVGPU)
-	var vGPUDevices []*v1beta1.VGPUDevice
+	vGPUDevices := make([]*v1beta1.VGPUDevice, 0, 2)
 	vGPUDevices = append(vGPUDevices, foundPresentVGPU, newVGPU)
 	h := &Handler{
 		nodeName:            nodeName,
