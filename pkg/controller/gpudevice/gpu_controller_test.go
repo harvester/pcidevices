@@ -79,7 +79,7 @@ func Test_reconcileSRIOVGPUSetup(t *testing.T) {
 	assert := require.New(t)
 
 	client := fake.NewSimpleClientset(missingGPU)
-	var gpuDevices []*v1beta1.SRIOVGPUDevice
+	gpuDevices := make([]*v1beta1.SRIOVGPUDevice, 0, 2)
 	gpuDevices = append(gpuDevices, foundPresentGPU, newGPU)
 	h := &Handler{
 		nodeName:            nodeName,

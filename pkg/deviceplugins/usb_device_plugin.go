@@ -340,7 +340,6 @@ func (plugin *USBDevicePlugin) Allocate(_ context.Context, allocRequest *plugina
 				continue
 			}
 
-			deviceSpecs := []*pluginapi.DeviceSpec{}
 			spath, err := safepath.JoinAndResolveWithRelativeRoot(util.HostRootMount, pluginDevice.DevicePath)
 			if err != nil {
 				return nil, fmt.Errorf("error opening the socket %s: %v", pluginDevice.DevicePath, err)
@@ -359,6 +358,7 @@ func (plugin *USBDevicePlugin) Allocate(_ context.Context, allocRequest *plugina
 				env[key] = value
 			}
 
+			deviceSpecs := make([]*pluginapi.DeviceSpec, 0, 1)
 			deviceSpecs = append(deviceSpecs, &pluginapi.DeviceSpec{
 				ContainerPath: pluginDevice.DevicePath,
 				HostPath:      pluginDevice.DevicePath,
