@@ -9,10 +9,8 @@ RUN zypper -n ar  https://download.opensuse.org/repositories/hardware/15.6/hardw
 RUN go install golang.org/x/lint/golint@latest
 RUN go install golang.org/x/tools/cmd/goimports@latest
 RUN go install github.com/incu6us/goimports-reviser/v3@v3.10.0
-RUN export K8S_VERSION=1.24.2 && \
-    curl -sSLo envtest-bins.tar.gz "https://go.kubebuilder.io/test-tools/${K8S_VERSION}/$(go env GOOS)/$(go env GOARCH)" && \
-    mkdir /usr/local/kubebuilder && \
-    tar -C /usr/local/kubebuilder --strip-components=1 -zvxf envtest-bins.tar.gz
+RUN go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest && \
+    setup-envtest use 1.31.x --bin-dir /usr/local/kubebuilder -p path
 
 ## install golangci
 RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s latest
