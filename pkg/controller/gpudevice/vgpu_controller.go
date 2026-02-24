@@ -2,33 +2,25 @@ package gpudevice
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
-	"sync"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	kubevirtv1 "kubevirt.io/api/core/v1"
 
-	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
-	"github.com/harvester/pcidevices/pkg/deviceplugins"
 	"github.com/harvester/pcidevices/pkg/util/gpuhelper"
 )
 
-var (
-	pluginLock sync.Mutex
-)
-
 const (
-	DefaultNS  = "harvester-system"
-	KubevirtCR = "kubevirt"
+	DefaultNS   = "harvester-system"
+	KubevirtCR  = "kubevirt"
+	defaultUser = "admin"
 )
 
 func (h *Handler) OnVGPUChange(_ string, vgpu *v1beta1.VGPUDevice) (*v1beta1.VGPUDevice, error) {
@@ -36,7 +28,7 @@ func (h *Handler) OnVGPUChange(_ string, vgpu *v1beta1.VGPUDevice) (*v1beta1.VGP
 		return vgpu, nil
 	}
 
-	discoveredVGPUStatus, err := gpuhelper.FetchVGPUStatus(v1beta1.MdevRoot, v1beta1.SysDevRoot, v1beta1.MdevBusClassRoot, vgpu.Spec.Address)
+	discoveredVGPUStatus, err := gpuhelper.FetchVGPUStatus(v1beta1.SysDevRoot, vgpu.Spec.Address)
 	if err != nil {
 		return vgpu, fmt.Errorf("error generating vgpu %s status: %v", vgpu.Name, err)
 	}
@@ -49,10 +41,16 @@ func (h *Handler) OnVGPUChange(_ string, vgpu *v1beta1.VGPUDevice) (*v1beta1.VGP
 	if !vgpu.Spec.Enabled && discoveredVGPUStatus.VGPUStatus == v1beta1.VGPUEnabled {
 		return h.disableVGPU(vgpu)
 	}
-	// perform enable disable operation //
-	if !reflect.DeepEqual(discoveredVGPUStatus, vgpu.Status) {
-		vgpu.Status = *discoveredVGPUStatus
-		return h.vGPUClient.UpdateStatus(vgpu)
+	// perform out of band enable / disable operation if needed //
+	// with switch to vendor specific nvidia driver implementation in Harvester v1.8.0
+	// it is not possible to fetch configured VGPUTypeName from sysfs, only id, which is
+	// available in UUID, so we manually copy and check if an update is needed
+	vgpuCopy := vgpu.DeepCopy()
+	vgpuCopy.Status.UUID = discoveredVGPUStatus.UUID
+	vgpuCopy.Status.VGPUStatus = discoveredVGPUStatus.VGPUStatus
+	vgpuCopy.Status.AvailableTypes = discoveredVGPUStatus.AvailableTypes
+	if !reflect.DeepEqual(vgpuCopy.Status, vgpu.Status) {
+		return h.vGPUClient.UpdateStatus(vgpuCopy)
 	}
 
 	return nil, nil
@@ -124,56 +122,47 @@ func containsVGPU(vgpu *v1beta1.VGPUDevice, vgpuList []*v1beta1.VGPUDevice) *v1b
 
 // enableVGPU performs the op to configure VGPU
 func (h *Handler) enableVGPU(vgpu *v1beta1.VGPUDevice) (*v1beta1.VGPUDevice, error) {
-	nvidiaType, ok := vgpu.Status.AvailableTypes[vgpu.Spec.VGPUTypeName]
+	vgpuID, ok := vgpu.Status.AvailableTypes[vgpu.Spec.VGPUTypeName]
 	if !ok {
 		return vgpu, fmt.Errorf("VGPUType specified %s is not available for vGPU %s", vgpu.Spec.VGPUTypeName, vgpu.Spec.Address)
 	}
 
-	vgpuUUID := uuid.NewString()
+	vgpuUUID := vgpuID
 
-	createFilePath := filepath.Join(v1beta1.MdevBusClassRoot, vgpu.Spec.Address, v1beta1.MdevSupportTypesDir, nvidiaType, "create")
-	if _, err := os.Stat(createFilePath); err != nil {
-		return vgpu, fmt.Errorf("error looking up create file for vgpu %s: %v", vgpu.Name, err)
+	// setup pcidevice claims / pcidevice objects
+	if err := h.submitPCIDeviceClaim(vgpu); err != nil && !apierrors.IsAlreadyExists(err) {
+		return vgpu, fmt.Errorf("error creating pcideviceclaim for associated vgpu device: %w", err)
 	}
 
-	if err := os.WriteFile(createFilePath, []byte(vgpuUUID), fs.FileMode(os.O_WRONLY)); err != nil {
+	// setup vgpu profile
+	createFilePath := filepath.Join(v1beta1.SysDevRoot, vgpu.Spec.Address, "nvidia", v1beta1.CurrentVGPUType)
+
+	if err := os.WriteFile(createFilePath, []byte(vgpuID), 0600); err != nil {
 		return vgpu, fmt.Errorf("error writing to create file for vgpu %s: %v", vgpu.Name, err)
 	}
 
 	vgpu.Status.VGPUStatus = v1beta1.VGPUEnabled
 	vgpu.Status.UUID = vgpuUUID
+	vgpu.Status.ConfiguredVGPUTypeName = vgpu.Spec.VGPUTypeName
 	vgpuObj, err := h.vGPUClient.UpdateStatus(vgpu)
 	if err != nil {
 		return vgpuObj, err
 	}
-
+	// need to create pcidevice claim for pcidevice associated with vgpu device
 	return h.reconcileDisabledVGPUStatus(vgpuObj)
 }
 
 // disableVGPU performs the op to disable VGPU
 func (h *Handler) disableVGPU(vgpu *v1beta1.VGPUDevice) (*v1beta1.VGPUDevice, error) {
-	removeFile := filepath.Join(v1beta1.MdevBusClassRoot, vgpu.Spec.Address, vgpu.Status.UUID, "remove")
-	found := true
-	// possible that CRD update fails but file has been removed
-	// this can lead to issue during reconcile.
-	// in such a case we just ensure plugin is updated and CRD status reflects disabled state
-	if _, err := os.Stat(removeFile); err != nil {
-		if os.IsNotExist(err) {
-			found = false
-		} else {
-			return vgpu, fmt.Errorf("error looking up remove file for vgpu %s: %v", vgpu.Name, err)
-		}
+	// cleanup pcidevice claim
+	if err := h.cleanupRelatedPCIDeviceObjects(vgpu); err != nil {
+		return vgpu, err
 	}
 
-	if found {
-		if err := os.WriteFile(removeFile, []byte("1"), fs.FileMode(os.O_WRONLY)); err != nil {
-			return vgpu, fmt.Errorf("error writing to remove file for vgpu %s: %v", vgpu.Name, err)
-		}
-	}
+	createFilePath := filepath.Join(v1beta1.SysDevRoot, vgpu.Spec.Address, "nvidia", v1beta1.CurrentVGPUType)
 
-	// disableDevicePlugin is run here as we need UUID to remove the device
-	if err := h.disableDevicePlugin(vgpu); err != nil {
-		return vgpu, fmt.Errorf("error cleaning up device plugin for device %s: %v", vgpu.Name, err)
+	if err := os.WriteFile(createFilePath, []byte("0"), 0600); err != nil {
+		return vgpu, fmt.Errorf("error writing to create file for vgpu %s: %v", vgpu.Name, err)
 	}
 
 	vgpu.Status.VGPUStatus = v1beta1.VGPUDisabled
@@ -185,131 +174,6 @@ func (h *Handler) disableVGPU(vgpu *v1beta1.VGPUDevice) (*v1beta1.VGPUDevice, er
 	}
 
 	return h.reconcileDisabledVGPUStatus(vgpuObj)
-}
-
-func (h *Handler) disableDevicePlugin(vgpu *v1beta1.VGPUDevice) error {
-	pluginLock.Lock()
-	defer pluginLock.Unlock()
-	pluginName := gpuhelper.GenerateDeviceName(vgpu.Status.ConfiguredVGPUTypeName)
-	plugin, ok := h.vGPUDevicePlugins[pluginName]
-	if !ok {
-		logrus.Debugf("no device plugin found for vgpu %s of type %s", vgpu.Name, vgpu.Status.ConfiguredVGPUTypeName)
-		return nil
-	}
-
-	if err := plugin.RemoveDevice(vgpu.Status.UUID); err != nil {
-		return fmt.Errorf("error removing device: %v", err)
-	}
-
-	if plugin.GetCount() == 0 {
-		logrus.Infof("shutting down device plugin for %s", pluginName)
-		if err := plugin.Stop(); err != nil {
-			return err
-		}
-		delete(h.vGPUDevicePlugins, pluginName)
-	}
-	return nil
-}
-
-// reconcileEnabledVGPUPlugins runs as an out of band handler from the VGPU Device management loop. This is needed as we reconcile CRD to OS state.
-// in case there was an error during CRD status update, subsequent reconcile will generate correct status from CRD.
-// the enable subroutine is skipped in this case and placing the device plugin enable logic will likely miss some devices
-func (h *Handler) reconcileEnabledVGPUPlugins(_ string, vgpu *v1beta1.VGPUDevice) (*v1beta1.VGPUDevice, error) {
-	if vgpu == nil || vgpu.DeletionTimestamp != nil || vgpu.Spec.NodeName != h.nodeName {
-		return vgpu, nil
-	}
-
-	// post reboot the vgpu devices are cleared from /sys
-	// as a result we need to wait until the device exists in /sys/bus/mdev/devices
-	// else fake devices get added to the node
-
-	discoveredVGPUStatus, err := gpuhelper.FetchVGPUStatus(v1beta1.MdevRoot, v1beta1.SysDevRoot, v1beta1.MdevBusClassRoot, vgpu.Spec.Address)
-	if err != nil {
-		return vgpu, err
-	}
-	if vgpu.Spec.Enabled && discoveredVGPUStatus.UUID != "" && discoveredVGPUStatus.ConfiguredVGPUTypeName != "" {
-		vgpuCopy := vgpu.DeepCopy()
-		vgpuCopy.Status.ConfiguredVGPUTypeName = discoveredVGPUStatus.ConfiguredVGPUTypeName
-		return vgpu, h.createOrUpdateDevicePlugin(vgpuCopy)
-	}
-
-	return vgpu, nil
-}
-
-func (h *Handler) createOrUpdateDevicePlugin(vgpu *v1beta1.VGPUDevice) error {
-	pluginLock.Lock()
-	defer pluginLock.Unlock()
-
-	if err := h.whiteListVGPU(vgpu); err != nil {
-		return err
-	}
-
-	pluginName := gpuhelper.GenerateDeviceName(vgpu.Status.ConfiguredVGPUTypeName)
-	plugin, ok := h.vGPUDevicePlugins[pluginName]
-	if ok {
-		// plugin exists. just publish address and move on
-		if !plugin.DeviceExists(vgpu.Status.UUID) {
-			return plugin.AddDevice(vgpu.Status.UUID)
-		}
-		return nil
-	}
-
-	newPlugin := deviceplugins.NewVGPUDevicePlugin(h.ctx, []string{vgpu.Status.UUID}, pluginName)
-	if err := h.startDevicePlugin(newPlugin); err != nil {
-		return err
-	}
-
-	h.vGPUDevicePlugins[pluginName] = newPlugin
-	return nil
-}
-
-func (h *Handler) startDevicePlugin(
-	dp *deviceplugins.VGPUDevicePlugin,
-) error {
-	if dp.Started() {
-		return nil
-	}
-	// Start the plugin
-	stop := make(chan struct{})
-	go func() {
-		err := dp.Start(stop)
-		if err != nil {
-			logrus.Errorf("error starting %s device plugin: %s", dp.GetDeviceName(), err)
-		}
-		// TODO: test if deleting this stops the DevicePlugin
-		<-stop
-	}()
-	dp.SetStarted(stop)
-	return nil
-}
-
-// whiteListGPU checks if VGPU type is already whitelisted in the kubevirt CR.
-// if not it does the whitelisting
-func (h *Handler) whiteListVGPU(vgpu *v1beta1.VGPUDevice) error {
-	kv, err := h.virtClient.KubeVirt(DefaultNS).Get(h.ctx, KubevirtCR, metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("error looking up kubevirt CR: %v", err)
-	}
-
-	if kv.Spec.Configuration.PermittedHostDevices == nil {
-		kv.Spec.Configuration.PermittedHostDevices = &kubevirtv1.PermittedHostDevices{}
-	}
-
-	for _, v := range kv.Spec.Configuration.PermittedHostDevices.MediatedDevices {
-		if v.ResourceName == gpuhelper.GenerateDeviceName(vgpu.Status.ConfiguredVGPUTypeName) && v.MDEVNameSelector == vgpu.Status.ConfiguredVGPUTypeName && v.ExternalResourceProvider {
-			logrus.Debugf("device type %s already whitelisted, no further action needed", vgpu.Status.ConfiguredVGPUTypeName)
-			return nil
-		}
-	}
-
-	kv.Spec.Configuration.PermittedHostDevices.MediatedDevices = append(kv.Spec.Configuration.PermittedHostDevices.MediatedDevices, kubevirtv1.MediatedHostDevice{
-		ResourceName:             gpuhelper.GenerateDeviceName(vgpu.Status.ConfiguredVGPUTypeName),
-		MDEVNameSelector:         vgpu.Status.ConfiguredVGPUTypeName,
-		ExternalResourceProvider: true,
-	})
-
-	_, err = h.virtClient.KubeVirt(DefaultNS).Update(h.ctx, kv, metav1.UpdateOptions{})
-	return err
 }
 
 // reconcileDisabledVGPUStatus is needed as when a vgpu is enabled, based on type of vGPU the available types for other vgpu's may change. This ensures that the state of other vGPU's from the same parent GPU is reconciled immediately to avoid users from attempting to enable unsupported vGPU Types
@@ -352,4 +216,122 @@ func (h *Handler) isParentGPUEnabled(gpuAddress string) (bool, error) {
 	}
 
 	return parentSRIOVGPUDevice.Spec.Enabled, nil
+}
+
+func (h *Handler) submitPCIDeviceClaim(vgpu *v1beta1.VGPUDevice) error {
+
+	resourceName := gpuhelper.GenerateDeviceName(vgpu.Spec.VGPUTypeName)
+
+	logrus.Debugf("sending resource name %s for vgpu %s", resourceName, vgpu.Name)
+	pcidevice, err := h.pciDeviceCache.Get(vgpu.Name)
+	if err != nil {
+		return fmt.Errorf("error looking up pcidevice when trying to setup vgpu passthrough: %w", err)
+	}
+
+	// patch pcidevice resource name in status
+	if err := h.patchPCIDeviceStatus(vgpu.Name, resourceName); err != nil {
+		return fmt.Errorf("error patching pcidevice status resource name for vgpu %s: %w", vgpu.Name, err)
+	}
+
+	// patch pcidevice resource name in spec
+	// this is needed to ensure that regularly scheduled pcidevice reconcile
+	// does not wipe the resource name causing issues with plugin
+	if err := h.patchPCIDeviceSpec(vgpu.Name, resourceName); err != nil {
+		return fmt.Errorf("error patching pcidevice resource name for vgpu %s: %w", vgpu.Name, err)
+	}
+
+	pcideviceClaim := &v1beta1.PCIDeviceClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: vgpu.Name,
+			Labels: map[string]string{
+				v1beta1.ParentSRIOVGPUDeviceLabel: v1beta1.PCIDeviceNameForHostname(vgpu.Spec.ParentGPUDeviceAddress, vgpu.Spec.NodeName),
+			},
+			Annotations: map[string]string{
+				v1beta1.SkipVFIOBindingAnnotationKey:  "true",
+				v1beta1.PCIDeviceOverrideResourceName: resourceName,
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					Kind:       pcidevice.Kind,
+					Name:       pcidevice.Name,
+					UID:        pcidevice.UID,
+					APIVersion: pcidevice.APIVersion,
+				},
+				{
+					Kind:       vgpu.Kind,
+					Name:       vgpu.Name,
+					UID:        vgpu.UID,
+					APIVersion: vgpu.APIVersion,
+				},
+			},
+		},
+		Spec: v1beta1.PCIDeviceClaimSpec{
+			Address:  vgpu.Spec.Address,
+			UserName: defaultUser,
+			NodeName: vgpu.Spec.NodeName,
+		},
+	}
+
+	logrus.Debugf("submitting pcidevice claim for vgpu %s", vgpu.Name)
+	_, err = h.pciDeviceClaim.Create(pcideviceClaim)
+	return err
+}
+
+func (h *Handler) cleanupRelatedPCIDeviceObjects(vgpu *v1beta1.VGPUDevice) error {
+	err := h.pciDeviceClaim.Delete(vgpu.Name, &metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+	return h.cleanupPCIDeviceSpec(vgpu.Name)
+}
+
+func (h *Handler) patchPCIDeviceSpec(vgpu, resourceName string) error {
+	pdObj, err := h.pciDeviceCache.Get(vgpu)
+	if err != nil {
+		return fmt.Errorf("error looking up pcidevice %s in patchPCIDeviceSpec: %w", vgpu, err)
+	}
+
+	if pdObj.Annotations == nil {
+		pdObj.Annotations = make(map[string]string)
+	}
+	pdObjCopy := pdObj.DeepCopy()
+	pdObjCopy.Annotations[v1beta1.PCIDeviceOverrideResourceName] = resourceName
+	// need to update pcidevice
+	if reflect.DeepEqual(pdObj, pdObjCopy) {
+		return nil
+	}
+	_, err = h.pciDevice.Update(pdObjCopy)
+	return err
+}
+
+func (h *Handler) patchPCIDeviceStatus(vgpu, resourceName string) error {
+	pdObj, err := h.pciDeviceCache.Get(vgpu)
+	if err != nil {
+		return fmt.Errorf("error looking up pcidevice %s in patchPCIDeviceStatus: %w", vgpu, err)
+	}
+	pdObjCopy := pdObj.DeepCopy()
+	pdObjCopy.Status.ResourceName = resourceName
+	if reflect.DeepEqual(pdObj.Status, pdObjCopy.Status) {
+		return nil
+	}
+	logrus.Debugf("updating pd status for vgpu %s: %v", vgpu, pdObjCopy.Status)
+	_, err = h.pciDevice.UpdateStatus(pdObjCopy)
+	return err
+}
+
+func (h *Handler) cleanupPCIDeviceSpec(vgpu string) error {
+	pdObj, err := h.pciDeviceCache.Get(vgpu)
+	if err != nil {
+		return fmt.Errorf("error looking up pcidevice %s in cleanupPCIDeviceSpec: %w", vgpu, err)
+	}
+	pdObjCopy := pdObj.DeepCopy()
+	// we just remove the annotation, and regular reconcile of pcidevice will eventually update
+	// resource name in status as well
+	delete(pdObjCopy.Annotations, v1beta1.PCIDeviceOverrideResourceName)
+	// need to update pcidevice
+	if reflect.DeepEqual(pdObj, pdObjCopy) {
+		return nil
+	}
+	_, err = h.pciDevice.Update(pdObjCopy)
+	return err
 }

@@ -26,22 +26,16 @@ func Test_IdentifySRIOVGPU(t *testing.T) {
 
 func Test_fetchAvailableTypes(t *testing.T) {
 	assert := require.New(t)
-	mockPath := filepath.Join("./testdata", v1beta1.MdevBusClassRoot)
-	availableTypes, err := fetchAvailableTypes(mockPath, "0000:08:01.7")
-	assert.NoError(err, "exepcted no error")
-	assert.Len(availableTypes, 3, "expected to find 3 available types from fake /sys tree")
+	mockPath := filepath.Join("./testdata", v1beta1.SysDevRoot)
+	availableTypes, err := fetchAvailableTypes(mockPath, "0000:26:00.4")
+	assert.NoError(err, "expected no error")
+	assert.Len(availableTypes, 23, "expected to find 23 available types from fake /sys tree")
 }
 
 func Test_fetchVGPUStatus(t *testing.T) {
 	assert := require.New(t)
-	mockPath := os.Getenv("UMOCKDEV_DIR")
-	var mdevRoot, pciDeviceRoot string
-	if mockPath != "" {
-		mdevRoot = filepath.Join(mockPath, v1beta1.MdevRoot)
-		pciDeviceRoot = filepath.Join(mockPath, v1beta1.SysDevRoot)
-	}
-	managedBusPath := filepath.Join("./testdata", v1beta1.MdevBusClassRoot)
-	status, err := FetchVGPUStatus(mdevRoot, pciDeviceRoot, managedBusPath, "0000:08:01.7")
+	mockPath := filepath.Join("./testdata", v1beta1.SysDevRoot)
+	status, err := FetchVGPUStatus(mockPath, "0000:26:00.4")
 	assert.NoError(err, "expected no error while generating vGPU status")
 	assert.NotEmpty(status.AvailableTypes, "expected AvailableTypes to not be empty")
 }

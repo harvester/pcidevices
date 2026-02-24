@@ -34,3 +34,8 @@ type PCIDeviceClaimStatus struct {
 	KernelDriverToUnbind string `json:"kernelDriverToUnbind"`
 	PassthroughEnabled   bool   `json:"passthroughEnabled"`
 }
+
+const (
+	SkipVFIOBindingAnnotationKey  = "pcidevices.harvesterhci.io/skip-vfio-binding"
+	PCIDeviceOverrideResourceName = "pcidevice.harvesterhci.io/override-resource-name"
+)

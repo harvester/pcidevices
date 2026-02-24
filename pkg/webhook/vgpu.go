@@ -83,7 +83,7 @@ func (v *vgpuValidator) Delete(_ *types.Request, obj runtime.Object) error {
 }
 
 func checkVGPUUsage(kc kubevirtctl.VirtualMachineCache, deviceName string) error {
-	objs, err := kc.GetByIndex(VMByVGPU, deviceName)
+	objs, err := kc.GetByIndex(VMByPCIDeviceClaim, deviceName)
 	if err != nil {
 		logrus.Errorf("error fetching VMs from cache: %v", err)
 		return err

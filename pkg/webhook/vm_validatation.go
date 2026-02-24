@@ -3,12 +3,12 @@ package webhook
 import (
 	"fmt"
 
+	"github.com/harvester/harvester/pkg/webhook/types"
+	"github.com/sirupsen/logrus"
 	admissionregv1 "k8s.io/api/admissionregistration/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubevirtv1 "kubevirt.io/api/core/v1"
-
-	"github.com/harvester/harvester/pkg/webhook/types"
 
 	"github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 )
@@ -54,6 +54,9 @@ func (vmValidator *vmDeviceHostValidator) Update(_ *types.Request, _ runtime.Obj
 }
 
 func (vmValidator *vmDeviceHostValidator) validateDevices(vmObj *kubevirtv1.VirtualMachine) error {
+	logrus.Infof("vm name: %s", vmObj.Name)
+	logrus.Infof("host devices: %v", vmObj.Spec.Template.Spec.Domain.Devices.HostDevices)
+	logrus.Infof("gpu devices: %v", vmObj.Spec.Template.Spec.Domain.Devices.GPUs)
 	if len(vmObj.Spec.Template.Spec.Domain.Devices.HostDevices) != 0 {
 		if err := vmValidator.validateHostDevices(vmObj); err != nil {
 			return err
@@ -62,13 +65,6 @@ func (vmValidator *vmDeviceHostValidator) validateDevices(vmObj *kubevirtv1.Virt
 			return err
 		}
 	}
-
-	if len(vmObj.Spec.Template.Spec.Domain.Devices.GPUs) != 0 {
-		if err := vmValidator.validateGPUs(vmObj); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -162,33 +158,4 @@ func (vmValidator *vmDeviceHostValidator) validateUSBDevice(resourceName string)
 	}
 
 	return true, nil
-}
-
-func (vmValidator *vmDeviceHostValidator) validateVGPUDevice(resourceName string) (found bool, err error) {
-	vGPUDeviceObjs, err := vmValidator.vgpuCache.GetByIndex(vGPUDeviceByResourceName, resourceName)
-	if err != nil {
-		return false, fmt.Errorf("error looking up vGPU device %s from cache: %v", resourceName, err)
-	}
-
-	if len(vGPUDeviceObjs) == 0 {
-		return false, nil
-	}
-
-	return true, nil
-}
-
-func (vmValidator *vmDeviceHostValidator) validateGPUs(vmObj *kubevirtv1.VirtualMachine) error {
-	for _, gpu := range vmObj.Spec.Template.Spec.Domain.Devices.GPUs {
-		foundInPCI, err := vmValidator.validateVGPUDevice(gpu.DeviceName)
-
-		if err != nil {
-			return err
-		}
-
-		if !foundInPCI {
-			return fmt.Errorf("gpu device %s: resource name %s not found in pcidevice cache", gpu.Name, gpu.DeviceName)
-		}
-	}
-
-	return nil
 }

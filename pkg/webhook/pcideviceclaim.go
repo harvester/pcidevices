@@ -16,6 +16,11 @@ import (
 	"github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 )
 
+const (
+	VGPUDeviceKind                    = "VGPUDevice"
+	HarvesterPCIDevicesControllerUser = "system:serviceaccount:harvester-system:harvester-pcidevices-controller"
+)
+
 type pciDeviceClaimValidator struct {
 	types.DefaultValidator
 	deviceCache         v1beta1.PCIDeviceCache
@@ -87,7 +92,7 @@ func (pdc *pciDeviceClaimValidator) Create(_ *types.Request, newObj runtime.Obje
 	return nil
 }
 
-func (pdc *pciDeviceClaimValidator) Delete(_ *types.Request, oldObj runtime.Object) error {
+func (pdc *pciDeviceClaimValidator) Delete(req *types.Request, oldObj runtime.Object) error {
 	pciClaimObj := oldObj.(*devicesv1beta1.PCIDeviceClaim)
 
 	ok, err := isNodeDeleted(pdc.nodeCache, pciClaimObj.Spec.NodeName)
@@ -113,5 +118,13 @@ func (pdc *pciDeviceClaimValidator) Delete(_ *types.Request, oldObj runtime.Obje
 		return fmt.Errorf("pcideviceclaim %s is already in use with vm %s in namespace %s", pciClaimObj.Name, vms[0].Name, vms[0].Namespace)
 	}
 
+	// check if PCIDeviceClaim is owned by a VGPUdevice, and block it from being disabled
+	// unless request is coming from pcidevices controller
+	for _, ref := range pciClaimObj.ObjectMeta.OwnerReferences {
+		logrus.Debugf("request from user %s", req.UserInfo.Username)
+		if ref.Kind == VGPUDeviceKind && req.UserInfo.Username != HarvesterPCIDevicesControllerUser {
+			return fmt.Errorf("pcideviceclaim %s cannot be deleted as it is owned by VGPUDevice %s", pciClaimObj.Name, ref.Name)
+		}
+	}
 	return nil
 }

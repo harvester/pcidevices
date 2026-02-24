@@ -39,6 +39,9 @@ type Handler struct {
 	vGPUController             ctl.VGPUDeviceController
 	vGPUClient                 ctl.VGPUDeviceClient
 	pciDeviceClaimCache        ctl.PCIDeviceClaimCache
+	pciDeviceClaim             ctl.PCIDeviceClaimClient
+	pciDeviceCache             ctl.PCIDeviceCache
+	pciDevice                  ctl.PCIDeviceClient
 	migConfigurationCache      ctl.MigConfigurationCache
 	migConfigurationController ctl.MigConfigurationController
 	executor                   executor.Executor
@@ -48,7 +51,7 @@ type Handler struct {
 	cfg                        *rest.Config
 }
 
-func NewHandler(ctx context.Context, sriovGPUController ctl.SRIOVGPUDeviceController, vGPUController ctl.VGPUDeviceController, pciDeviceClaim ctl.PCIDeviceClaimController, migConfigurationController ctl.MigConfigurationController, virtClient kubecli.KubevirtClient, options []nvpci.Option, cfg *rest.Config) (*Handler, error) {
+func NewHandler(ctx context.Context, sriovGPUController ctl.SRIOVGPUDeviceController, vGPUController ctl.VGPUDeviceController, pciDeviceClaim ctl.PCIDeviceClaimController, pciDevice ctl.PCIDeviceController, migConfigurationController ctl.MigConfigurationController, virtClient kubecli.KubevirtClient, options []nvpci.Option, cfg *rest.Config) (*Handler, error) {
 	nodeName := os.Getenv(v1beta1.NodeEnvVarName)
 
 	// initial a default local executor.
@@ -63,6 +66,9 @@ func NewHandler(ctx context.Context, sriovGPUController ctl.SRIOVGPUDeviceContro
 		vGPUCache:                  vGPUController.Cache(),
 		vGPUClient:                 vGPUController,
 		pciDeviceClaimCache:        pciDeviceClaim.Cache(),
+		pciDeviceClaim:             pciDeviceClaim,
+		pciDeviceCache:             pciDevice.Cache(),
+		pciDevice:                  pciDevice,
 		migConfigurationCache:      migConfigurationController.Cache(),
 		migConfigurationController: migConfigurationController,
 		executor:                   commandExecutor,
@@ -82,20 +88,20 @@ func Register(ctx context.Context, management *config.FactoryManager) error {
 	pciDeviceClaimController := management.DeviceFactory.Devices().V1beta1().PCIDeviceClaim()
 	podController := management.CoreFactory.Core().V1().Pod()
 	migConfigurationController := management.DeviceFactory.Devices().V1beta1().MigConfiguration()
+	pciDeviceController := management.DeviceFactory.Devices().V1beta1().PCIDevice()
 
 	clientConfig := kubecli.DefaultClientConfig(&pflag.FlagSet{})
 	virtClient, err := kubecli.GetKubevirtClientFromClientConfig(clientConfig)
 	if err != nil {
 		return err
 	}
-	h, err := NewHandler(ctx, sriovGPUController, vGPUController, pciDeviceClaimController, migConfigurationController, virtClient, nil, management.Cfg)
+	h, err := NewHandler(ctx, sriovGPUController, vGPUController, pciDeviceClaimController, pciDeviceController, migConfigurationController, virtClient, nil, management.Cfg)
 	if err != nil {
 		return err
 	}
 	sriovGPUController.OnChange(ctx, "on-gpu-change", h.OnGPUChange)
 	sriovGPUController.OnChange(ctx, "gpu-mig-reconcillation", h.reconcileMIGConfiguration)
 	vGPUController.OnChange(ctx, "on-vgpu-change", h.OnVGPUChange)
-	vGPUController.OnChange(ctx, "update-plugins", h.reconcileEnabledVGPUPlugins)
 	podController.OnChange(ctx, "watch-driver-pods", h.setupRemoteExecutor)
 	migConfigurationController.OnChange(ctx, "on-migconfiguration-change", h.OnMIGChange)
 	return nil

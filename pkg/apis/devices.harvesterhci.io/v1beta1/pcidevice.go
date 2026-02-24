@@ -117,13 +117,18 @@ func resourceName(dev *pci.Device) string {
 	return fmt.Sprintf("%s/%s", vendorCleaned, dev.Product.ID)
 }
 
-func (status *PCIDeviceStatus) Update(dev *pci.Device, hostname string, iommuGroups map[string]int) {
+func (status *PCIDeviceStatus) Update(dev *pci.Device, hostname string, iommuGroups map[string]int, overrideResourceName string) {
 	status.Address = dev.Address
 	status.VendorID = dev.Vendor.ID
 	status.DeviceID = dev.Product.ID
 	status.ClassID = fmt.Sprintf("%s%s", dev.Class.ID, dev.Subclass.ID)
 	// Generate the ResourceName field, this is used by KubeVirt to schedule the VM to the node
 	status.ResourceName = resourceName(dev)
+	// for sriov based vgpu's we set resource name dynamically to
+	// match profile info being generated
+	if overrideResourceName != "" {
+		status.ResourceName = overrideResourceName
+	}
 	status.Description = description(dev)
 	group, ok := iommuGroups[dev.Address]
 	if ok {

@@ -11,7 +11,6 @@ import (
 	devicesv1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/generated/clientset/versioned/fake"
 	"github.com/harvester/pcidevices/pkg/util/fakeclients"
-	"github.com/harvester/pcidevices/pkg/util/gpuhelper"
 )
 
 var (
@@ -164,32 +163,6 @@ func Test_CreateVM(t *testing.T) {
 			},
 			err: errors.New("hostdevice node1dev1noiommu: resource name fake.com/device2 not found in pcidevice and usbdevice cache"),
 		},
-		{
-			name: "gpu device name is different from CR, it should be able to create",
-			before: func(in input) {
-				in.vm.Spec.Template.Spec.Domain.Devices.HostDevices = []kubevirtv1.HostDevice{}
-				in.vm.Spec.Template.Spec.Domain.Devices.GPUs = []kubevirtv1.GPU{
-					{
-						Name:       in.vgpuDevice.Name + "fake",
-						DeviceName: gpuhelper.GenerateDeviceName(in.vgpuDevice.Status.ConfiguredVGPUTypeName),
-					},
-				}
-			},
-			err: nil,
-		},
-		{
-			name: "mismatched gpu resource name ",
-			before: func(in input) {
-				in.vm.Spec.Template.Spec.Domain.Devices.HostDevices = []kubevirtv1.HostDevice{}
-				in.vm.Spec.Template.Spec.Domain.Devices.GPUs = []kubevirtv1.GPU{
-					{
-						Name:       in.vgpuDevice.Name,
-						DeviceName: gpuhelper.GenerateDeviceName(in.vgpuDevice.Status.ConfiguredVGPUTypeName) + "fake",
-					},
-				}
-			},
-			err: errors.New("gpu device vgpu-upgrade-test-000008005: resource name nvidia.com/NVIDIA_A2-2Qfake not found in pcidevice cache"),
-		},
 	}
 
 	for _, tc := range testcases {
@@ -285,32 +258,6 @@ func Test_UpdateVM(t *testing.T) {
 				in.vm.Spec.Template.Spec.Domain.Devices.HostDevices[1].DeviceName = "fake.com/device2"
 			},
 			err: errors.New("hostdevice node1dev1noiommu: resource name fake.com/device2 not found in pcidevice and usbdevice cache"),
-		},
-		{
-			name: "gpu device name is different from CR, it should be able to create",
-			before: func(in input) {
-				in.vm.Spec.Template.Spec.Domain.Devices.HostDevices = []kubevirtv1.HostDevice{}
-				in.vm.Spec.Template.Spec.Domain.Devices.GPUs = []kubevirtv1.GPU{
-					{
-						Name:       in.vgpuDevice.Name + "fake",
-						DeviceName: gpuhelper.GenerateDeviceName(in.vgpuDevice.Status.ConfiguredVGPUTypeName),
-					},
-				}
-			},
-			err: nil,
-		},
-		{
-			name: "mismatched gpu resource name ",
-			before: func(in input) {
-				in.vm.Spec.Template.Spec.Domain.Devices.HostDevices = []kubevirtv1.HostDevice{}
-				in.vm.Spec.Template.Spec.Domain.Devices.GPUs = []kubevirtv1.GPU{
-					{
-						Name:       in.vgpuDevice.Name,
-						DeviceName: gpuhelper.GenerateDeviceName(in.vgpuDevice.Status.ConfiguredVGPUTypeName) + "fake",
-					},
-				}
-			},
-			err: errors.New("gpu device vgpu-upgrade-test-000008005: resource name nvidia.com/NVIDIA_A2-2Qfake not found in pcidevice cache"),
 		},
 	}
 

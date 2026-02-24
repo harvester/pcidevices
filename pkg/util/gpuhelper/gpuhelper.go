@@ -2,7 +2,6 @@ package gpuhelper
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -17,9 +16,8 @@ import (
 )
 
 const (
-	supportedTypesDir      = "mdev_supported_types"
-	availableTypesFileName = "available_instances"
-	vGPUNameFile           = "name"
+	creatableVGPUTypes = "creatable_vgpu_types"
+	currentVGPUType    = "current_vgpu_type"
 )
 
 func IdentifySRIOVGPU(options []nvpci.Option, hostname string) ([]*v1beta1.SRIOVGPUDevice, error) {
@@ -136,7 +134,7 @@ func generateVGPUDevice(device *nvpci.NvidiaPCIDevice, nodeName string) (*v1beta
 		},
 	}
 
-	status, err := FetchVGPUStatus(v1beta1.MdevRoot, v1beta1.SysDevRoot, v1beta1.MdevBusClassRoot, device.Address)
+	status, err := FetchVGPUStatus(v1beta1.SysDevRoot, device.Address)
 	if err != nil {
 		return nil, err
 	}
@@ -147,140 +145,72 @@ func generateVGPUDevice(device *nvpci.NvidiaPCIDevice, nodeName string) (*v1beta
 	return vgpu, nil
 }
 
-// fetchAvailable is equivalent to running
-// /sys/class/mdev_bus/0000:08:02.0/mdev_supported_types # for i in *; do echo "$i" $(cat $i/name) available: $(cat $i/avail*); done
-// nvidia-742 NVIDIA A2-1B available: 0
-// nvidia-743 NVIDIA A2-2B available: 0
-// nvidia-744 NVIDIA A2-1Q available: 0
-// nvidia-745 NVIDIA A2-2Q available: 0
-// nvidia-746 NVIDIA A2-4Q available: 1
-// nvidia-747 NVIDIA A2-8Q available: 0
-// nvidia-748 NVIDIA A2-16Q available: 0
-// nvidia-749 NVIDIA A2-1A available: 0
-// nvidia-750 NVIDIA A2-2A available: 0
-// nvidia-751 NVIDIA A2-4A available: 1
-// nvidia-752 NVIDIA A2-8A available: 0
-// nvidia-753 NVIDIA A2-16A available: 0
-// nvidia-754 NVIDIA A2-4C available: 1
-// nvidia-755 NVIDIA A2-8C available: 0
-// nvidia-756 NVIDIA A2-16C available: 0
-// it will only return device types which are available, which can then be used to define vGPU type
-func fetchAvailableTypes(managedBusPath string, deviceAddress string) (map[string]string, error) {
-	vGPUTypesDir := filepath.Join(managedBusPath, deviceAddress, supportedTypesDir)
-	_, err := os.Lstat(vGPUTypesDir)
+/*
+Read the contents of creatable_vgpu_types from the vGPU device
+# cd /sys/bus/pci/devices/0000\:3d\:00.4/nvidia
+# cat creatable_vgpu_types
+ID    : vGPU Name
+1145  : NVIDIA L40S-1B
+1146  : NVIDIA L40S-2B
+1147  : NVIDIA L40S-1Q
+1148  : NVIDIA L40S-2Q
+1149  : NVIDIA L40S-3Q
+1150  : NVIDIA L40S-4Q
+1151  : NVIDIA L40S-6Q
+1152  : NVIDIA L40S-8Q
+1153  : NVIDIA L40S-12Q
+1154  : NVIDIA L40S-16Q
+1155  : NVIDIA L40S-24Q
+1156  : NVIDIA L40S-48Q
+1157  : NVIDIA L40S-1A
+1158  : NVIDIA L40S-2A
+1159  : NVIDIA L40S-3A
+1160  : NVIDIA L40S-4A
+1161  : NVIDIA L40S-6A
+1162  : NVIDIA L40S-8A
+1163  : NVIDIA L40S-12A
+1164  : NVIDIA L40S-16A
+1165  : NVIDIA L40S-24A
+1166  : NVIDIA L40S-48A
+2164  : NVIDIA L40S-3B
+*/
+
+func fetchAvailableTypes(pciDeviceRoot string, deviceAddress string) (map[string]string, error) {
+	creatableVgpuTypesFile := filepath.Join(pciDeviceRoot, deviceAddress, "nvidia", creatableVGPUTypes)
+	_, err := os.Stat(creatableVgpuTypesFile)
 	if err != nil {
-		return nil, fmt.Errorf("could not get %s directory information for device: %s, err: %v", supportedTypesDir, deviceAddress, err)
+		return nil, fmt.Errorf("could not get file %s for vgpu device %s: %w", creatableVGPUTypes, deviceAddress, err)
 	}
 
-	vgpuTypes, err := filepath.Glob(filepath.Join(vGPUTypesDir, "nvidia*"))
+	contents, err := os.ReadFile(creatableVgpuTypesFile)
 	if err != nil {
-		return nil, fmt.Errorf("error querying supported types: %v", err)
+		return nil, fmt.Errorf("error reading creatable_vgpu_types_file %w", err)
 	}
 
-	availableTypes := make(map[string]string)
-	for _, dir := range vgpuTypes {
-		availableInstances := filepath.Join(dir, availableTypesFileName)
-		_, err := os.Stat(availableInstances)
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			return nil, err
-		}
-		availableInstancesContent, err := os.ReadFile(availableInstances)
-		if err != nil {
-			return nil, err
-		}
-		if strings.Trim(string(availableInstancesContent), "\n") == "1" {
-			nameFile := filepath.Join(dir, vGPUNameFile)
-			nameContent, err := os.ReadFile(nameFile)
-			if err != nil {
-				return nil, err
-			}
-			dirs := strings.Split(dir, "/")
-			availableTypes[strings.Trim(string(nameContent), "\n")] = dirs[len(dirs)-1]
-		}
-	}
+	availableTypes := parseCurrentVGPUTypes(contents)
 	return availableTypes, nil
 }
 
-func FetchVGPUStatus(mdevRoot string, pciDeviceRoot string, managedBusPath string, deviceAddress string) (*v1beta1.VGPUDeviceStatus, error) {
-	var uuid, deviceType string
-
-	// on node reboot mdevRoot will not exist as a result the walk will fail.
-	// we need to return an empty status to allow vgpu config to be re-run
-	if _, err := os.Stat(mdevRoot); os.IsNotExist(err) {
-		return &v1beta1.VGPUDeviceStatus{}, nil
-	}
-
-	err := filepath.WalkDir(mdevRoot, func(path string, d fs.DirEntry, err error) error {
-		logrus.Debugf("checking path %s", path)
-		if err != nil {
-			fmt.Printf("prevent panic by handling failure accessing a path %s: %v", path, err)
-		}
-
-		dirInfo, err := d.Info()
-		if err != nil {
-			return err
-		}
-
-		if dirInfo.Mode().Type() != fs.ModeSymlink {
-			// no further action needed, as expected the device to point to a symlink
-			return nil
-		}
-
-		resolvedSymLink, err := filepath.EvalSymlinks(path)
-		if err != nil {
-			return fmt.Errorf("error resolving symlink %s:%v", path, err)
-		}
-
-		// symlink doesn't contain pcidevice address. no further action needed
-		if !strings.Contains(resolvedSymLink, deviceAddress) {
-			return nil
-		}
-
-		// return uuid of vGPU
-		uuidPaths := strings.Split(path, "/")
-		uuid = uuidPaths[len(uuidPaths)-1]
-
-		logrus.Debugf("found device %s", resolvedSymLink)
-		/// read configured DeviceType
-		mdevFile := filepath.Join(resolvedSymLink, "mdev_type")
-		mdevFileSymLink, err := filepath.EvalSymlinks(mdevFile)
-		if err != nil {
-			return fmt.Errorf("error resolving symlink %s: %v", mdevFileSymLink, err)
-		}
-
-		devtypePaths := strings.Split(mdevFileSymLink, "/")
-		deviceType = devtypePaths[len(devtypePaths)-1]
-		// return
-		return nil
-	})
-
+func FetchVGPUStatus(pciDeviceRoot string, deviceAddress string) (*v1beta1.VGPUDeviceStatus, error) {
+	currentType, err := fetchCurrentVGPUType(pciDeviceRoot, deviceAddress)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error during fetchVGPUstatus: %w", err)
 	}
 
-	status := &v1beta1.VGPUDeviceStatus{}
-	if uuid != "" {
-		status.UUID = uuid
+	availableTypes, err := fetchAvailableTypes(pciDeviceRoot, deviceAddress)
+	if err != nil {
+		return nil, fmt.Errorf("error during fetchAvailableTypes: %w", err)
+	}
+
+	status := &v1beta1.VGPUDeviceStatus{
+		AvailableTypes: availableTypes,
+		VGPUStatus:     v1beta1.VGPUDisabled,
+	}
+
+	if currentType != "0" && currentType != "" {
+		status.UUID = currentType
 		status.VGPUStatus = v1beta1.VGPUEnabled
 	}
-
-	if deviceType != "" {
-		vGPUName, err := os.ReadFile(filepath.Join(pciDeviceRoot, deviceAddress, supportedTypesDir, deviceType, "name"))
-		if err != nil {
-			return nil, fmt.Errorf("error reading name for VGPU device %s: %v", deviceAddress, err)
-		}
-		status.ConfiguredVGPUTypeName = strings.Trim(string(vGPUName), "\n")
-	}
-
-	availableTypes, err := fetchAvailableTypes(managedBusPath, deviceAddress)
-	if err != nil {
-		return nil, err
-	}
-
-	status.AvailableTypes = availableTypes
 	return status, nil
 }
 
@@ -295,4 +225,57 @@ func evalPhysFn(devicePath string) (string, error) {
 
 func GenerateDeviceName(deviceName string) string {
 	return common.GeneratevGPUDeviceName(deviceName)
+}
+
+func fetchCurrentVGPUType(basepath, pciAddress string) (string, error) {
+	vgpuTypePath := filepath.Join(basepath, pciAddress, "nvidia", currentVGPUType)
+	data, err := os.ReadFile(vgpuTypePath)
+	if err != nil {
+		return "", fmt.Errorf("error reading current_vgpu_type for device %s: %w", pciAddress, err)
+	}
+
+	return strings.TrimSpace(string(data)), nil
+}
+
+/*
+	parses contents of creatable_vgpu_types for a particular vGPU
+
+ID    : vGPU Name
+1145  : NVIDIA L40S-1B
+1146  : NVIDIA L40S-2B
+1147  : NVIDIA L40S-1Q
+1148  : NVIDIA L40S-2Q
+1149  : NVIDIA L40S-3Q
+1150  : NVIDIA L40S-4Q
+1151  : NVIDIA L40S-6Q
+1152  : NVIDIA L40S-8Q
+1153  : NVIDIA L40S-12Q
+1154  : NVIDIA L40S-16Q
+1155  : NVIDIA L40S-24Q
+1156  : NVIDIA L40S-48Q
+1157  : NVIDIA L40S-1A
+1158  : NVIDIA L40S-2A
+1159  : NVIDIA L40S-3A
+1160  : NVIDIA L40S-4A
+1161  : NVIDIA L40S-6A
+1162  : NVIDIA L40S-8A
+1163  : NVIDIA L40S-12A
+1164  : NVIDIA L40S-16A
+1165  : NVIDIA L40S-24A
+1166  : NVIDIA L40S-48A
+2164  : NVIDIA L40S-3B
+*/
+func parseCurrentVGPUTypes(contents []byte) map[string]string {
+	availableTypes := make(map[string]string)
+	lines := strings.Split(string(contents), "\n")
+	for _, v := range lines {
+		elements := strings.Split(v, ":")
+		if len(elements) != 2 {
+			continue
+		}
+		availableTypes[strings.TrimSpace(elements[1])] = strings.TrimSpace(elements[0])
+		delete(availableTypes, "vGPU Name") // remove the header of file
+	}
+
+	return availableTypes
 }
