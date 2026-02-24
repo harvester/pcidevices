@@ -88,7 +88,10 @@ func (h *Handler) ReconcilePCIDevices(nodename string) error {
 			}
 
 			devCopy := devCR.DeepCopy()
-
+			// needed for vgpu operation. This annotation will be added and removed by
+			// the vgpu controller on pcidevice object as part of enabling/disable a
+			// pcidevice
+			overrideResourceName := devCopy.Annotations[v1beta1.PCIDeviceOverrideResourceName]
 			// during reboot if the device driver has changed back from vfio, then update the CRD
 			// to correct driver in use. This will ensure that the original driver is correctly updated on device
 			// the PCIDeviceClaim checks for driver to identify if a rebind is needed on reboot
@@ -96,7 +99,7 @@ func (h *Handler) ReconcilePCIDevices(nodename string) error {
 				devCopy.Status.KernelDriverInUse = dev.Driver
 			}
 			// Update only modifies the status, no need to update the main object
-			devCopy.Status.Update(dev, nodename, iommuGroupMap) // update the in-memory CR with the current PCI info
+			devCopy.Status.Update(dev, nodename, iommuGroupMap, overrideResourceName) // update the in-memory CR with the current PCI info
 			_, err = h.client.UpdateStatus(devCopy)
 			if err != nil {
 				logrus.Errorf("[PCIDeviceController] Failed to update status sub-resource: %v", err)

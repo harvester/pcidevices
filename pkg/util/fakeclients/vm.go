@@ -106,23 +106,6 @@ func (c VirtualMachineCache) GetByIndex(indexName, key string) ([]*kubevirtv1api
 			}
 		}
 		return vms, nil
-	case VMByVGPU:
-		var vms []*kubevirtv1api.VirtualMachine
-		vmList, err := c.List("", labels.NewSelector())
-		if err != nil {
-			return nil, err
-		}
-
-		for _, vm := range vmList {
-			deviceInfo, err := common.VMByVGPUDevice(vm)
-			if err != nil {
-				return nil, err
-			}
-			if slices.Contains(deviceInfo, key) {
-				vms = append(vms, vm)
-			}
-		}
-		return vms, nil
 	default:
 		panic("implement me")
 	}

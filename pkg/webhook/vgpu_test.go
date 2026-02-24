@@ -95,7 +95,7 @@ var (
 			Name:      "vgpu-vm",
 			Namespace: "default",
 			Annotations: map[string]string{
-				devicesv1beta1.DeviceAllocationKey: `{"gpus":{"nvidia.com/fakevgpu":["vgpu1"]}}`,
+				devicesv1beta1.DeviceAllocationKey: `{"hostdevices":{"nvidia.com/fakevgpu":["vgpu1"]}}`,
 			},
 		},
 		Spec: kubevirtv1.VirtualMachineSpec{
@@ -103,9 +103,9 @@ var (
 				Spec: kubevirtv1.VirtualMachineInstanceSpec{
 					Domain: kubevirtv1.DomainSpec{
 						Devices: kubevirtv1.Devices{
-							GPUs: []kubevirtv1.GPU{
+							HostDevices: []kubevirtv1.HostDevice{
 								{
-									Name:       "vgpu1",
+									Name:       oldUsedVGPU.Name,
 									DeviceName: "nvidia.com/fakevgpu",
 								},
 							},

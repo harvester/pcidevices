@@ -1,7 +1,7 @@
 FROM registry.suse.com/bci/golang:1.25
 
 ARG DAPPER_HOST_ARCH
-ENV ARCH $DAPPER_HOST_ARCH
+ENV ARCH=$DAPPER_HOST_ARCH
 
 RUN zypper -n ar  https://download.opensuse.org/repositories/hardware/15.6/hardware.repo && \
     zypper -n --gpg-auto-import-keys refresh && \
@@ -9,8 +9,10 @@ RUN zypper -n ar  https://download.opensuse.org/repositories/hardware/15.6/hardw
 RUN go install golang.org/x/lint/golint@latest
 RUN go install golang.org/x/tools/cmd/goimports@latest
 RUN go install github.com/incu6us/goimports-reviser/v3@v3.10.0
-RUN export K8S_VERSION=1.24.2 && \
-    curl -sSLo envtest-bins.tar.gz "https://go.kubebuilder.io/test-tools/${K8S_VERSION}/$(go env GOOS)/$(go env GOARCH)" && \
+RUN export K8S_VERSION=v1.34.0 && \
+    export OS=$(go env GOOS) && \
+    export ARCH=$(go env GOARCH) && \
+    curl -sSLo envtest-bins.tar.gz "https://github.com/kubernetes-sigs/controller-tools/releases/download/envtest-${K8S_VERSION}/envtest-${K8S_VERSION}-${OS}-${ARCH}.tar.gz" && \
     mkdir /usr/local/kubebuilder && \
     tar -C /usr/local/kubebuilder --strip-components=1 -zvxf envtest-bins.tar.gz
 
@@ -22,13 +24,14 @@ RUN curl -sSfL https://github.com/docker/buildx/releases/download/v0.13.1/buildx
     chmod +x buildx-v0.13.1.linux-${ARCH} && \
     mv buildx-v0.13.1.linux-${ARCH} /usr/local/bin/buildx
 
-ENV GO111MODULE on
-ENV DAPPER_ENV REPO TAG DRONE_TAG
-ENV DAPPER_SOURCE /go/src/github.com/harvester/pcidevices/
-ENV DAPPER_OUTPUT ./bin ./dist ./pkg
-ENV DAPPER_RUN_ARGS "-v /proc:/host/proc --privileged"
-ENV DAPPER_DOCKER_SOCKET true
-ENV HOME ${DAPPER_SOURCE}
+ENV GO111MODULE=on
+ENV DAPPER_ENV="REPO TAG DRONE_TAG"
+ENV DAPPER_SOURCE="/go/src/github.com/harvester/pcidevices/"
+ENV DAPPER_OUTPUT="./bin ./dist ./pkg"
+ENV DAPPER_RUN_ARGS="-v /proc:/host/proc --privileged"
+ENV DAPPER_DOCKER_SOCKET=true
+ENV HOME=${DAPPER_SOURCE}
+ENV KUBEBUILDER_ASSETS="/usr/local/kubebuilder/envtest"
 WORKDIR ${DAPPER_SOURCE}
 
 ENTRYPOINT ["./scripts/entry"]

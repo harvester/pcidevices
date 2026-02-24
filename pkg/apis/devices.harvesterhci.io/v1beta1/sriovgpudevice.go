@@ -68,4 +68,6 @@ const (
 	DefaultNamespace                     = "harvester-system"
 	NvidiaDriverLabel                    = "app=nvidia-driver-daemonset"
 	NvidiaDriverNeededKey                = "sriovgpu.harvesterhci.io/driver-needed"
+	CreatableVGPUTypes                   = "creatable_vgpu_types"
+	CurrentVGPUType                      = "current_vgpu_type"
 )

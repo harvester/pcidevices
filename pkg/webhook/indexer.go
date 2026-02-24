@@ -18,7 +18,6 @@ const (
 	USBDeviceByAddress       = "pcidevice.harvesterhci.io/usb-device-by-address"
 	VMByPCIDeviceClaim       = "harvesterhci.io/vm-by-pcideviceclaim"
 	VMByUSBDeviceClaim       = "harvesterhci.io/vm-by-usbdeviceclaim"
-	VMByVGPU                 = "harvesterhci.io/vm-by-vgpu"
 	USBDeviceByResourceName  = "harvesterhci.io/usbdevice-by-resource-name"
 	vGPUDeviceByResourceName = "harvesterhci.io/vgpu-device-by-resource-name"
 )
@@ -30,7 +29,6 @@ func RegisterIndexers(clients *Clients) {
 	// Because USB device don't have same problem which vGPU and PCI device have,
 	// so we just need to use a simple way to collect the host device names.
 	vmCache.AddIndexer(VMByUSBDeviceClaim, common.VMBySpecHostDeviceName)
-	vmCache.AddIndexer(VMByVGPU, common.VMByVGPUDevice)
 	deviceCache := clients.DeviceFactory.Devices().V1beta1().PCIDevice().Cache()
 	deviceCache.AddIndexer(PCIDeviceByResourceName, pciDeviceByResourceName)
 	deviceCache.AddIndexer(IommuGroupByNode, iommuGroupByNodeName)

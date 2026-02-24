@@ -34,7 +34,7 @@ type handler struct {
 	ctx                        context.Context
 	sriovCache                 ctl.SRIOVNetworkDeviceCache
 	sriovClient                ctl.SRIOVNetworkDeviceClient
-	pciDeviceClient            ctl.PCIDeviceClient
+	pciDeviceCtl               ctl.PCIDeviceController
 	pciDeviceCache             ctl.PCIDeviceCache
 	nodeName                   string
 	vlanConfigCache            ctlnetworkv1beta1.VlanConfigCache
@@ -74,7 +74,7 @@ func Register(ctx context.Context, management *config.FactoryManager) error {
 		ctx:                        ctx,
 		sriovCache:                 sriovCtl.Cache(),
 		sriovClient:                sriovCtl,
-		pciDeviceClient:            pciDeviceCtl,
+		pciDeviceCtl:               pciDeviceCtl,
 		pciDeviceCache:             pciDeviceCtl.Cache(),
 		nodeName:                   nodeName,
 		coreNodeCache:              coreNodeCtl.Cache(),
@@ -113,7 +113,7 @@ func (h *handler) reconcileNodeDevices(name string, node *v1beta1.Node) (*v1beta
 	pciBridgeAddresses := pcidevice.IdentifyPCIBridgeDevices(pci)
 	skipAddresses = append(skipAddresses, pciBridgeAddresses...)
 
-	pciHandler := pcidevice.NewHandler(h.pciDeviceClient, pci, h.coreNodeCache, h.vlanConfigCache, h.sriovNetworkDeviceCache, skipAddresses)
+	pciHandler := pcidevice.NewHandler(h.pciDeviceCtl, pci, h.coreNodeCache, h.vlanConfigCache, h.sriovNetworkDeviceCache, skipAddresses)
 	err = pciHandler.ReconcilePCIDevices(h.nodeName)
 	if err != nil {
 		return nil, fmt.Errorf("error reconciling pcidevices for node %s: %v", h.nodeName, err)
@@ -131,7 +131,7 @@ func (h *handler) reconcileNodeDevices(name string, node *v1beta1.Node) (*v1beta
 	if err != nil {
 		return nil, fmt.Errorf("error setting up sriov devices for node %s: %v", h.nodeName, err)
 	}
-	gpuhelper, _ := gpudevice.NewHandler(h.ctx, h.sriovGPUController, h.vGPUController, h.pciDeviceClaimController, h.migConfigurationController, nil, nil, nil)
+	gpuhelper, _ := gpudevice.NewHandler(h.ctx, h.sriovGPUController, h.vGPUController, h.pciDeviceClaimController, h.pciDeviceCtl, h.migConfigurationController, nil, nil, nil)
 	err = gpuhelper.SetupSRIOVGPUDevices()
 	if err != nil {
 		return nil, fmt.Errorf("error setting up SRIOV GPU devices for node %s: %v", h.nodeName, err)

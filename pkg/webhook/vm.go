@@ -18,7 +18,9 @@ import (
 )
 
 const (
+	defaultHostDevBase     = "/spec/template/spec/domain/devices/hostDevices"
 	defaultHostDevBasePath = "/spec/template/spec/domain/devices/hostDevices/-"
+	defaultGPUDevBasePath  = "/spec/template/spec/domain/devices/gpus"
 )
 
 func NewPCIVMMutator(deviceCache v1beta1.PCIDeviceCache, pciClaimCache v1beta1.PCIDeviceClaimCache, pciClaimClient v1beta1.PCIDeviceClaimClient) types.Mutator {
@@ -63,31 +65,51 @@ func (vm *vmPCIMutator) Resource() types.Resource {
 func (vm *vmPCIMutator) Create(_ *types.Request, newObj runtime.Object) (types.PatchOps, error) {
 	vmObj := newObj.(*kubevirtv1.VirtualMachine)
 
-	if len(vmObj.Spec.Template.Spec.Domain.Devices.HostDevices) == 0 {
-		return nil, nil
+	var patches types.PatchOps
+	if len(vmObj.Spec.Template.Spec.Domain.Devices.HostDevices) != 0 {
+		hostPatches, err := vm.generateHostDevicesPatch(vmObj)
+		if err != nil {
+			return patches, fmt.Errorf("error generating hostdevices patch for vm %s/%s: %w", vmObj.Namespace, vmObj.Name, err)
+		}
+		patches = append(patches, hostPatches...)
 	}
 
-	return vm.generatePatch(vmObj)
+	if len(vmObj.Spec.Template.Spec.Domain.Devices.GPUs) != 0 {
+		gpuPatches, err := convertGPUsToHostDevices(vmObj)
+		if err != nil {
+			return patches, fmt.Errorf("error generating gpu conversion patch for vm %s/%s: %w", vmObj.Namespace, vmObj.Name, err)
+		}
+		patches = append(patches, gpuPatches...)
+	}
+	return patches, nil
 }
 
 func (vm *vmPCIMutator) Update(_ *types.Request, _ runtime.Object, newObj runtime.Object) (types.PatchOps, error) {
 	vmObj := newObj.(*kubevirtv1.VirtualMachine)
 	oldVMObj := newObj.(*kubevirtv1.VirtualMachine)
 
-	if len(vmObj.Spec.Template.Spec.Domain.Devices.HostDevices) == 0 {
-		return nil, nil
+	var patches types.PatchOps
+	if !reflect.DeepEqual(oldVMObj.Spec.Template.Spec.Domain.Devices.HostDevices, vmObj.Spec.Template.Spec.Domain.Devices.HostDevices) {
+		hostPatches, err := vm.generateHostDevicesPatch(vmObj)
+		if err != nil {
+			return patches, fmt.Errorf("error generating hostdevices patch for vm %s/%s: %w", vmObj.Namespace, vmObj.Name, err)
+		}
+		patches = append(patches, hostPatches...)
 	}
 
-	if reflect.DeepEqual(oldVMObj.Spec.Template.Spec.Domain.Devices.HostDevices, vmObj.Spec.Template.Spec.Domain.Devices.HostDevices) {
-		// no changes to host device, ignore request
-		return nil, nil
+	// if any GPUs exist in the updated vm, we try and convert them to host devices
+	if len(vmObj.Spec.Template.Spec.Domain.Devices.GPUs) != 0 {
+		gpuPatches, err := convertGPUsToHostDevices(vmObj)
+		if err != nil {
+			return patches, fmt.Errorf("error generating gpu conversion patch for vm %s/%s: %w", vmObj.Namespace, vmObj.Name, err)
+		}
+		patches = append(patches, gpuPatches...)
 	}
-
-	return vm.generatePatch(vmObj)
+	return patches, nil
 }
 
 // generatePatch is a common method used by create and update calls to generate a patch operation for VM
-func (vm *vmPCIMutator) generatePatch(vmObj *kubevirtv1.VirtualMachine) (types.PatchOps, error) {
+func (vm *vmPCIMutator) generateHostDevicesPatch(vmObj *kubevirtv1.VirtualMachine) (types.PatchOps, error) {
 	pciDevicesInVM := make([]string, 0, len(vmObj.Spec.Template.Spec.Domain.Devices.HostDevices))
 	var possiblePCIDeviceRequirement []pciDeviceWithOwners
 	for _, v := range vmObj.Spec.Template.Spec.Domain.Devices.HostDevices {
@@ -135,9 +157,16 @@ func (vm *vmPCIMutator) generatePatch(vmObj *kubevirtv1.VirtualMachine) (types.P
 		}
 	}
 	patch, err := generatePatchFromDevices(devicesNeeded)
-	if err == nil {
-		logrus.Debugf("generated patch for vm %s in ns %s: %v", vmObj.Name, vmObj.Namespace, patch)
+	if err != nil {
+		return patch, err
 	}
+
+	vgpuPatch, err := convertGPUsToHostDevices(vmObj)
+	if err != nil {
+		return patch, fmt.Errorf("error converting GPUs to HostDevices: %w", err)
+	}
+	patch = append(patch, vgpuPatch...)
+	logrus.Debugf("generated patch for vm %s in ns %s: %v", vmObj.Name, vmObj.Namespace, patch)
 	return patch, err
 }
 
@@ -145,7 +174,7 @@ func (vm *vmPCIMutator) generatePatch(vmObj *kubevirtv1.VirtualMachine) (types.P
 func generatePatchFromDevices(devicesNeeded []pciDeviceWithOwners) (types.PatchOps, error) {
 	var patchOps types.PatchOps
 	for _, dev := range devicesNeeded {
-		devPatch, err := generateDevicePatch(dev.device)
+		devPatch, err := generateDevicePatch(dev.device.Name, dev.device.Status.ResourceName)
 		if err != nil {
 			return nil, fmt.Errorf("error generating patch for device %s: %v", dev.device.Name, err)
 		}
@@ -154,11 +183,11 @@ func generatePatchFromDevices(devicesNeeded []pciDeviceWithOwners) (types.PatchO
 	return patchOps, nil
 }
 
-func generateDevicePatch(dev *devicesv1beta1.PCIDevice) (types.PatchOps, error) {
+func generateDevicePatch(name, resourceName string) (types.PatchOps, error) {
 	var patchOps types.PatchOps
 	hostDev := &kubevirtv1.HostDevice{
-		Name:       dev.Name,
-		DeviceName: dev.Status.ResourceName,
+		Name:       name,
+		DeviceName: resourceName,
 	}
 
 	hostDevStr, err := json.Marshal(hostDev)
@@ -224,4 +253,24 @@ func additionalDeviceAlreadyExists(devList []string, dev string) bool {
 	}
 
 	return false
+}
+
+func convertGPUsToHostDevices(vm *kubevirtv1.VirtualMachine) (types.PatchOps, error) {
+	var conversionPatch types.PatchOps
+	if len(vm.Spec.Template.Spec.Domain.Devices.HostDevices) == 0 {
+		// no hostdevices present so need to initalise an empty array
+		conversionPatch = append(conversionPatch, fmt.Sprintf(`{"op": "add", "path": "%s", "value": %v}`, defaultHostDevBase, "[]"))
+	}
+	for i, vgpu := range vm.Spec.Template.Spec.Domain.Devices.GPUs {
+		deviceIndexPath := fmt.Sprintf("%s/%d", defaultGPUDevBasePath, i)
+		// delete gpu device from section
+		conversionPatch = append(conversionPatch, fmt.Sprintf(`{"op": "remove", "path": "%s"}`, deviceIndexPath))
+		// DeviceName in vGPU or HostDevices maps to generated ResourceName advertised by the plugin
+		devPatch, err := generateDevicePatch(vgpu.Name, vgpu.DeviceName)
+		if err != nil {
+			return conversionPatch, fmt.Errorf("error converting vGPU to hostdevice: %w", err)
+		}
+		conversionPatch = append(conversionPatch, devPatch...)
+	}
+	return conversionPatch, nil
 }

@@ -112,24 +112,6 @@ func VMByHostDeviceName(obj *kubevirtv1.VirtualMachine) ([]string, error) {
 	return allocatedHostDevices, nil
 }
 
-// VMByVGPUDevice indexes VM's by vgpu names
-func VMByVGPUDevice(obj *kubevirtv1.VirtualMachine) ([]string, error) {
-	// find and add vgpu info from the DeviceAllocationKey annotation if present on the vm
-	if obj.Annotations == nil {
-		return nil, nil
-	}
-	allocationDetails, ok := obj.Annotations[v1beta1.DeviceAllocationKey]
-	if !ok {
-		return nil, nil
-	}
-
-	allocatedGPUs, err := generateGPUDeviceAllocation(obj, allocationDetails)
-	if err != nil {
-		return nil, err
-	}
-	return allocatedGPUs, nil
-}
-
 func generateDeviceAllocationDetails(allocationDetails string) (*v1beta1.AllocationDetails, error) {
 	currentAllocation := &v1beta1.AllocationDetails{}
 	err := json.Unmarshal([]byte(allocationDetails), currentAllocation)
@@ -147,18 +129,6 @@ func generateDeviceInfo(devices map[string][]string) []string {
 		allDevices = append(allDevices, v...)
 	}
 	return allDevices
-}
-
-func generateGPUDeviceAllocation(obj *kubevirtv1.VirtualMachine, allocationDetails string) ([]string, error) {
-	allocation, err := generateDeviceAllocationDetails(allocationDetails)
-	if err != nil {
-		return nil, fmt.Errorf("error generating device allocation details %s/%s: %v", obj.Name, obj.Namespace, err)
-	}
-
-	if allocation.GPUs != nil {
-		return generateDeviceInfo(allocation.GPUs), nil
-	}
-	return nil, nil
 }
 
 func generateHostDeviceAllocation(obj *kubevirtv1.VirtualMachine, allocationDetails string) ([]string, error) {
