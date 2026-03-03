@@ -157,16 +157,6 @@ func (vm *vmPCIMutator) generateHostDevicesPatch(vmObj *kubevirtv1.VirtualMachin
 		}
 	}
 	patch, err := generatePatchFromDevices(devicesNeeded)
-	if err != nil {
-		return patch, err
-	}
-
-	vgpuPatch, err := convertGPUsToHostDevices(vmObj)
-	if err != nil {
-		return patch, fmt.Errorf("error converting GPUs to HostDevices: %w", err)
-	}
-	patch = append(patch, vgpuPatch...)
-	logrus.Debugf("generated patch for vm %s in ns %s: %v", vmObj.Name, vmObj.Namespace, patch)
 	return patch, err
 }
 
