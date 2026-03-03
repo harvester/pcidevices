@@ -1,8 +1,6 @@
 module github.com/harvester/pcidevices
 
-go 1.25
-
-toolchain go1.25.2
+go 1.25.7
 
 require (
 	github.com/NVIDIA/go-nvlib v0.8.0
@@ -26,10 +24,10 @@ require (
 	google.golang.org/grpc v1.72.2
 	k8s.io/api v0.33.1
 	k8s.io/apimachinery v0.33.1
-	k8s.io/cli-runtime v0.32.2
+	k8s.io/cli-runtime v0.33.1
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/kube-aggregator v0.33.1
-	k8s.io/kubectl v0.30.1
+	k8s.io/kubectl v0.33.1
 	kubevirt.io/api v1.5.0
 	kubevirt.io/client-go v1.5.0
 	kubevirt.io/kubevirt v1.5.0
