@@ -332,6 +332,8 @@ func Test_submitPCIDeviceClaim(t *testing.T) {
 	_, ok = pciDeviceObj.Annotations[v1beta1.PCIDeviceOverrideResourceName]
 	assert.True(ok, "expected to find annotation for v1beta1.PCIDeviceOverrideResourceName")
 	assert.Equal(pciDeviceObj.Status.ResourceName, gpuhelper.GenerateDeviceName(typedVGPU.Spec.VGPUTypeName))
+	_, ok = pciDeviceObj.Labels[v1beta1.ParentSRIOVGPUDeviceLabel]
+	assert.True(ok, "expected to find label for v1beta1.ParentSRIOVGPUDeviceLabel")
 }
 
 func generateObject(obj runtime.Object, content string) (runtime.Object, error) {
@@ -367,5 +369,7 @@ func Test_cleanupPCIDeviceClaim(t *testing.T) {
 	pciDeviceObj, err := h.pciDeviceCache.Get(typedVGPU.Name)
 	assert.NoError(err, "expected no error during pcidevice lookup")
 	_, ok = pciDeviceObj.Annotations[v1beta1.PCIDeviceOverrideResourceName]
-	assert.False(ok, "expected to find annotation for v1beta1.PCIDeviceOverrideResourceName")
+	assert.False(ok, "expected to not find annotation for v1beta1.PCIDeviceOverrideResourceName")
+	_, ok = pciDeviceObj.Labels[v1beta1.ParentSRIOVGPUDeviceLabel]
+	assert.False(ok, "expected to not find label for v1beta1.ParentSRIOVGPUDeviceLabel")
 }

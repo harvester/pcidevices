@@ -236,7 +236,7 @@ func (h *Handler) submitPCIDeviceClaim(vgpu *v1beta1.VGPUDevice) error {
 	// patch pcidevice resource name in spec
 	// this is needed to ensure that regularly scheduled pcidevice reconcile
 	// does not wipe the resource name causing issues with plugin
-	if err := h.patchPCIDeviceSpec(vgpu.Name, resourceName); err != nil {
+	if err := h.patchPCIDeviceSpec(vgpu.Name, resourceName, vgpu.Spec.ParentGPUDeviceAddress); err != nil {
 		return fmt.Errorf("error patching pcidevice resource name for vgpu %s: %w", vgpu.Name, err)
 	}
 
@@ -285,7 +285,7 @@ func (h *Handler) cleanupRelatedPCIDeviceObjects(vgpu *v1beta1.VGPUDevice) error
 	return h.cleanupPCIDeviceSpec(vgpu.Name)
 }
 
-func (h *Handler) patchPCIDeviceSpec(vgpu, resourceName string) error {
+func (h *Handler) patchPCIDeviceSpec(vgpu, resourceName, parentAddress string) error {
 	pdObj, err := h.pciDeviceCache.Get(vgpu)
 	if err != nil {
 		return fmt.Errorf("error looking up pcidevice %s in patchPCIDeviceSpec: %w", vgpu, err)
@@ -294,8 +294,14 @@ func (h *Handler) patchPCIDeviceSpec(vgpu, resourceName string) error {
 	if pdObj.Annotations == nil {
 		pdObj.Annotations = make(map[string]string)
 	}
+
+	if pdObj.Labels == nil {
+		pdObj.Labels = make(map[string]string)
+	}
+
 	pdObjCopy := pdObj.DeepCopy()
 	pdObjCopy.Annotations[v1beta1.PCIDeviceOverrideResourceName] = resourceName
+	pdObjCopy.Labels[v1beta1.ParentSRIOVGPUDeviceLabel] = v1beta1.PCIDeviceNameForHostname(parentAddress, h.nodeName)
 	// need to update pcidevice
 	if reflect.DeepEqual(pdObj, pdObjCopy) {
 		return nil
@@ -328,6 +334,7 @@ func (h *Handler) cleanupPCIDeviceSpec(vgpu string) error {
 	// we just remove the annotation, and regular reconcile of pcidevice will eventually update
 	// resource name in status as well
 	delete(pdObjCopy.Annotations, v1beta1.PCIDeviceOverrideResourceName)
+	delete(pdObjCopy.Labels, v1beta1.ParentSRIOVGPUDeviceLabel)
 	// need to update pcidevice
 	if reflect.DeepEqual(pdObj, pdObjCopy) {
 		return nil
