@@ -79,6 +79,15 @@ var (
 		},
 	}
 
+	newVGPUPCIDevice = &v1beta1.PCIDevice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "fakeNode-000011004",
+			Labels: map[string]string{
+				"nodename": nodeName,
+			},
+		},
+	}
+
 	vguDeviceJson = `{
     "apiVersion": "devices.harvesterhci.io/v1beta1",
     "kind": "VGPUDevice",
@@ -259,7 +268,7 @@ var (
 
 func Test_reconcileVGPUSetup(t *testing.T) {
 	assert := require.New(t)
-	client := fake.NewSimpleClientset(missingVGPU)
+	client := fake.NewSimpleClientset(missingVGPU, newVGPUPCIDevice)
 	vGPUDevices := make([]*v1beta1.VGPUDevice, 0, 2)
 	vGPUDevices = append(vGPUDevices, foundPresentVGPU, newVGPU)
 	h := &Handler{
@@ -268,6 +277,8 @@ func Test_reconcileVGPUSetup(t *testing.T) {
 		vGPUCache:           fakeclients.VGPUDeviceCache(client.DevicesV1beta1().VGPUDevices),
 		vGPUClient:          fakeclients.VGPUDeviceClient(client.DevicesV1beta1().VGPUDevices),
 		pciDeviceClaimCache: fakeclients.PCIDeviceClaimsCache(client.DevicesV1beta1().PCIDeviceClaims),
+		pciDevice:           fakeclients.PCIDevicesClient(client.DevicesV1beta1().PCIDevices),
+		pciDeviceCache:      fakeclients.PCIDevicesCache(client.DevicesV1beta1().PCIDevices),
 	}
 	err := h.reconcileVGPUSetup(vGPUDevices)
 	assert.NoError(err)
@@ -288,6 +299,11 @@ func Test_reconcileVGPUSetup(t *testing.T) {
 	})
 	assert.NoError(err, "expect no error while listing VGPU's")
 	assert.Len(vGPUList.Items, 2, "expected to find only 2 VGPU's")
+	// check PCIDevice has parent device label setup
+	pciObj, err := client.DevicesV1beta1().PCIDevices().Get(context.TODO(), newVGPUPCIDevice.Name, metav1.GetOptions{})
+	assert.NoError(err, "expected no error while looking up pcidevice")
+	_, ok := pciObj.Labels[v1beta1.ParentSRIOVGPUDeviceLabel]
+	assert.True(ok, "expected to find parent sriovgpu device label")
 
 }
 

@@ -108,6 +108,30 @@ func (h *Handler) reconcileVGPUSetup(vGPUDevices []*v1beta1.VGPUDevice) error {
 			}
 		}
 	}
+
+	// annotate pcidevice objects
+	for _, v := range vGPUDevices {
+		// lookup pcidevice object and update if it needed
+		pciDeviceObj, err := h.pciDeviceCache.Get(v.Name)
+		if err != nil {
+			// pcidevice is not found, nothing needed to be done, as at next reconcile
+			// we will find and update the annotation
+			if apierrors.IsNotFound(err) {
+				continue
+			}
+			return fmt.Errorf("error looking up PCIDevice %s as part of vGPUDevice: %w", v.Name, err)
+		}
+		pciDeviceObjCopy := pciDeviceObj.DeepCopy()
+		if pciDeviceObjCopy.Annotations == nil {
+			pciDeviceObjCopy.Annotations = make(map[string]string)
+		}
+		pciDeviceObjCopy.Labels[v1beta1.ParentSRIOVGPUDeviceLabel] = v1beta1.PCIDeviceNameForHostname(v.Spec.Address, h.nodeName)
+		if !reflect.DeepEqual(pciDeviceObjCopy, pciDeviceObj) {
+			if _, err := h.pciDevice.Update(pciDeviceObjCopy); err != nil {
+				return fmt.Errorf("error applying label %s to pcidevice %s during vGPU setup: %w", v1beta1.ParentSRIOVGPUDeviceLabel, v.Name, err)
+			}
+		}
+	}
 	return nil
 }
 
