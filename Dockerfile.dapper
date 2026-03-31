@@ -29,7 +29,7 @@ RUN export K8S_VERSION=v1.34.0 && \
     tar -C /usr/local/kubebuilder --strip-components=1 -zvxf envtest-bins.tar.gz
 
 ## install golangci
-#RUN go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.4
+RUN go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.4
 
 ENV GO111MODULE=on
 ENV DAPPER_ENV="REPO TAG DRONE_TAG"
