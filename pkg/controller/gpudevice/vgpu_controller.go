@@ -122,10 +122,10 @@ func (h *Handler) reconcileVGPUSetup(vGPUDevices []*v1beta1.VGPUDevice) error {
 			return fmt.Errorf("error looking up PCIDevice %s as part of vGPUDevice: %w", v.Name, err)
 		}
 		pciDeviceObjCopy := pciDeviceObj.DeepCopy()
-		if pciDeviceObjCopy.Annotations == nil {
-			pciDeviceObjCopy.Annotations = make(map[string]string)
+		if pciDeviceObjCopy.Labels == nil {
+			pciDeviceObjCopy.Labels = make(map[string]string)
 		}
-		pciDeviceObjCopy.Labels[v1beta1.ParentSRIOVGPUDeviceLabel] = v1beta1.PCIDeviceNameForHostname(v.Spec.Address, h.nodeName)
+		pciDeviceObjCopy.Labels[v1beta1.ParentSRIOVGPUDeviceLabel] = v.Labels[v1beta1.ParentSRIOVGPUDeviceLabel]
 		if !reflect.DeepEqual(pciDeviceObjCopy, pciDeviceObj) {
 			if _, err := h.pciDevice.Update(pciDeviceObjCopy); err != nil {
 				return fmt.Errorf("error applying label %s to pcidevice %s during vGPU setup: %w", v1beta1.ParentSRIOVGPUDeviceLabel, v.Name, err)
