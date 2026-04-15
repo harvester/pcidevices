@@ -77,11 +77,16 @@ func (h *Handler) reconcileVGPUSetup(vGPUDevices []*v1beta1.VGPUDevice) error {
 	for _, v := range vGPUDevices {
 		existingVGPU := containsVGPU(v, vGPUList)
 		if existingVGPU != nil {
-			if v.Status.VGPUStatus != existingVGPU.Status.VGPUStatus {
+			logrus.Debugf("found vGPU device from sysfs with address %s and name %s and status %v", v.Spec.Address, v.Name, v.Status)
+			logrus.Debugf("found vGPU device from apiserver with address %s and name %s and status %v", existingVGPU.Spec.Address, existingVGPU.Name, existingVGPU.Status)
+			existingVGPUCopy := existingVGPU.DeepCopy()
+			existingVGPU.Status.AvailableTypes = v.Status.AvailableTypes
+			existingVGPU.Status.VGPUStatus = v.Status.VGPUStatus
+			existingVGPU.Status.UUID = v.Status.UUID
+			if !reflect.DeepEqual(existingVGPUCopy.Status, existingVGPU.Status) {
 				// on reboot the vGPU status will not match the state in CRD
 				// in which case we should if needed reset the vGPU status and
 				// allow reconcile to flow through
-				existingVGPU.Status.VGPUStatus = v.Status.VGPUStatus
 				if _, err := h.vGPUClient.UpdateStatus(existingVGPU); err != nil {
 					return err
 				}
