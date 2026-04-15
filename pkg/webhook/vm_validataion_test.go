@@ -147,7 +147,7 @@ func Test_CreateVM(t *testing.T) {
 			before: func(in input) {
 				in.vm.Spec.Template.Spec.Domain.Devices.HostDevices[0].DeviceName = "fake.com/device2"
 			},
-			err: errors.New("hostdevice usbdevice2innode1: resource name fake.com/device2 not found in pcidevice and usbdevice cache"),
+			err: errors.New("hostdevice usbdevice2innode1: resource name fake.com/device2 not found in pcidevice, usbdevice, and vgpu device cache"),
 		},
 		{
 			name: "pci device name is different from CR, it should be able to create",
@@ -161,7 +161,7 @@ func Test_CreateVM(t *testing.T) {
 			before: func(in input) {
 				in.vm.Spec.Template.Spec.Domain.Devices.HostDevices[1].DeviceName = "fake.com/device2"
 			},
-			err: errors.New("hostdevice node1dev1noiommu: resource name fake.com/device2 not found in pcidevice and usbdevice cache"),
+			err: errors.New("hostdevice node1dev1noiommu: resource name fake.com/device2 not found in pcidevice, usbdevice, and vgpu device cache"),
 		},
 	}
 
@@ -243,7 +243,7 @@ func Test_UpdateVM(t *testing.T) {
 			before: func(in input) {
 				in.vm.Spec.Template.Spec.Domain.Devices.HostDevices[0].DeviceName = "fake.com/device2"
 			},
-			err: errors.New("hostdevice usbdevice2innode1: resource name fake.com/device2 not found in pcidevice and usbdevice cache"),
+			err: errors.New("hostdevice usbdevice2innode1: resource name fake.com/device2 not found in pcidevice, usbdevice, and vgpu device cache"),
 		},
 		{
 			name: "pci device name is different from CR, it should be able to create",
@@ -257,7 +257,7 @@ func Test_UpdateVM(t *testing.T) {
 			before: func(in input) {
 				in.vm.Spec.Template.Spec.Domain.Devices.HostDevices[1].DeviceName = "fake.com/device2"
 			},
-			err: errors.New("hostdevice node1dev1noiommu: resource name fake.com/device2 not found in pcidevice and usbdevice cache"),
+			err: errors.New("hostdevice node1dev1noiommu: resource name fake.com/device2 not found in pcidevice, usbdevice, and vgpu device cache"),
 		},
 	}
 
@@ -279,5 +279,72 @@ func Test_UpdateVM(t *testing.T) {
 		err := validator.Update(nil, nil, in.vm)
 
 		assert.Equal(t, tc.err, err, tc.name)
+	}
+}
+
+func Test_validatevGPUDvice(t *testing.T) {
+	vgpuDevice := &devicesv1beta1.VGPUDevice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "vgpu-test-device",
+		},
+		Spec: devicesv1beta1.VGPUDeviceSpec{
+			Address:                "0000:08:00.5",
+			Enabled:                true,
+			NodeName:               "test-node",
+			ParentGPUDeviceAddress: "0000:08:00.0",
+			VGPUTypeName:           "NVIDIA A2-2Q",
+		},
+		Status: devicesv1beta1.VGPUDeviceStatus{
+			ConfiguredVGPUTypeName: "NVIDIA A2-2Q",
+			UUID:                   "f2285cf1-0aaa-4d05-af20-78cec22f02c7",
+			VGPUStatus:             "vGPUConfigured",
+		},
+	}
+
+	testcases := []struct {
+		name         string
+		resourceName string
+		expectedErr  error
+		expectedFind bool
+	}{
+		{
+			name:         "vGPU device found with matching resource name",
+			resourceName: "nvidia.com/NVIDIA_A2-2Q",
+			expectedErr:  nil,
+			expectedFind: true,
+		},
+		{
+			name:         "vGPU device not found with non-matching resource name",
+			resourceName: "nvidia.com/NVIDIA_A2-4Q",
+			expectedErr:  nil,
+			expectedFind: false,
+		},
+		{
+			name:         "vGPU device not found with completely different resource name",
+			resourceName: "fake.com/device1",
+			expectedErr:  nil,
+			expectedFind: false,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			fakeClient := fake.NewSimpleClientset(vgpuDevice)
+			vGPUCache := fakeclients.VGPUDeviceCache(fakeClient.DevicesV1beta1().VGPUDevices)
+
+			validator := &vmDeviceHostValidator{
+				vgpuCache: vGPUCache,
+			}
+
+			found, err := validator.validatevGPUDvice(tc.resourceName)
+
+			if tc.expectedErr != nil {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tc.expectedErr.Error())
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tc.expectedFind, found)
+		})
 	}
 }

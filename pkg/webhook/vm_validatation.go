@@ -57,6 +57,8 @@ func (vmValidator *vmDeviceHostValidator) validateDevices(vmObj *kubevirtv1.Virt
 	logrus.Infof("vm name: %s", vmObj.Name)
 	logrus.Infof("host devices: %v", vmObj.Spec.Template.Spec.Domain.Devices.HostDevices)
 	logrus.Infof("gpu devices: %v", vmObj.Spec.Template.Spec.Domain.Devices.GPUs)
+	
+	// Validate HostDevices
 	if len(vmObj.Spec.Template.Spec.Domain.Devices.HostDevices) != 0 {
 		if err := vmValidator.validateHostDevices(vmObj); err != nil {
 			return err
@@ -65,6 +67,14 @@ func (vmValidator *vmDeviceHostValidator) validateDevices(vmObj *kubevirtv1.Virt
 			return err
 		}
 	}
+	
+	// Also validate GPUs if they exist (in case mutator hasn't run yet)
+	if len(vmObj.Spec.Template.Spec.Domain.Devices.GPUs) != 0 {
+		if err := vmValidator.validateGPUDevices(vmObj); err != nil {
+			return err
+		}
+	}
+	
 	return nil
 }
 
@@ -115,9 +125,13 @@ func (vmValidator *vmDeviceHostValidator) validateDevicesFromSameNodes(vmObj *ku
 func (vmValidator *vmDeviceHostValidator) validateHostDevices(vmObj *kubevirtv1.VirtualMachine) error {
 	for _, hostDevice := range vmObj.Spec.Template.Spec.Domain.Devices.HostDevices {
 		var (
-			foundInPCI, foundInUSB bool
-			err                    error
+			foundInPCI, foundInUSB, foundInvGPU bool
+			err                                 error
 		)
+
+		if foundInvGPU, err = vmValidator.validatevGPUDvice(hostDevice.DeviceName); err != nil {
+			return err
+		}
 
 		if foundInPCI, err = vmValidator.validatePCIDevice(hostDevice.DeviceName); err != nil {
 			return err
@@ -127,11 +141,24 @@ func (vmValidator *vmDeviceHostValidator) validateHostDevices(vmObj *kubevirtv1.
 			return err
 		}
 
-		if !foundInPCI && !foundInUSB {
-			return fmt.Errorf("hostdevice %s: resource name %s not found in pcidevice and usbdevice cache", hostDevice.Name, hostDevice.DeviceName)
+		if !foundInPCI && !foundInUSB && !foundInvGPU {
+			return fmt.Errorf("hostdevice %s: resource name %s not found in pcidevice, usbdevice, and vgpu device cache", hostDevice.Name, hostDevice.DeviceName)
 		}
 	}
 	return nil
+}
+
+func (vmValidator *vmDeviceHostValidator) validatevGPUDvice(resourceName string) (found bool, err error) {
+	vgpuDeviceObjs, err := vmValidator.vgpuCache.GetByIndex(vGPUDeviceByResourceName, resourceName)
+	if err != nil {
+		return false, fmt.Errorf("error looking up vgpu device %s from cache: %v", resourceName, err)
+	}
+
+	if len(vgpuDeviceObjs) == 0 {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func (vmValidator *vmDeviceHostValidator) validatePCIDevice(resourceName string) (found bool, err error) {
@@ -158,4 +185,19 @@ func (vmValidator *vmDeviceHostValidator) validateUSBDevice(resourceName string)
 	}
 
 	return true, nil
+}
+
+func (vmValidator *vmDeviceHostValidator) validateGPUDevices(vmObj *kubevirtv1.VirtualMachine) error {
+	for _, gpu := range vmObj.Spec.Template.Spec.Domain.Devices.GPUs {
+		// DeviceName in GPU spec maps to generated ResourceName advertised by the plugin
+		found, err := vmValidator.validatevGPUDvice(gpu.DeviceName)
+		if err != nil {
+			return err
+		}
+
+		if !found {
+			return fmt.Errorf("gpu device %s: resource name %s not found in vgpu device cache", gpu.Name, gpu.DeviceName)
+		}
+	}
+	return nil
 }
