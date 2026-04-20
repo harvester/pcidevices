@@ -7,6 +7,7 @@ import (
 	ctlcorev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	"github.com/sirupsen/logrus"
 	admissionregv1 "k8s.io/api/admissionregistration/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	kubevirtctl "github.com/harvester/harvester/pkg/generated/controllers/kubevirt.io/v1"
@@ -89,6 +90,23 @@ func (pdc *pciDeviceClaimValidator) Create(_ *types.Request, newObj runtime.Obje
 		return err
 	}
 
+	// check if vGPU devices exist for associated PCIDevice, and block creation of PCIDeviceClaim if there are vGPU devices using the same PCIDevice
+	pdcList, err := pdc.deviceCache.List(labels.SelectorFromSet(labels.Set{devicesv1beta1.ParentSRIOVGPUDeviceLabel: pciDev.Name}))
+	if err != nil {
+		return err
+	}
+
+	if len(pdcList) != 0 {
+		var used []string
+		for _, pdc := range pdcList {
+			used = append(used, pdc.Name)
+		}
+
+		vgpuDevices := strings.Join(used, ", ")
+		err = fmt.Errorf("these vGPU devices [%s] are using the PCI GPU Device [%s], so it can't be claimed. \n If you need to claim this PCI GPU device, please disable associated SRIOVGPUDevice", vgpuDevices, pciDev.Name)
+		logrus.Error(err.Error())
+		return err
+	}
 	return nil
 }
 
