@@ -66,8 +66,16 @@ func (p PCIDevicesCache) Get(name string) (*pcidevicev1beta1.PCIDevice, error) {
 	return p().Get(context.TODO(), name, metav1.GetOptions{})
 }
 
-func (p PCIDevicesCache) List(labels.Selector) ([]*pcidevicev1beta1.PCIDevice, error) {
-	panic("implement me")
+func (p PCIDevicesCache) List(selector labels.Selector) ([]*pcidevicev1beta1.PCIDevice, error) {
+	devices, err := p().List(context.TODO(), metav1.ListOptions{LabelSelector: selector.String()})
+	if err != nil {
+		return nil, err
+	}
+	var resp []*pcidevicev1beta1.PCIDevice
+	for i := range devices.Items {
+		resp = append(resp, &devices.Items[i])
+	}
+	return resp, nil
 }
 
 func (p PCIDevicesCache) AddIndexer(_ string, _ generic.Indexer[*pcidevicev1beta1.PCIDevice]) {

@@ -60,6 +60,54 @@ var (
 			Name: "node1",
 		},
 	}
+
+	parentGPU = &devicesv1beta1.PCIDevice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "node1gpu1",
+		},
+		Spec: devicesv1beta1.PCIDeviceSpec{},
+		Status: devicesv1beta1.PCIDeviceStatus{
+			Address:           "0000:04:10.0",
+			ClassID:           "0300",
+			Description:       "fake GPU device 1",
+			NodeName:          "node1",
+			ResourceName:      "fake.com/gpudevice1",
+			VendorID:          "8086",
+			KernelDriverInUse: "vfio-pci",
+			IOMMUGroup:        "15",
+		},
+	}
+	vGPUDevice = &devicesv1beta1.PCIDevice{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "node1vgpu1",
+			Labels: map[string]string{
+				devicesv1beta1.ParentSRIOVGPUDeviceLabel: "node1gpu1",
+			},
+		},
+		Spec: devicesv1beta1.PCIDeviceSpec{},
+		Status: devicesv1beta1.PCIDeviceStatus{
+			Address:           "0000:04:10.1",
+			ClassID:           "0300",
+			Description:       "fake vGPU device 1",
+			NodeName:          "node1",
+			ResourceName:      "fake.com/vgpudevice1",
+			VendorID:          "8086",
+			KernelDriverInUse: "vfio-pci",
+			IOMMUGroup:        "15",
+		},
+	}
+
+	parentGPUClaim = &devicesv1beta1.PCIDeviceClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "node1gpu1",
+		},
+		Spec: devicesv1beta1.PCIDeviceClaimSpec{
+			UserName: "admin",
+			NodeName: "node1",
+			Address:  "0000:04:10.0",
+		},
+	}
+
 	k8sClient = k8sfake.NewClientset(node1)
 	nodeCache = fakeclients.NodeCache(k8sClient.CoreV1().Nodes)
 )
@@ -147,4 +195,15 @@ func Test_DeletePCIDeviceClaimInUseOnDeletedNode(t *testing.T) {
 
 	err := pciValidator.Delete(nil, node2dev1Claim)
 	assert.NoError(err, "expected no error during validation")
+}
+
+func Test_CreatePCIDeviceClaimWhenVGPUExist(t *testing.T) {
+	assert := require.New(t)
+	fakeClient := fake.NewSimpleClientset(vGPUDevice, parentGPU)
+	pciDeviceCache := fakeclients.PCIDevicesCache(fakeClient.DevicesV1beta1().PCIDevices)
+	usbDeviceClaimCache := fakeclients.USBDeviceClaimsCache(fakeClient.DevicesV1beta1().USBDeviceClaims)
+	usbDeviceCache := fakeclients.USBDeviceCache(fakeClient.DevicesV1beta1().USBDevices)
+	pciValidator := NewPCIDeviceClaimValidator(pciDeviceCache, nil, usbDeviceClaimCache, usbDeviceCache, nodeCache)
+	err := pciValidator.Create(nil, parentGPUClaim)
+	assert.Error(err, "expected to get error")
 }
