@@ -71,18 +71,30 @@ type USBDevice struct {
 	DevicePath   string
 	PCIAddress   string
 	ClassType    string
+	ProductName  string
 }
 
 func (dev *USBDevice) GetID() string {
 	return fmt.Sprintf("%04x:%04x-%02d:%02d", dev.Vendor, dev.Product, dev.Bus, dev.DeviceNumber)
 }
 
+// readSysfsString reads a plain-text sysfs file (e.g. "product", "manufacturer")
+// and returns its trimmed content, or an empty string on error.
+func readSysfsString(dir, filename string) string {
+	data, err := os.ReadFile(filepath.Join(dir, filename))
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(string(data))
+}
+
 // parseClassCode reads a sysfs file containing a hex USB class code (e.g. "bDeviceClass")
 // and returns the parsed integer value.
 // Returns (0, false) on any read or parse error.
 func parseClassCode(dir, filename string) (int, bool) {
-	data, err := os.ReadFile(filepath.Join(dir, filename))
-	if err != nil {
+	data := readSysfsString(dir, filename)
+	if data == "" {
 		return 0, false
 	}
 
@@ -93,6 +105,7 @@ func parseClassCode(dir, filename string) (int, bool) {
 	if err != nil {
 		return 0, false
 	}
+
 	return int(code), true
 }
 
@@ -124,16 +137,17 @@ func parseUSBClassType(path string) string {
 	if err != nil {
 		return ""
 	}
+
 	for _, entry := range entries {
 		if !entry.IsDir() || !strings.Contains(entry.Name(), ":") {
 			continue
 		}
 
-		path := filepath.Join(path, entry.Name())
-		if iCode, ok := parseClassCode(path, "bInterfaceClass"); ok {
+		if iCode, ok := parseClassCode(filepath.Join(path, entry.Name()), "bInterfaceClass"); ok {
 			return classTypeName(iCode)
 		}
 	}
+
 	return ""
 }
 
@@ -170,6 +184,7 @@ func parseSysUeventFile(path string) *USBDevice {
 		}
 	}
 
+	u.ProductName = readSysfsString(path, "product")
 	u.ClassType = parseUSBClassType(path)
 
 	return &u
