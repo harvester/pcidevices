@@ -155,7 +155,7 @@ func generatePatchFromDevices(devicesNeeded []pciDeviceWithOwners) (types.PatchO
 }
 
 func generateDevicePatch(dev *devicesv1beta1.PCIDevice) (types.PatchOps, error) {
-	var patchOps types.PatchOps
+	patchOps := make(types.PatchOps, 0, 1)
 	hostDev := &kubevirtv1.HostDevice{
 		Name:       dev.Name,
 		DeviceName: dev.Status.ResourceName,

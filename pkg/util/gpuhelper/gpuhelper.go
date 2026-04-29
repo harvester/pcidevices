@@ -209,10 +209,12 @@ func FetchVGPUStatus(mdevRoot string, pciDeviceRoot string, managedBusPath strin
 
 	// on node reboot mdevRoot will not exist as a result the walk will fail.
 	// we need to return an empty status to allow vgpu config to be re-run
+	// #nosec No risk for path injection. mdevRoot is a static sysfs path managed by callers.
 	if _, err := os.Stat(mdevRoot); os.IsNotExist(err) {
 		return &v1beta1.VGPUDeviceStatus{}, nil
 	}
 
+	// #nosec No risk for path injection. mdevRoot is a static sysfs path managed by callers.
 	err := filepath.WalkDir(mdevRoot, func(path string, d fs.DirEntry, err error) error {
 		logrus.Debugf("checking path %s", path)
 		if err != nil {
@@ -268,6 +270,7 @@ func FetchVGPUStatus(mdevRoot string, pciDeviceRoot string, managedBusPath strin
 	}
 
 	if deviceType != "" {
+		// #nosec No risk for path injection. Reading static sysfs path of vGPU type name.
 		vGPUName, err := os.ReadFile(filepath.Join(pciDeviceRoot, deviceAddress, supportedTypesDir, deviceType, "name"))
 		if err != nil {
 			return nil, fmt.Errorf("error reading name for VGPU device %s: %v", deviceAddress, err)
