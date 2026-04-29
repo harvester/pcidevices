@@ -27,8 +27,8 @@ import "time"
 //
 // The baked-in data was last generated:
 //
-// 2025-08-22 16:07:44.519359417 +1000 AEST m=+1.186429492
-var LastUpdate = time.Unix(0, 1755842864519359417)
+// 2026-04-29 02:38:21.56589096 +0000 UTC m=+1.293189684
+var LastUpdate = time.Unix(0, 1777430301565890960)
 
 const usbIDListData = `#
 #	List of USB ID's
@@ -41,8 +41,8 @@ const usbIDListData = `#
 #	The latest version can be obtained from
 #		http://www.linux-usb.org/usb.ids
 #
-# Version: 2025.07.26
-# Date:    2025-07-26 20:34:01
+# Version: 2025.12.13
+# Date:    2025-12-13 20:34:01
 #
 
 # Vendors, devices and interfaces. Please keep sorted.
@@ -13520,7 +13520,9 @@ const usbIDListData = `#
 0b0d  ProjectLab
 	0000  CenturyCD
 0b0e  GN Netcom
+	0301  Jabra EVOLVE 20
 	0305  Jabra EVOLVE Link MS
+	030c  Jabra EVOLVE 65
 	0311  Jabra EVOLVE 65
 	0312  enc060:Buttons Volume up/down/mute + phone [Jabra]
 	0343  Jabra UC VOICE 150a
@@ -13539,6 +13541,11 @@ const usbIDListData = `#
 	2007  GN 2000 Stereo Corded Headset
 	2456  Jabra SPEAK 810
 	245e  Jabra Link 370
+	248a  Jabra Elite 85h
+	24b8  Jabra Evolve2 65
+	24bb  Jabra Evolve2 85
+	24c9  Jabra Link 380
+	24ca  Jabra Link 380
 	620c  Jabra BT620s
 	9330  Jabra GN9330 Headset
 	a346  Jabra Engage 75 Stereo
@@ -24081,6 +24088,7 @@ C 08  Mass Storage
 		00  Control/Bulk/Interrupt
 		01  Control/Bulk
 		50  Bulk-Only
+		62  USB Attached SCSI
 C 09  Hub
 	00  Unused
 		00  Full speed (or root) hub

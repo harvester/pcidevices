@@ -406,6 +406,9 @@ spec:
         properties:
           status:
             properties:
+              classType:
+                nullable: true
+                type: string
               description:
                 nullable: true
                 type: string
@@ -993,6 +996,9 @@ spec:
       properties:
         status:
           properties:
+            classType:
+              nullable: true
+              type: string
             description:
               nullable: true
               type: string

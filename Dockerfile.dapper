@@ -34,7 +34,7 @@ RUN go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.4
 ENV GO111MODULE=on
 ENV DAPPER_ENV="REPO TAG DRONE_TAG"
 ENV DAPPER_SOURCE="/go/src/github.com/harvester/pcidevices/"
-ENV DAPPER_OUTPUT="./bin ./dist ./pkg"
+ENV DAPPER_OUTPUT="./bin ./dist ./pkg ./charts"
 ENV DAPPER_RUN_ARGS="-v /proc:/host/proc --privileged"
 ENV DAPPER_DOCKER_SOCKET=true
 ENV HOME=${DAPPER_SOURCE}
