@@ -257,7 +257,7 @@ func (h *DevHandler) getList(localUSBDevices map[int][]*deviceplugins.USBDevice,
 						ResourceName: resourceName(name),
 						NodeName:     nodeName,
 						DevicePath:   localUSBDevice.DevicePath,
-						Description:  usbid.DescribeWithVendorAndProduct(gousb.ID(localUSBDevice.Vendor), gousb.ID(localUSBDevice.Product)), // nolint:gosec
+						Description:  usbDescription(localUSBDevice),
 						PCIAddress:   localUSBDevice.PCIAddress,
 						ClassType:    localUSBDevice.ClassType,
 					},
@@ -272,7 +272,7 @@ func (h *DevHandler) getList(localUSBDevices map[int][]*deviceplugins.USBDevice,
 						ResourceName: resourceName(usbDeviceName(nodeName, localUSBDevice)),
 						NodeName:     nodeName,
 						DevicePath:   localUSBDevice.DevicePath,
-						Description:  usbid.DescribeWithVendorAndProduct(gousb.ID(localUSBDevice.Vendor), gousb.ID(localUSBDevice.Product)), // nolint:gosec
+						Description:  usbDescription(localUSBDevice),
 						PCIAddress:   localUSBDevice.PCIAddress,
 						ClassType:    localUSBDevice.ClassType,
 					}
@@ -321,6 +321,19 @@ func isStatusChanged(existed *v1beta1.USBDevice, localUSBDevice *deviceplugins.U
 
 func resourceName(name string) string {
 	return fmt.Sprintf("%s%s", KubeVirtResourcePrefix, name)
+}
+
+// usbDescription builds the device description string from the usbid lookup,
+// appending the sysfs product name when available.
+// e.g. "Kingston Technology HyperX Alloy FPS Mechanical Gaming Keyboard" or
+//
+//	"Kingston Technology (0x0951) HyperX Alloy FPS [HyperX Alloy FPS]"
+func usbDescription(d *deviceplugins.USBDevice) string {
+	desc := usbid.DescribeWithVendorAndProduct(gousb.ID(d.Vendor), gousb.ID(d.Product)) // nolint:gosec
+	if d.ProductName != "" {
+		desc = fmt.Sprintf("%s [%s]", desc, d.ProductName)
+	}
+	return desc
 }
 
 func isCreateEvent(op fsnotify.Op) bool {
