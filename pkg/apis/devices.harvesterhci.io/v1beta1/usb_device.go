@@ -24,6 +24,7 @@ type USBDeviceStatus struct {
 	DevicePath   string `json:"devicePath"`
 	Description  string `json:"description"`
 	PCIAddress   string `json:"pciAddress"`
+	ClassType    string `json:"classType,omitempty"`
 	Enabled      bool   `json:"enabled"`
 	Status       string `json:"status,omitempty"`
 	Message      string `json:"message,omitempty"`
