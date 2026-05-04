@@ -15,6 +15,7 @@ func Mutation(clients *Clients) (http.Handler, []types.Resource, error) {
 		NewPCIVMMutator(clients.DeviceFactory.Devices().V1beta1().PCIDevice().Cache(),
 			clients.DeviceFactory.Devices().V1beta1().PCIDeviceClaim().Cache(),
 			clients.DeviceFactory.Devices().V1beta1().PCIDeviceClaim(),
+			clients.KubevirtFactory.Kubevirt().V1().VirtualMachineInstance().Cache(),
 		),
 	}
 

@@ -3,7 +3,9 @@ package webhook
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
+	kubevirtctl "github.com/harvester/harvester/pkg/generated/controllers/kubevirt.io/v1"
 	"github.com/harvester/harvester/pkg/webhook/types"
 	"github.com/sirupsen/logrus"
 	admissionregv1 "k8s.io/api/admissionregistration/v1"
@@ -23,11 +25,12 @@ const (
 	defaultGPUDevBasePath  = "/spec/template/spec/domain/devices/gpus"
 )
 
-func NewPCIVMMutator(deviceCache v1beta1.PCIDeviceCache, pciClaimCache v1beta1.PCIDeviceClaimCache, pciClaimClient v1beta1.PCIDeviceClaimClient) types.Mutator {
+func NewPCIVMMutator(deviceCache v1beta1.PCIDeviceCache, pciClaimCache v1beta1.PCIDeviceClaimCache, pciClaimClient v1beta1.PCIDeviceClaimClient, vmiCache kubevirtctl.VirtualMachineInstanceCache) types.Mutator {
 	return &vmPCIMutator{
 		deviceCache:    deviceCache,
 		pciClaimCache:  pciClaimCache,
 		pciClaimClient: pciClaimClient,
+		vmiCache:       vmiCache,
 	}
 }
 
@@ -38,6 +41,7 @@ type vmPCIMutator struct {
 	deviceCache    v1beta1.PCIDeviceCache
 	pciClaimCache  v1beta1.PCIDeviceClaimCache
 	pciClaimClient v1beta1.PCIDeviceClaimClient
+	vmiCache       kubevirtctl.VirtualMachineInstanceCache
 }
 
 // pciDeviceWithOwners is used to track the owner of a device along with owner.
@@ -105,6 +109,14 @@ func (vm *vmPCIMutator) Update(_ *types.Request, _ runtime.Object, newObj runtim
 		}
 		patches = append(patches, gpuPatches...)
 	}
+
+	// Reconcile deviceAllocationDetails annotation against the updated spec when VM is stopped.
+	annotationPatches, err := vm.reconcileDeviceAllocationAnnotation(vmObj)
+	if err != nil {
+		return patches, fmt.Errorf("error reconciling device allocation annotation for vm %s/%s: %w", vmObj.Namespace, vmObj.Name, err)
+	}
+	patches = append(patches, annotationPatches...)
+
 	return patches, nil
 }
 
@@ -243,6 +255,60 @@ func additionalDeviceAlreadyExists(devList []string, dev string) bool {
 	}
 
 	return false
+}
+
+// reconcileDeviceAllocationAnnotation syncs the harvesterhci.io/deviceAllocationDetails annotation
+// with the current spec when the VM is stopped (no VMI exists). If the VM is still running, we skip
+// to avoid conflicting with the controller that manages the annotation during runtime.
+func (vm *vmPCIMutator) reconcileDeviceAllocationAnnotation(vmObj *kubevirtv1.VirtualMachine) (types.PatchOps, error) {
+	if vmObj.Annotations == nil {
+		return nil, nil
+	}
+
+	currentVal, ok := vmObj.Annotations[devicesv1beta1.DeviceAllocationKey]
+	if !ok {
+		return nil, nil
+	}
+
+	// If a VMI exists for this VM, it is still running — skip.
+	_, err := vm.vmiCache.Get(vmObj.Namespace, vmObj.Name)
+	if err == nil {
+		return nil, nil
+	}
+	if !apierrors.IsNotFound(err) {
+		return nil, fmt.Errorf("error looking up VMI for vm %s/%s: %v", vmObj.Namespace, vmObj.Name, err)
+	}
+
+	// VM is stopped — rebuild the annotation from the current spec.
+	newHostDevices := make(map[string][]string)
+	for _, hd := range vmObj.Spec.Template.Spec.Domain.Devices.HostDevices {
+		newHostDevices[hd.DeviceName] = append(newHostDevices[hd.DeviceName], hd.Name)
+	}
+
+	newDetails := &devicesv1beta1.AllocationDetails{}
+	if len(newHostDevices) > 0 {
+		newDetails.HostDevices = newHostDevices
+	}
+
+	// JSON Pointer (RFC 6901): '~' -> '~0', '/' -> '~1'.
+	escapedKey := strings.NewReplacer("~", "~0", "/", "~1").Replace(devicesv1beta1.DeviceAllocationKey)
+	annotationPath := fmt.Sprintf("/metadata/annotations/%s", escapedKey)
+
+	if len(newDetails.HostDevices) == 0 {
+		return types.PatchOps{fmt.Sprintf(`{"op": "remove", "path": "%s"}`, annotationPath)}, nil
+	}
+
+	newVal, err := json.Marshal(newDetails)
+	if err != nil {
+		return nil, fmt.Errorf("error marshalling updated allocation details: %v", err)
+	}
+
+	// No change needed.
+	if string(newVal) == currentVal {
+		return nil, nil
+	}
+
+	return types.PatchOps{fmt.Sprintf(`{"op": "replace", "path": "%s", "value": %q}`, annotationPath, string(newVal))}, nil
 }
 
 func convertGPUsToHostDevices(vm *kubevirtv1.VirtualMachine) (types.PatchOps, error) {

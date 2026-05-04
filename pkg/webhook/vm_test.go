@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/json"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 
+	harvfake "github.com/harvester/harvester/pkg/generated/clientset/versioned/fake"
 	devicesv1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/generated/clientset/versioned/fake"
 	"github.com/harvester/pcidevices/pkg/util/fakeclients"
@@ -465,4 +466,150 @@ func Test_convertGPUsToHostDevices(t *testing.T) {
 	assert.Len(patchedVMObj.Spec.Template.Spec.Domain.Devices.GPUs, 0, "expected to find no GPU devices")
 	assert.Len(patchedVMObj.Spec.Template.Spec.Domain.Devices.HostDevices, 1, "expected to find 1 hostdevice")
 
+}
+
+func Test_ReconcileDeviceAllocationAnnotation_VMRunning(t *testing.T) {
+	assert := require.New(t)
+
+	vmObj := &kubevirtv1.VirtualMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-vm",
+			Namespace: "default",
+			Annotations: map[string]string{
+				devicesv1beta1.DeviceAllocationKey: `{"hostdevices":{"intel.com/dev":["hp-node1-dev1","hp-node1-dev2"]}}`,
+			},
+		},
+		Spec: kubevirtv1.VirtualMachineSpec{
+			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Domain: kubevirtv1.DomainSpec{
+						Devices: kubevirtv1.Devices{
+							HostDevices: []kubevirtv1.HostDevice{
+								{Name: "hp-node1-dev1", DeviceName: "intel.com/dev"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	runningVMI := &kubevirtv1.VirtualMachineInstance{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-vm", Namespace: "default"},
+	}
+	harvClient := harvfake.NewSimpleClientset(runningVMI)
+	vmiCache := fakeclients.VirtualMachineInstanceCache(harvClient.KubevirtV1().VirtualMachineInstances)
+
+	mutator := &vmPCIMutator{vmiCache: vmiCache}
+	patchOps, err := mutator.reconcileDeviceAllocationAnnotation(vmObj)
+	assert.NoError(err)
+	assert.Len(patchOps, 0, "expected no patch when VM is running")
+}
+
+func Test_ReconcileDeviceAllocationAnnotation_DeviceRemoved(t *testing.T) {
+	assert := require.New(t)
+
+	vmObj := &kubevirtv1.VirtualMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-vm",
+			Namespace: "default",
+			Annotations: map[string]string{
+				devicesv1beta1.DeviceAllocationKey: `{"hostdevices":{"intel.com/dev":["hp-node1-dev1","hp-node1-dev2"]}}`,
+			},
+		},
+		Spec: kubevirtv1.VirtualMachineSpec{
+			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Domain: kubevirtv1.DomainSpec{
+						Devices: kubevirtv1.Devices{
+							HostDevices: []kubevirtv1.HostDevice{
+								{Name: "hp-node1-dev1", DeviceName: "intel.com/dev"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	harvClient := harvfake.NewSimpleClientset()
+	vmiCache := fakeclients.VirtualMachineInstanceCache(harvClient.KubevirtV1().VirtualMachineInstances)
+	mutator := &vmPCIMutator{vmiCache: vmiCache}
+	patchOps, err := mutator.reconcileDeviceAllocationAnnotation(vmObj)
+	assert.NoError(err)
+	assert.Len(patchOps, 1, "expected one patch op to update the annotation")
+	assert.Contains(patchOps[0], `"replace"`, "expected a replace op")
+	assert.Contains(patchOps[0], "hp-node1-dev1", "expected remaining device in annotation")
+	assert.NotContains(patchOps[0], "hp-node1-dev2", "expected removed device to be absent")
+}
+
+func Test_ReconcileDeviceAllocationAnnotation_DeviceAdded(t *testing.T) {
+	assert := require.New(t)
+
+	vmObj := &kubevirtv1.VirtualMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-vm",
+			Namespace: "default",
+			Annotations: map[string]string{
+				devicesv1beta1.DeviceAllocationKey: `{"hostdevices":{"intel.com/dev":["hp-node1-dev1"]}}`,
+			},
+		},
+		Spec: kubevirtv1.VirtualMachineSpec{
+			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Domain: kubevirtv1.DomainSpec{
+						Devices: kubevirtv1.Devices{
+							HostDevices: []kubevirtv1.HostDevice{
+								{Name: "hp-node1-dev1", DeviceName: "intel.com/dev"},
+								{Name: "hp-node1-dev2", DeviceName: "intel.com/dev"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	harvClient := harvfake.NewSimpleClientset()
+	vmiCache := fakeclients.VirtualMachineInstanceCache(harvClient.KubevirtV1().VirtualMachineInstances)
+	mutator := &vmPCIMutator{vmiCache: vmiCache}
+	patchOps, err := mutator.reconcileDeviceAllocationAnnotation(vmObj)
+	assert.NoError(err)
+	assert.Len(patchOps, 1, "expected one patch op to update the annotation")
+	assert.Contains(patchOps[0], `"replace"`, "expected a replace op")
+	assert.Contains(patchOps[0], "hp-node1-dev1", "expected first device in annotation")
+	assert.Contains(patchOps[0], "hp-node1-dev2", "expected newly added device in annotation")
+}
+
+func Test_ReconcileDeviceAllocationAnnotation_AllDevicesRemoved(t *testing.T) {
+	assert := require.New(t)
+
+	vmObj := &kubevirtv1.VirtualMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-vm",
+			Namespace: "default",
+			Annotations: map[string]string{
+				devicesv1beta1.DeviceAllocationKey: `{"hostdevices":{"intel.com/dev":["hp-node1-dev1"]}}`,
+			},
+		},
+		Spec: kubevirtv1.VirtualMachineSpec{
+			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Domain: kubevirtv1.DomainSpec{
+						Devices: kubevirtv1.Devices{
+							HostDevices: []kubevirtv1.HostDevice{},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	harvClient := harvfake.NewSimpleClientset()
+	vmiCache := fakeclients.VirtualMachineInstanceCache(harvClient.KubevirtV1().VirtualMachineInstances)
+	mutator := &vmPCIMutator{vmiCache: vmiCache}
+	patchOps, err := mutator.reconcileDeviceAllocationAnnotation(vmObj)
+	assert.NoError(err)
+	assert.Len(patchOps, 1, "expected one patch op to remove the annotation")
+	assert.Contains(patchOps[0], `"remove"`, "expected a remove op")
 }
