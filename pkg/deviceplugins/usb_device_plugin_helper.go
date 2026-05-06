@@ -31,32 +31,32 @@ import (
 )
 
 // usbClassNames maps USB base class codes (from https://www.usb.org/defined-class-codes)
-// to human-readable names.
-var usbClassNames = map[int]string{
-	0x01: "Audio",
-	0x02: "Communications",
-	0x03: "HID",
-	0x05: "Physical",
-	0x06: "Image",
-	0x07: "Printer",
-	0x08: "Mass Storage",
-	0x09: "Hub",
-	0x0A: "CDC-Data",
-	0x0B: "Smart Card",
-	0x0D: "Content Security",
-	0x0E: "Video",
-	0x0F: "Personal Healthcare",
-	0x10: "Audio/Video",
-	0x11: "Billboard",
-	0x12: "USB Type-C Bridge",
-	0x13: "USB Bulk Display Protocol",
-	0x14: "MCTP over USB",
-	0x3C: "I3C Device",
-	0xDC: "Diagnostic",
-	0xE0: "Wireless Controller",
-	0xEF: "Miscellaneous",
-	0xFE: "Application Specific",
-	0xFF: "Vendor Specific",
+// to human-readable names. Keys are lowercase hex strings as read from sysfs.
+var usbClassNames = map[string]string{
+	"01": "Audio",
+	"02": "Communications",
+	"03": "HID",
+	"05": "Physical",
+	"06": "Image",
+	"07": "Printer",
+	"08": "Mass Storage",
+	"09": "Hub",
+	"0a": "CDC-Data",
+	"0b": "Smart Card",
+	"0d": "Content Security",
+	"0e": "Video",
+	"0f": "Personal Healthcare",
+	"10": "Audio/Video",
+	"11": "Billboard",
+	"12": "USB Type-C Bridge",
+	"13": "USB Bulk Display Protocol",
+	"14": "MCTP over USB",
+	"3c": "I3C Device",
+	"dc": "Diagnostic",
+	"e0": "Wireless Controller",
+	"ef": "Miscellaneous",
+	"fe": "Application Specific",
+	"ff": "Vendor Specific",
 }
 
 type USBDevice struct {
@@ -90,32 +90,24 @@ func readSysfsString(dir, filename string) string {
 }
 
 // parseClassCode reads a sysfs file containing a hex USB class code (e.g. "bDeviceClass")
-// and returns the parsed integer value.
-// Returns (0, false) on any read or parse error.
-func parseClassCode(dir, filename string) (int, bool) {
+// and returns the lowercase string value as-is (e.g. "09", "ff").
+// Returns ("", false) on any read error.
+func parseClassCode(dir, filename string) (string, bool) {
 	data := readSysfsString(dir, filename)
 	if data == "" {
-		return 0, false
+		return "", false
 	}
 
-	// Convert the sysfs hex string to a decimal integer, then look it up in usbClassNames.
-	// e.g. "09" (hex string) → 9 (decimal int) → usbClassNames[9] = "Hub"
-	//      "ff" (hex string) → 255 (decimal int) → usbClassNames[255] = "Vendor Specific"
-	code, err := strconv.ParseInt(strings.TrimSpace(string(data)), 16, 32)
-	if err != nil {
-		return 0, false
-	}
-
-	return int(code), true
+	return strings.ToLower(data), true
 }
 
 // classTypeName returns the human-readable name for a USB class code,
 // falling back to "Unknown (0xNN)" if the code is not in the map.
-func classTypeName(code int) string {
+func classTypeName(code string) string {
 	if name, ok := usbClassNames[code]; ok {
 		return name
 	}
-	return fmt.Sprintf("Unknown (0x%02x)", code)
+	return fmt.Sprintf("Unknown (0x%s)", code)
 }
 
 // parseUSBClassType determines the USB class name for a device rooted at path.
@@ -128,7 +120,7 @@ func parseUSBClassType(path string) string {
 		return ""
 	}
 
-	if code != 0 {
+	if code != "00" {
 		return classTypeName(code)
 	}
 
