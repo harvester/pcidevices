@@ -3,7 +3,6 @@ package webhook
 import (
 	"fmt"
 	"reflect"
-	"strings"
 
 	kubevirtctl "github.com/harvester/harvester/pkg/generated/controllers/kubevirt.io/v1"
 	"github.com/harvester/harvester/pkg/webhook/types"
@@ -17,6 +16,7 @@ import (
 
 	devicesv1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
+	utilcommon "github.com/harvester/pcidevices/pkg/util/common"
 )
 
 const (
@@ -290,8 +290,7 @@ func (vm *vmPCIMutator) reconcileDeviceAllocationAnnotation(vmObj *kubevirtv1.Vi
 		newDetails.HostDevices = newHostDevices
 	}
 
-	// JSON Pointer (RFC 6901): '~' -> '~0', '/' -> '~1'.
-	escapedKey := strings.NewReplacer("~", "~0", "/", "~1").Replace(devicesv1beta1.DeviceAllocationKey)
+	escapedKey := utilcommon.EscapeJSONPointer(devicesv1beta1.DeviceAllocationKey)
 	annotationPath := fmt.Sprintf("/metadata/annotations/%s", escapedKey)
 
 	if len(newDetails.HostDevices) == 0 {

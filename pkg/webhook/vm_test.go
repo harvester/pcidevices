@@ -538,9 +538,20 @@ func Test_ReconcileDeviceAllocationAnnotation_DeviceRemoved(t *testing.T) {
 	patchOps, err := mutator.reconcileDeviceAllocationAnnotation(vmObj)
 	assert.NoError(err)
 	assert.Len(patchOps, 1, "expected one patch op to update the annotation")
-	assert.Contains(patchOps[0], `"replace"`, "expected a replace op")
-	assert.Contains(patchOps[0], "hp-node1-dev1", "expected remaining device in annotation")
-	assert.NotContains(patchOps[0], "hp-node1-dev2", "expected removed device to be absent")
+
+	vmBytes, err := json.Marshal(vmObj)
+	assert.NoError(err)
+	patchData := fmt.Sprintf("[%s]", strings.Join(patchOps, ","))
+	patchedBytes, err := patch.Apply(vmBytes, []byte(patchData))
+	assert.NoError(err)
+	patchedVM := &kubevirtv1.VirtualMachine{}
+	err = json.Unmarshal(patchedBytes, patchedVM)
+	assert.NoError(err)
+	var details devicesv1beta1.AllocationDetails
+	err = json.Unmarshal([]byte(patchedVM.Annotations[devicesv1beta1.DeviceAllocationKey]), &details)
+	assert.NoError(err)
+	assert.Contains(details.HostDevices["intel.com/dev"], "hp-node1-dev1", "expected remaining device in annotation")
+	assert.NotContains(details.HostDevices["intel.com/dev"], "hp-node1-dev2", "expected removed device to be absent")
 }
 
 func Test_ReconcileDeviceAllocationAnnotation_DeviceAdded(t *testing.T) {
@@ -576,9 +587,20 @@ func Test_ReconcileDeviceAllocationAnnotation_DeviceAdded(t *testing.T) {
 	patchOps, err := mutator.reconcileDeviceAllocationAnnotation(vmObj)
 	assert.NoError(err)
 	assert.Len(patchOps, 1, "expected one patch op to update the annotation")
-	assert.Contains(patchOps[0], `"replace"`, "expected a replace op")
-	assert.Contains(patchOps[0], "hp-node1-dev1", "expected first device in annotation")
-	assert.Contains(patchOps[0], "hp-node1-dev2", "expected newly added device in annotation")
+
+	vmBytes, err := json.Marshal(vmObj)
+	assert.NoError(err)
+	patchData := fmt.Sprintf("[%s]", strings.Join(patchOps, ","))
+	patchedBytes, err := patch.Apply(vmBytes, []byte(patchData))
+	assert.NoError(err)
+	patchedVM := &kubevirtv1.VirtualMachine{}
+	err = json.Unmarshal(patchedBytes, patchedVM)
+	assert.NoError(err)
+	var details devicesv1beta1.AllocationDetails
+	err = json.Unmarshal([]byte(patchedVM.Annotations[devicesv1beta1.DeviceAllocationKey]), &details)
+	assert.NoError(err)
+	assert.Contains(details.HostDevices["intel.com/dev"], "hp-node1-dev1", "expected first device in annotation")
+	assert.Contains(details.HostDevices["intel.com/dev"], "hp-node1-dev2", "expected newly added device in annotation")
 }
 
 func Test_ReconcileDeviceAllocationAnnotation_AllDevicesRemoved(t *testing.T) {
@@ -611,5 +633,15 @@ func Test_ReconcileDeviceAllocationAnnotation_AllDevicesRemoved(t *testing.T) {
 	patchOps, err := mutator.reconcileDeviceAllocationAnnotation(vmObj)
 	assert.NoError(err)
 	assert.Len(patchOps, 1, "expected one patch op to remove the annotation")
-	assert.Contains(patchOps[0], `"remove"`, "expected a remove op")
+
+	vmBytes, err := json.Marshal(vmObj)
+	assert.NoError(err)
+	patchData := fmt.Sprintf("[%s]", strings.Join(patchOps, ","))
+	patchedBytes, err := patch.Apply(vmBytes, []byte(patchData))
+	assert.NoError(err)
+	patchedVM := &kubevirtv1.VirtualMachine{}
+	err = json.Unmarshal(patchedBytes, patchedVM)
+	assert.NoError(err)
+	_, exists := patchedVM.Annotations[devicesv1beta1.DeviceAllocationKey]
+	assert.False(exists, "expected annotation to be removed")
 }

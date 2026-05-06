@@ -166,3 +166,9 @@ func GeneratevGPUDeviceName(deviceName string) string {
 	deviceName = reg.ReplaceAllString(deviceName, "")
 	return fmt.Sprintf("nvidia.com/%s", deviceName)
 }
+
+// EscapeJSONPointer escapes a string for use as a JSON Pointer token (RFC 6901):
+// '~' is replaced with '~0' and '/' is replaced with '~1'.
+func EscapeJSONPointer(s string) string {
+	return strings.NewReplacer("~", "~0", "/", "~1").Replace(s)
+}
