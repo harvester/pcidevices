@@ -316,7 +316,9 @@ func usbDeviceName(nodeName string, localUSBDevice *deviceplugins.USBDevice) str
 
 func isStatusChanged(existed *v1beta1.USBDevice, localUSBDevice *deviceplugins.USBDevice) bool {
 	return existed.Status.VendorID != fmt.Sprintf("%04x", localUSBDevice.Vendor) ||
-		existed.Status.ProductID != fmt.Sprintf("%04x", localUSBDevice.Product)
+		existed.Status.ProductID != fmt.Sprintf("%04x", localUSBDevice.Product) ||
+		existed.Status.Description != usbDescription(localUSBDevice) ||
+		existed.Status.ClassType != localUSBDevice.ClassType
 }
 
 func resourceName(name string) string {
