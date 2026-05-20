@@ -111,6 +111,12 @@ func resourceName(dev *pci.Device) string {
 		productCleaned = reg.ReplaceAllString(productCleaned, "_") // Replace all spaces with underscore
 		reg, _ = regexp.Compile("[^a-zA-Z0-9_.]+")
 		productCleaned = reg.ReplaceAllString(productCleaned, "") // Removes any char other than alphanumeric and underscore
+		productCleaned = strings.TrimRight(productCleaned, "_.-") // Removes trailing non-alphanumeric separators
+
+		if productCleaned == "" {
+			productCleaned = dev.Product.ID
+		}
+
 		return trimResourceNameIfNeeded(vendorCleaned, productCleaned, dev.Product.ID)
 	}
 	// If the pcidb doesn't have the deviceId, just show the deviceId
