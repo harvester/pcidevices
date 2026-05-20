@@ -121,6 +121,40 @@ func TestDescriptionForVendorDevice(t *testing.T) {
 			want: "nvidia.com/GP106_GEFORCE_GTX_1060_3GB",
 		},
 		{
+			name: "NVIDIA RTX A4500 Embedded GPU trailing space",
+			args: args{
+				dev: &pci.Device{
+					Address: "00:1f.6",
+					Vendor: &pcidb.Vendor{
+						ID:   "10de",
+						Name: "NVIDIA Corporation",
+					},
+					Product: &pcidb.Product{
+						ID:   "24fa",
+						Name: "GA104 [RTX A4500 Embedded GPU ]",
+					},
+				},
+			},
+			want: "nvidia.com/GA104_RTX_A4500_EMBEDDED_GPU",
+		},
+		{
+			name: "product name sanitizes to empty string",
+			args: args{
+				dev: &pci.Device{
+					Address: "00:1f.6",
+					Vendor: &pcidb.Vendor{
+						ID:   "1234",
+						Name: "Test Vendor",
+					},
+					Product: &pcidb.Product{
+						ID:   "5678",
+						Name: "!!!",
+					},
+				},
+			},
+			want: "test.com/5678",
+		},
+		{
 			name: "AMD Radeon X850",
 			args: args{
 				dev: &pci.Device{
