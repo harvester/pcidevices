@@ -25,6 +25,7 @@ type MigConfigurationSpec struct {
 type MigConfigurationStatus struct {
 	ProfileStatus []MigProfileStatus     `json:"profileStatus,omitempty"`
 	Status        MIGConfigurationStatus `json:"status"`
+	Message       string                 `json:"message,omitempty"`
 }
 
 type MigProfiles struct {

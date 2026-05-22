@@ -34,6 +34,10 @@ func (h *Handler) OnMIGChange(name string, mig *v1beta1.MigConfiguration) (*v1be
 		logrus.Debugf("setting up mig instances for device %s", mig.Name)
 		err = gpuhelper.EnableMIGProfiles(h.executor, mig)
 		if err != nil {
+			migCopy.Status.Message = err.Error()
+			if _, updateErr := h.migConfigurationController.UpdateStatus(migCopy); updateErr != nil {
+				logrus.Errorf("error updating MIG configuration status for device %s: %v", mig.Name, updateErr)
+			}
 			return mig, fmt.Errorf("error setting up MIG instances for device %s: %w", mig.Name, err)
 		}
 		// fetch MIG instance status
@@ -42,6 +46,7 @@ func (h *Handler) OnMIGChange(name string, mig *v1beta1.MigConfiguration) (*v1be
 			return mig, fmt.Errorf("error generating MIG configuration status for device %s: %w", mig.Name, err)
 		}
 		migCopy.Status = *status
+		migCopy.Status.Message = ""
 		return h.migConfigurationController.UpdateStatus(migCopy)
 	}
 

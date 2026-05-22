@@ -96,10 +96,12 @@ func EnableMIGProfiles(ex executor.Executor, migConfig *v1beta1.MigConfiguration
 	// make it easier subsequently to find requested count
 	// once the profileID is sorted
 	requestMap := make(map[int]int)
+	profileNameMap := make(map[int]string)
 	for _, v := range migConfig.Spec.ProfileSpec {
 		if v.Requested > 0 {
 			impactedProfiles = append(impactedProfiles, v.ID)
 			requestMap[v.ID] = v.Requested
+			profileNameMap[v.ID] = v.Name
 		}
 	}
 
@@ -112,7 +114,7 @@ func EnableMIGProfiles(ex executor.Executor, migConfig *v1beta1.MigConfiguration
 		for i := 0; i < requestMap[profile]; i++ {
 			err := CreateMIGInstance(ex, migConfig.Spec.GPUAddress, profile)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed creation for %s MIG configuration, please check if the requested and available resources match: %w", profileNameMap[profile], err)
 			}
 		}
 	}
