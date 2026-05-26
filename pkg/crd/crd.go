@@ -150,7 +150,8 @@ func List() []crd.CRD {
 				WithColumn("Node Name", ".spec.nodeName").
 				WithColumn("Address", ".spec.gpuAddress").
 				WithColumn("Enabled", ".spec.enabled").
-				WithColumn("Status", ".status.status")
+				WithColumn("Status", ".status.status").
+				WithColumn("Message", ".status.message")
 		}),
 	}
 }
