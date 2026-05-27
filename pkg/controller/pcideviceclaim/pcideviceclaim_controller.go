@@ -158,6 +158,19 @@ func (h *Handler) OnRemove(_ string, pdc *v1beta1.PCIDeviceClaim) (*v1beta1.PCID
 			delete(h.devicePlugins, resourceName)
 		}
 	}
+
+	// For DisableResourcePooling claims, remove the per-device override annotation that was
+	// set on PCIDevice by ensureIndividualDeviceResourceName during claim creation.
+	// Since PCIDeviceClaim is immutable (create/delete only), pdc.Spec.DisableResourcePooling
+	// at deletion time is always the same value as at creation time.
+	// Note: vGPU claims do NOT set DisableResourcePooling; their annotation lifecycle is
+	// managed entirely by the vgpu controller.
+	if pdc.Spec.DisableResourcePooling {
+		if err := h.cleanupIndividualDeviceResourceName(pd); err != nil {
+			return pdc, fmt.Errorf("error cleaning up individual device resource name: %v", err)
+		}
+	}
+
 	return pdc, nil
 }
 
@@ -323,6 +336,52 @@ func getOrphanedPCIDevices(
 	return &pdsOrphaned, nil
 }
 
+// ensureIndividualDeviceResourceName sets a unique resource name (<vendor-prefix>/<pd.Name>)
+// on the PCIDevice annotation and Status.ResourceName when DisableResourcePooling is enabled.
+// Cleanup is handled by cleanupIndividualDeviceResourceName on claim deletion.
+func (h *Handler) ensureIndividualDeviceResourceName(pd *v1beta1.PCIDevice) (*v1beta1.PCIDevice, error) {
+	parts := strings.SplitN(pd.Status.ResourceName, "/", 2)
+	individualResourceName := pd.Name
+	if len(parts) == 2 {
+		individualResourceName = parts[0] + "/" + pd.Name
+	}
+
+	pdCopy := pd.DeepCopy()
+	if pdCopy.Annotations == nil {
+		pdCopy.Annotations = make(map[string]string)
+	}
+	pdCopy.Annotations[v1beta1.PCIDeviceOverrideResourceName] = individualResourceName
+	updated, err := h.pdClient.Update(pdCopy)
+	if err != nil {
+		return pd, err
+	}
+
+	updated.Status.ResourceName = individualResourceName
+	updated, err = h.pdClient.UpdateStatus(updated)
+	if err != nil {
+		return updated, err
+	}
+
+	return updated, nil
+}
+
+// cleanupIndividualDeviceResourceName removes the PCIDeviceOverrideResourceName annotation from the
+// PCIDevice when a DisableResourcePooling claim is deleted. Once the annotation is gone, the pcidevice
+// controller will revert Status.ResourceName to the auto-generated value on its next reconcile cycle.
+// Only called for DisableResourcePooling claims — vGPU annotation cleanup is handled by the vgpu controller.
+func (h *Handler) cleanupIndividualDeviceResourceName(pd *v1beta1.PCIDevice) error {
+	if pd.Annotations == nil {
+		return nil
+	}
+	if _, ok := pd.Annotations[v1beta1.PCIDeviceOverrideResourceName]; !ok {
+		return nil
+	}
+	pdCopy := pd.DeepCopy()
+	delete(pdCopy.Annotations, v1beta1.PCIDeviceOverrideResourceName)
+	_, err := h.pdClient.Update(pdCopy)
+	return err
+}
+
 func checkGroupMap(pd *v1beta1.PCIDevice) error {
 	group, err := iommu.GetGroupMap(pd.Status.Address)
 	if err != nil {
@@ -360,6 +419,16 @@ func (h *Handler) reconcilePCIDeviceClaims(_ string, pdc *v1beta1.PCIDeviceClaim
 
 	if err := checkGroupMap(pd); err != nil {
 		return pdc, err
+	}
+
+	// When DisableResourcePooling is set, persist the per-device resource name on the
+	// PCIDevice object so that the frontend (and any other consumer) can read
+	// pd.Status.ResourceName uniformly without needing claim-level awareness.
+	if pdc.Spec.DisableResourcePooling {
+		pd, err = h.ensureIndividualDeviceResourceName(pd)
+		if err != nil {
+			return pdc, fmt.Errorf("error setting individual device resource name: %v", err)
+		}
 	}
 
 	lock.Lock()
