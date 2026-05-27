@@ -88,9 +88,12 @@ func (h *Handler) ReconcilePCIDevices(nodename string) error {
 			}
 
 			devCopy := devCR.DeepCopy()
-			// needed for vgpu operation. This annotation will be added and removed by
-			// the vgpu controller on pcidevice object as part of enabling/disable a
-			// pcidevice
+			// PCIDeviceOverrideResourceName is used by two flows:
+			//   - vGPU: the vgpu controller sets/removes this annotation on PCIDevice
+			//     to override the resource name with the vGPU profile name.
+			//   - Individual PCIDevice: the pcideviceclaim controller sets/removes this
+			//     annotation with a stable name when DisableResourcePooling is enabled.
+			// When present, the value takes precedence over the auto-generated resource name.
 			overrideResourceName := devCopy.Annotations[v1beta1.PCIDeviceOverrideResourceName]
 			// during reboot if the device driver has changed back from vfio, then update the CRD
 			// to correct driver in use. This will ensure that the original driver is correctly updated on device

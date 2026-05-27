@@ -21,9 +21,10 @@ type PCIDeviceClaim struct {
 }
 
 type PCIDeviceClaimSpec struct {
-	Address  string `json:"address"`
-	NodeName string `json:"nodeName"`
-	UserName string `json:"userName"`
+	Address                string `json:"address"`
+	NodeName               string `json:"nodeName"`
+	UserName               string `json:"userName"`
+	DisableResourcePooling bool   `json:"disableResourcePooling,omitempty"`
 }
 
 func (s PCIDeviceClaimSpec) NodeAddr() string {
@@ -36,6 +37,16 @@ type PCIDeviceClaimStatus struct {
 }
 
 const (
-	SkipVFIOBindingAnnotationKey  = "pcidevices.harvesterhci.io/skip-vfio-binding"
+	SkipVFIOBindingAnnotationKey = "pcidevices.harvesterhci.io/skip-vfio-binding"
+
+	// PCIDeviceOverrideResourceName is an annotation key shared by two flows:
+	//   1. vGPU: set on both PCIDeviceClaim and PCIDevice by the vgpu controller;
+	//      lifecycle (add/remove) is fully managed by the vgpu controller.
+	//   2. Individual PCIDevice (DisableResourcePooling): set on PCIDevice by the
+	//      pcideviceclaim controller (ensureIndividualDeviceResourceName) when the
+	//      claim is created, and removed by the pcideviceclaim controller
+	//      (cleanupIndividualDeviceResourceName) when the claim is deleted.
+	// In both cases the pcidevice controller reads this annotation to propagate
+	// the override value into PCIDevice.Status.ResourceName on each reconcile cycle.
 	PCIDeviceOverrideResourceName = "pcidevice.harvesterhci.io/override-resource-name"
 )
