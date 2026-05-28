@@ -21,10 +21,11 @@ type PCIDeviceClaim struct {
 }
 
 type PCIDeviceClaimSpec struct {
-	Address                string `json:"address"`
-	NodeName               string `json:"nodeName"`
-	UserName               string `json:"userName"`
-	DisableResourcePooling bool   `json:"disableResourcePooling,omitempty"`
+	Address  string `json:"address"`
+	NodeName string `json:"nodeName"`
+	UserName string `json:"userName"`
+	// +kubebuilder:validation:Optional
+	DisableResourcePooling bool `json:"disableResourcePooling,omitempty"`
 }
 
 func (s PCIDeviceClaimSpec) NodeAddr() string {
