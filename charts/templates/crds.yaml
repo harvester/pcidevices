@@ -112,6 +112,8 @@ spec:
               address:
                 nullable: true
                 type: string
+              disableResourcePooling:
+                type: boolean
               nodeName:
                 nullable: true
                 type: string
@@ -521,6 +523,9 @@ spec:
     - jsonPath: .status.status
       name: Status
       type: string
+    - jsonPath: .status.message
+      name: Message
+      type: string
     name: v1beta1
     schema:
       openAPIV3Schema:
@@ -551,6 +556,9 @@ spec:
             type: object
           status:
             properties:
+              message:
+                nullable: true
+                type: string
               profileStatus:
                 items:
                   properties:
@@ -697,6 +705,8 @@ spec:
             address:
               nullable: true
               type: string
+            disableResourcePooling:
+              type: boolean
             nodeName:
               nullable: true
               type: string
@@ -1105,6 +1115,9 @@ spec:
   - JSONPath: .status.status
     name: Status
     type: string
+  - JSONPath: .status.message
+    name: Message
+    type: string
   group: devices.harvesterhci.io
   names:
     kind: MigConfiguration
@@ -1143,6 +1156,9 @@ spec:
           type: object
         status:
           properties:
+            message:
+              nullable: true
+              type: string
             profileStatus:
               items:
                 properties:
