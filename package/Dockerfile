@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7.0
+# syntax=docker/dockerfile:1.25.0
 
 FROM registry.suse.com/bci/bci-base:16.0
 #awk is needed by sriov-manage utility from nvidia to perform gpu management
