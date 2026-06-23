@@ -7,7 +7,7 @@ require (
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gorilla/mux v1.8.1
 	github.com/harvester/harvester v1.8.0
-	github.com/harvester/harvester-network-controller v1.6.0-rc3
+	github.com/harvester/harvester-network-controller v1.8.0
 	github.com/jaypipes/ghw v0.12.0
 	github.com/jaypipes/pcidb v1.1.1
 	github.com/onsi/ginkgo/v2 v2.32.0
