@@ -187,7 +187,7 @@ require (
 replace (
 	github.com/emicklei/go-restful => github.com/emicklei/go-restful v2.16.0+incompatible
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.7.1
-	github.com/harvester/harvester => github.com/harvester/harvester v0.0.2-0.20250725061328-e679a719d15d
+	github.com/harvester/harvester => github.com/harvester/harvester v0.3.0
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20191219222812-2987a591a72c
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20200521150516-05eb9880269c
 	github.com/rancher/rancher => github.com/rancher/rancher v0.0.0-20240919204204-3da2ae0cabd1
