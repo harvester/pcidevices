@@ -3,7 +3,7 @@ module github.com/harvester/pcidevices
 go 1.26.4
 
 require (
-	github.com/NVIDIA/go-nvlib v0.8.0
+	github.com/NVIDIA/go-nvlib v0.11.0
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gorilla/mux v1.8.1
 	github.com/harvester/harvester v1.8.0
@@ -162,7 +162,7 @@ require (
 	golang.org/x/net v0.49.0
 	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/sys v0.34.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/term v0.32.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
