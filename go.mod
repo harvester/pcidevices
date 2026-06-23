@@ -6,7 +6,7 @@ require (
 	github.com/NVIDIA/go-nvlib v0.8.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gorilla/mux v1.8.1
-	github.com/harvester/harvester v1.6.0-rc3
+	github.com/harvester/harvester v1.8.0
 	github.com/harvester/harvester-network-controller v1.6.0-rc3
 	github.com/jaypipes/ghw v0.9.0
 	github.com/jaypipes/pcidb v1.0.0
