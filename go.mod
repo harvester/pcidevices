@@ -8,7 +8,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/harvester/harvester v1.8.0
 	github.com/harvester/harvester-network-controller v1.6.0-rc3
-	github.com/jaypipes/ghw v0.9.0
+	github.com/jaypipes/ghw v0.12.0
 	github.com/jaypipes/pcidb v1.1.1
 	github.com/onsi/ginkgo/v2 v2.32.0
 	github.com/onsi/gomega v1.42.0
@@ -153,17 +153,17 @@ require (
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/spf13/pflag v1.0.10
-	github.com/ulikunitz/xz v0.5.8 // indirect
+	github.com/ulikunitz/xz v0.5.15 // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/crypto v0.38.0 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/mod v0.35.0 // indirect
 	golang.org/x/net v0.53.0
 	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
-	golang.org/x/term v0.32.0 // indirect
+	golang.org/x/term v0.37.0 // indirect
 	golang.org/x/text v0.36.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
 	golang.org/x/tools v0.44.0 // indirect
@@ -194,7 +194,7 @@ replace (
 	github.com/rancher/rancher/pkg/apis => github.com/rancher/rancher/pkg/apis v0.0.0-20240919204204-3da2ae0cabd1
 	github.com/rancher/rancher/pkg/client => github.com/rancher/rancher/pkg/client v0.0.0-20240919204204-3da2ae0cabd1
 	github.com/rancher/wrangler => github.com/rancher/wrangler/v3 v3.1.0
-	github.com/u-root/u-root => github.com/u-root/u-root v0.10.0
+	github.com/u-root/u-root => github.com/u-root/u-root v0.16.0
 	golang.org/x/net => golang.org/x/net v0.23.0
 	golang.org/x/text => golang.org/x/text v0.3.8
 	google.golang.org/grpc => google.golang.org/grpc v1.56.3
