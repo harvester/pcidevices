@@ -1,6 +1,6 @@
 module github.com/harvester/pcidevices
 
-go 1.26
+go 1.26.4
 
 require (
 	github.com/NVIDIA/go-nvlib v0.8.0
