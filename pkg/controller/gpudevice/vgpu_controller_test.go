@@ -280,7 +280,7 @@ func Test_reconcileVGPUSetup(t *testing.T) {
 		pciDevice:           fakeclients.PCIDevicesClient(client.DevicesV1beta1().PCIDevices),
 		pciDeviceCache:      fakeclients.PCIDevicesCache(client.DevicesV1beta1().PCIDevices),
 	}
-	err := h.reconcileVGPUSetup(vGPUDevices)
+	err := h.reconcileVGPUSetup(vGPUDevices, false)
 	assert.NoError(err)
 	// check missing VGPU is gone
 	_, err = client.DevicesV1beta1().VGPUDevices().Get(context.TODO(), missingVGPU.Name, metav1.GetOptions{})
@@ -388,4 +388,31 @@ func Test_cleanupPCIDeviceClaim(t *testing.T) {
 	assert.False(ok, "expected to not find annotation for v1beta1.PCIDeviceOverrideResourceName")
 	_, ok = pciDeviceObj.Labels[v1beta1.ParentSRIOVGPUDeviceLabel]
 	assert.False(ok, "expected to not find label for v1beta1.ParentSRIOVGPUDeviceLabel")
+}
+
+func Test_reconcileVGPUSetupWithContainerWorkloadLabel(t *testing.T) {
+	assert := require.New(t)
+	client := fake.NewSimpleClientset(missingVGPU, newVGPUPCIDevice)
+	vGPUDevices := make([]*v1beta1.VGPUDevice, 0, 2)
+	vGPUDevices = append(vGPUDevices, foundPresentVGPU, newVGPU)
+	h := &Handler{
+		nodeName:            nodeName,
+		sriovGPUCache:       fakeclients.SriovGPUDevicesCache(client.DevicesV1beta1().SRIOVGPUDevices),
+		vGPUCache:           fakeclients.VGPUDeviceCache(client.DevicesV1beta1().VGPUDevices),
+		vGPUClient:          fakeclients.VGPUDeviceClient(client.DevicesV1beta1().VGPUDevices),
+		pciDeviceClaimCache: fakeclients.PCIDeviceClaimsCache(client.DevicesV1beta1().PCIDeviceClaims),
+		pciDevice:           fakeclients.PCIDevicesClient(client.DevicesV1beta1().PCIDevices),
+		pciDeviceCache:      fakeclients.PCIDevicesCache(client.DevicesV1beta1().PCIDevices),
+	}
+	err := h.reconcileVGPUSetup(vGPUDevices, true)
+	assert.NoError(err)
+	set := map[string]string{
+		v1beta1.NodeKeyName: h.nodeName,
+	}
+	selector := labels.SelectorFromSet(set)
+	vGPUList, err := client.DevicesV1beta1().VGPUDevices().List(context.TODO(), metav1.ListOptions{
+		LabelSelector: selector.String(),
+	})
+	assert.NoError(err, "expect no error while listing VGPU's")
+	assert.Len(vGPUList.Items, 0, "expected to find no VGPU's")
 }

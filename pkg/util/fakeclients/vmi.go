@@ -3,16 +3,14 @@ package fakeclients
 import (
 	"context"
 
+	kubevirtv1 "github.com/harvester/harvester/pkg/generated/clientset/versioned/typed/kubevirt.io/v1"
+	"github.com/rancher/wrangler/v3/pkg/generic"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
 	kubevirtv1api "kubevirt.io/api/core/v1"
-
-	"github.com/rancher/wrangler/v3/pkg/generic"
-
-	kubevirtv1 "github.com/harvester/harvester/pkg/generated/clientset/versioned/typed/kubevirt.io/v1"
 )
 
 type VirtualMachineInstanceClient func(string) kubevirtv1.VirtualMachineInstanceInterface
