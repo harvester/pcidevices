@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
-
 	"github.com/NVIDIA/go-nvlib/pkg/nvpci"
 	"github.com/stretchr/testify/require"
+
+	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 )
 
 func Test_IdentifySRIOVGPU(t *testing.T) {

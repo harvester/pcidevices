@@ -7,14 +7,13 @@ import (
 	"reflect"
 	"time"
 
+	ctlnetworkv1beta1 "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io/v1beta1"
 	"github.com/jaypipes/ghw"
 	ctlcorev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"kubevirt.io/client-go/kubecli"
-
-	ctlnetworkv1beta1 "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io/v1beta1"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/config"
@@ -24,6 +23,7 @@ import (
 	"github.com/harvester/pcidevices/pkg/controller/usbdevice"
 	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/util/nichelper"
+	corev1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -53,6 +53,7 @@ type handler struct {
 
 const (
 	reconcilePCIDevices = "reconcile-pcidevices"
+	reconcileNodeLabels = "reconcile-node-labels"
 )
 
 func Register(ctx context.Context, management *config.FactoryManager) error {
@@ -92,12 +93,20 @@ func Register(ctx context.Context, management *config.FactoryManager) error {
 	}
 
 	nodeCtl.OnChange(ctx, reconcilePCIDevices, h.reconcileNodeDevices)
+	coreNodeCtl.OnChange(ctx, reconcileNodeLabels, h.reconcileNodeLabels)
 	return nil
 }
 
 func (h *handler) reconcileNodeDevices(name string, node *v1beta1.Node) (*v1beta1.Node, error) {
 	if node == nil || node.DeletionTimestamp != nil || node.Name != h.nodeName {
 		return node, nil
+	}
+
+	var disableGPU bool
+	containerWorkload, ok := node.Labels[v1beta1.GPUContainerWorkloadKey]
+	if ok && containerWorkload == v1beta1.GPUContainerWorkloadValue {
+		// Node is running GPU container workloads
+		disableGPU = true
 	}
 
 	pci, err := ghw.PCI()
@@ -132,12 +141,12 @@ func (h *handler) reconcileNodeDevices(name string, node *v1beta1.Node) (*v1beta
 		return nil, fmt.Errorf("error setting up sriov devices for node %s: %v", h.nodeName, err)
 	}
 	gpuhelper, _ := gpudevice.NewHandler(h.ctx, h.sriovGPUController, h.vGPUController, h.pciDeviceClaimController, h.pciDeviceCtl, h.migConfigurationController, nil, nil, nil)
-	err = gpuhelper.SetupSRIOVGPUDevices()
+	err = gpuhelper.SetupSRIOVGPUDevices(disableGPU)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up SRIOV GPU devices for node %s: %v", h.nodeName, err)
 	}
 
-	err = gpuhelper.SetupVGPUDevices()
+	err = gpuhelper.SetupVGPUDevices(disableGPU)
 	if err != nil {
 		return nil, fmt.Errorf("error setting VGPU devices for node %s: %v", h.nodeName, err)
 	}
@@ -215,4 +224,39 @@ func checkAndUpdateNodeLabels(nodeName string, nodeCache ctlcorev1.NodeCache, no
 	}
 
 	return err
+}
+
+func (h *handler) reconcileNodeLabels(_ string, node *corev1.Node) (*corev1.Node, error) {
+	// ignore if
+	// node is empty
+	// node has deletion timestamp
+	// or node name does not match from discovered node name
+	if node == nil || node.DeletionTimestamp != nil || node.Name != h.nodeName {
+		return node, nil
+	}
+
+	devicesNode, err := h.nodeCtl.Cache().Get(node.Name)
+	if err != nil {
+		return node, fmt.Errorf("error fetching devices node object for node %s: %w", node.Name, err)
+	}
+	if devicesNode.Labels == nil {
+		devicesNode.Labels = make(map[string]string)
+	}
+
+	devicesNodeCopy := devicesNode.DeepCopy()
+	nodeContainerWorkloadVal, nodeContainerWorkloadOK := node.Labels[v1beta1.GPUContainerWorkloadKey]
+
+	if !nodeContainerWorkloadOK {
+		delete(devicesNodeCopy.Labels, v1beta1.GPUContainerWorkloadKey)
+	} else {
+		devicesNodeCopy.Labels[v1beta1.GPUContainerWorkloadKey] = nodeContainerWorkloadVal
+	}
+
+	// sync label from corev1.Node to v1beta1.Node if needed
+	if !reflect.DeepEqual(devicesNode, devicesNodeCopy) {
+		_, err := h.nodeCtl.Update(devicesNodeCopy)
+		return node, err
+	}
+
+	return node, nil
 }

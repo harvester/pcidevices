@@ -70,4 +70,6 @@ const (
 	NvidiaDriverNeededKey                = "sriovgpu.harvesterhci.io/driver-needed"
 	CreatableVGPUTypes                   = "creatable_vgpu_types"
 	CurrentVGPUType                      = "current_vgpu_type"
+	GPUContainerWorkloadKey              = "harvesterhci.io/gpu-baremetal-workloads"
+	GPUContainerWorkloadValue            = "true"
 )
