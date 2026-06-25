@@ -77,6 +77,22 @@ func (s SriovGPUDevicesCache) AddIndexer(_ string, _ generic.Indexer[*pcidevicev
 	panic("implement me")
 }
 
-func (s SriovGPUDevicesCache) GetByIndex(_, _ string) ([]*pcidevicev1beta1.SRIOVGPUDevice, error) {
-	panic("implement me")
+func (s SriovGPUDevicesCache) GetByIndex(index, key string) ([]*pcidevicev1beta1.SRIOVGPUDevice, error) {
+	switch index {
+	case pcidevicev1beta1.EnabledSRIOVGPUDevicesByNodeNameIndex:
+		devices, err := s.List(labels.NewSelector())
+		if err != nil {
+			return nil, err
+		}
+		var result []*pcidevicev1beta1.SRIOVGPUDevice
+		for _, device := range devices {
+			if device.Spec.NodeName == key && device.Spec.Enabled {
+				result = append(result, device)
+			}
+		}
+		return result, nil
+	default:
+	}
+
+	return nil, nil
 }

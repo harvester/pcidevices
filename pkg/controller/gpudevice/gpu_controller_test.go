@@ -4,11 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-
-	"github.com/stretchr/testify/require"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/generated/clientset/versioned/fake"
@@ -88,7 +87,7 @@ func Test_reconcileSRIOVGPUSetup(t *testing.T) {
 		pciDeviceClaimCache: fakeclients.PCIDeviceClaimsCache(client.DevicesV1beta1().PCIDeviceClaims),
 	}
 
-	err := h.reconcileSRIOVGPUSetup(gpuDevices)
+	err := h.reconcileSRIOVGPUSetup(gpuDevices, false)
 	assert.NoError(err)
 	// check missing GPU is gone
 	_, err = client.DevicesV1beta1().SRIOVGPUDevices().Get(context.TODO(), missingGPU.Name, metav1.GetOptions{})
@@ -106,4 +105,31 @@ func Test_reconcileSRIOVGPUSetup(t *testing.T) {
 	})
 	assert.NoError(err, "expected no error while listing GPU's")
 	assert.Len(gpuList.Items, 2, "expected to find only 2 GPU's")
+}
+
+func Test_reconcileSRIOVGPUSetupWithContainerWorkloadLabel(t *testing.T) {
+	assert := require.New(t)
+
+	client := fake.NewSimpleClientset(missingGPU)
+	gpuDevices := make([]*v1beta1.SRIOVGPUDevice, 0, 2)
+	gpuDevices = append(gpuDevices, foundPresentGPU, newGPU)
+	h := &Handler{
+		nodeName:            nodeName,
+		sriovGPUCache:       fakeclients.SriovGPUDevicesCache(client.DevicesV1beta1().SRIOVGPUDevices),
+		sriovGPUClient:      fakeclients.SriovGPUDevicesClient(client.DevicesV1beta1().SRIOVGPUDevices),
+		pciDeviceClaimCache: fakeclients.PCIDeviceClaimsCache(client.DevicesV1beta1().PCIDeviceClaims),
+	}
+
+	err := h.reconcileSRIOVGPUSetup(gpuDevices, true)
+	assert.NoError(err)
+
+	set := map[string]string{
+		v1beta1.NodeKeyName: h.nodeName,
+	}
+	selector := labels.SelectorFromSet(set)
+	gpuList, err := client.DevicesV1beta1().SRIOVGPUDevices().List(context.TODO(), metav1.ListOptions{
+		LabelSelector: selector.String(),
+	})
+	assert.NoError(err, "expected no error while listing GPU's")
+	assert.Len(gpuList.Items, 0, "expected to find no GPU's")
 }

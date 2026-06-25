@@ -2,8 +2,10 @@ package webhook
 
 import (
 	"fmt"
+	"os"
 
 	ctlcorev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 
@@ -38,6 +40,15 @@ func RegisterIndexers(clients *Clients) {
 	usbDeviceClaimCache.AddIndexer(USBDeviceByAddress, usbDeviceClaimByAddress)
 	vgpuCache := clients.DeviceFactory.Devices().V1beta1().VGPUDevice().Cache()
 	vgpuCache.AddIndexer(vGPUDeviceByResourceName, common.VGPUDeviceByResourceName)
+	// check if OS env variable overrides GPUResourceName, if so, update the GPUResourceName variable
+	val, ok := os.LookupEnv("GPUResourceName")
+	if ok {
+		v1beta1.GPUResourceName = val
+	}
+	podCache := clients.CoreFactory.Core().V1().Pod().Cache()
+	podCache.AddIndexer(v1beta1.GPUPodsByNodeName, podsOnNodeWithGPU)
+	sriovGPUDeviceCache := clients.DeviceFactory.Devices().V1beta1().SRIOVGPUDevice().Cache()
+	sriovGPUDeviceCache.AddIndexer(v1beta1.EnabledSRIOVGPUDevicesByNodeNameIndex, enabledSRIOVGPUDevicesOnNode)
 }
 
 func vmByName(obj *kubevirtv1.VirtualMachine) ([]string, error) {
@@ -74,4 +85,20 @@ func isNodeDeleted(nodeCache ctlcorev1.NodeCache, nodeName string) (bool, error)
 		return true, nil
 	}
 	return false, err
+}
+
+func podsOnNodeWithGPU(obj *corev1.Pod) ([]string, error) {
+	for _, container := range obj.Spec.Containers {
+		if _, ok := container.Resources.Requests[corev1.ResourceName(v1beta1.GPUResourceName)]; ok && obj.Status.Phase == corev1.PodRunning {
+			return []string{obj.Spec.NodeName}, nil
+		}
+	}
+	return nil, nil
+}
+
+func enabledSRIOVGPUDevicesOnNode(obj *v1beta1.SRIOVGPUDevice) ([]string, error) {
+	if obj.Spec.Enabled {
+		return []string{obj.Spec.NodeName}, nil
+	}
+	return nil, nil
 }
