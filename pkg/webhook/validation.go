@@ -3,9 +3,8 @@ package webhook
 import (
 	"net/http"
 
-	"github.com/rancher/wrangler/v3/pkg/webhook"
-
 	"github.com/harvester/harvester/pkg/webhook/types"
+	"github.com/rancher/wrangler/v3/pkg/webhook"
 )
 
 func Validation(clients *Clients) (http.Handler, []types.Resource, error) {
@@ -32,6 +31,7 @@ func Validation(clients *Clients) (http.Handler, []types.Resource, error) {
 		),
 		NewUSBDeviceValidator(clients.CoreFactory.Core().V1().Node().Cache()),
 		NewMIGConfigurationValidator(clients.DeviceFactory.Devices().V1beta1().VGPUDevice().Cache()),
+		NewNodeValidator(clients.DeviceFactory.Devices().V1beta1().SRIOVGPUDevice().Cache()),
 	}
 
 	router := webhook.NewRouter()

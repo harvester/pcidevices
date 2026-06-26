@@ -5,13 +5,13 @@ import (
 	"strings"
 	"testing"
 
+	harvfake "github.com/harvester/harvester/pkg/generated/clientset/versioned/fake"
 	"github.com/rancher/wrangler/v3/pkg/patch"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/json"
 	kubevirtv1 "kubevirt.io/api/core/v1"
 
-	harvfake "github.com/harvester/harvester/pkg/generated/clientset/versioned/fake"
 	devicesv1beta1 "github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/generated/clientset/versioned/fake"
 	"github.com/harvester/pcidevices/pkg/util/fakeclients"

@@ -6,12 +6,10 @@ import (
 	"path/filepath"
 	"reflect"
 
+	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-
-	"github.com/sirupsen/logrus"
 
 	"github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1"
 	"github.com/harvester/pcidevices/pkg/util/gpuhelper"
@@ -56,20 +54,20 @@ func (h *Handler) OnVGPUChange(_ string, vgpu *v1beta1.VGPUDevice) (*v1beta1.VGP
 	return nil, nil
 }
 
-func (h *Handler) SetupVGPUDevices() error {
+func (h *Handler) SetupVGPUDevices(disableGPU bool) error {
 	vGPUDevices, err := gpuhelper.IdentifyVGPU(h.options, h.nodeName)
 	if err != nil {
 		return fmt.Errorf("error identifying vgpu devices: %v", err)
 	}
-	return h.reconcileVGPUSetup(vGPUDevices)
+	return h.reconcileVGPUSetup(vGPUDevices, disableGPU)
 }
 
-func (h *Handler) reconcileVGPUSetup(vGPUDevices []*v1beta1.VGPUDevice) error {
-	set := map[string]string{
-		v1beta1.NodeKeyName: h.nodeName,
+func (h *Handler) reconcileVGPUSetup(vGPUDevices []*v1beta1.VGPUDevice, disableGPU bool) error {
+	if disableGPU {
+		return h.disableVGPUDevices(vGPUDevices)
 	}
 
-	vGPUList, err := h.vGPUCache.List(labels.SelectorFromSet(set))
+	vGPUList, err := h.fetchNodeVGPUSFromAPIServer()
 	if err != nil {
 		return err
 	}
@@ -370,4 +368,34 @@ func (h *Handler) cleanupPCIDeviceSpec(vgpu string) error {
 	}
 	_, err = h.pciDevice.Update(pdObjCopy)
 	return err
+}
+
+func (h *Handler) disableVGPUDevices(vgpuDevices []*v1beta1.VGPUDevice) error {
+	for _, device := range vgpuDevices {
+		err := h.vGPUClient.Delete(device.Name, &metav1.DeleteOptions{})
+		if err != nil && !apierrors.IsNotFound(err) {
+			return fmt.Errorf("error deleting VGPU device %s: %w", device.Name, err)
+		}
+	}
+
+	remainingVGPUS, err := h.fetchNodeVGPUSFromAPIServer()
+	if err != nil {
+		return err
+	}
+
+	for _, device := range remainingVGPUS {
+		err := h.vGPUClient.Delete(device.Name, &metav1.DeleteOptions{})
+		if err != nil && !apierrors.IsNotFound(err) {
+			return fmt.Errorf("error deleting VGPU device %s: %w", device.Name, err)
+		}
+	}
+	return nil
+}
+
+func (h *Handler) fetchNodeVGPUSFromAPIServer() ([]*v1beta1.VGPUDevice, error) {
+	set := map[string]string{
+		v1beta1.NodeKeyName: h.nodeName,
+	}
+
+	return h.vGPUCache.List(labels.SelectorFromSet(set))
 }

@@ -133,16 +133,20 @@ func (h *Handler) OnGPUChange(_ string, gpu *v1beta1.SRIOVGPUDevice) (*v1beta1.S
 }
 
 // SetupSRIOVGPUDevices is called by the node controller to reconcile objects on startup and predefined intervals
-func (h *Handler) SetupSRIOVGPUDevices() error {
+func (h *Handler) SetupSRIOVGPUDevices(disableGPU bool) error {
 	sriovGPUDevices, err := gpuhelper.IdentifySRIOVGPU(h.options, h.nodeName)
 	if err != nil {
 		return err
 	}
-	return h.reconcileSRIOVGPUSetup(sriovGPUDevices)
+	return h.reconcileSRIOVGPUSetup(sriovGPUDevices, disableGPU)
 }
 
 // reconcileSRIOVGPUSetup runs the core logic to reconcile the k8s view of node with actual state on the node
-func (h *Handler) reconcileSRIOVGPUSetup(sriovGPUDevices []*v1beta1.SRIOVGPUDevice) error {
+func (h *Handler) reconcileSRIOVGPUSetup(sriovGPUDevices []*v1beta1.SRIOVGPUDevice, disableGPU bool) error {
+	// cleanup devices if disableGPU is set to true
+	if disableGPU {
+		return h.disableGPUDevices(sriovGPUDevices)
+	}
 	// create missing SRIOVGPUdevices, skipping GPU's which are already passed through as PCIDevices
 	for _, v := range sriovGPUDevices {
 		// if pcideviceclaim already exists for SRIOVGPU, then likely this GPU is already passed through
@@ -170,13 +174,10 @@ func (h *Handler) reconcileSRIOVGPUSetup(sriovGPUDevices []*v1beta1.SRIOVGPUDevi
 			return err
 		}
 	}
-	set := map[string]string{
-		v1beta1.NodeKeyName: h.nodeName,
-	}
 
-	existingGPUs, err := h.sriovGPUCache.List(labels.SelectorFromSet(set))
+	existingGPUs, err := h.fetchNodeGPUSFromAPIServer()
 	if err != nil {
-		return err
+		return fmt.Errorf("error fetching existingGPUs from apiserver: %w", err)
 	}
 
 	for _, v := range existingGPUs {
@@ -364,4 +365,36 @@ func (h *Handler) reconcileMIGConfiguration(_ string, gpu *v1beta1.SRIOVGPUDevic
 	}
 
 	return gpu, h.migConfigurationController.Delete(gpu.Name, &metav1.DeleteOptions{})
+}
+
+func (h *Handler) disableGPUDevices(sriovGPUDevices []*v1beta1.SRIOVGPUDevice) error {
+	// remove all GPU devices from the node, this is done when the node is running GPU container workloads and we want to ensure that no GPU device is exposed for passthrough
+	for _, device := range sriovGPUDevices {
+		err := h.sriovGPUClient.Delete(device.Name, &metav1.DeleteOptions{})
+		if err != nil && !apierrors.IsNotFound(err) {
+			return fmt.Errorf("error deleting GPU device %s: %w", device.Name, err)
+		}
+	}
+
+	// check if older GPUs objects are left in api server which need to be cleaned up
+	remainingGPUS, err := h.fetchNodeGPUSFromAPIServer()
+	if err != nil {
+		return err
+	}
+
+	for _, device := range remainingGPUS {
+		err := h.sriovGPUClient.Delete(device.Name, &metav1.DeleteOptions{})
+		if err != nil && !apierrors.IsNotFound(err) {
+			return fmt.Errorf("error deleting GPU device %s: %w", device.Name, err)
+		}
+	}
+	return nil
+}
+
+func (h *Handler) fetchNodeGPUSFromAPIServer() ([]*v1beta1.SRIOVGPUDevice, error) {
+	set := map[string]string{
+		v1beta1.NodeKeyName: h.nodeName,
+	}
+
+	return h.sriovGPUCache.List(labels.SelectorFromSet(set))
 }
