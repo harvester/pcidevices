@@ -161,7 +161,7 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/mod v0.26.0 // indirect
-	golang.org/x/net v0.54.0
+	golang.org/x/net v0.55.0
 	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
@@ -197,7 +197,7 @@ replace (
 	github.com/rancher/rancher/pkg/client => github.com/rancher/rancher/pkg/client v0.0.0-20240919204204-3da2ae0cabd1
 	github.com/rancher/wrangler => github.com/rancher/wrangler/v3 v3.1.0
 	github.com/u-root/u-root => github.com/u-root/u-root v0.10.0
-	golang.org/x/net => golang.org/x/net v0.23.0
+	golang.org/x/net => golang.org/x/net v0.55.0
 	golang.org/x/text => golang.org/x/text v0.3.8
 	google.golang.org/grpc => google.golang.org/grpc v1.56.3
 	google.golang.org/protobuf => google.golang.org/protobuf v1.33.0
