@@ -2,7 +2,7 @@ module github.com/harvester/pcidevices
 
 go 1.25.0
 
-toolchain go1.25.11
+toolchain go1.25.12
 
 require (
 	github.com/NVIDIA/go-nvlib v0.8.0
