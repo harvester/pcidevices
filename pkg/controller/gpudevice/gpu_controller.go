@@ -354,6 +354,12 @@ func (h *Handler) reconcileMIGConfiguration(_ string, gpu *v1beta1.SRIOVGPUDevic
 		return gpu, nil
 	}
 
+	val, ok := gpu.Annotations[v1beta1.SkipMIGConfigurationAnnotationKey]
+	if ok && val == v1beta1.SkipMIGConfigurationAnnotationValue {
+		logrus.Debugf("skipping MIG configuration for GPU device %s as annotation is set", gpu.Name)
+		return gpu, nil
+	}
+
 	if gpu.Spec.Enabled {
 		return gpu, h.setupMigConfiguration(gpu)
 	}
@@ -366,6 +372,10 @@ func (h *Handler) reconcileMIGConfiguration(_ string, gpu *v1beta1.SRIOVGPUDevic
 			return gpu, nil
 		}
 		return gpu, err
+	}
+
+	if err := gpuhelper.DisableMIGMode(h.executor, gpu.Spec.Address); err != nil {
+		return gpu, fmt.Errorf("error disabling MIG Mode: %w", err)
 	}
 
 	return gpu, h.migConfigurationController.Delete(gpu.Name, &metav1.DeleteOptions{})
