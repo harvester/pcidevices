@@ -529,31 +529,27 @@ func reconcileKubevirtCR(kvObj *kubevirtv1.KubeVirt, pd *v1beta1.PCIDevice) *kub
 			PciHostDevices: []kubevirtv1.PciHostDevice{},
 		}
 	}
-	permittedPCIDevices := kv.Spec.Configuration.PermittedHostDevices.PciHostDevices
+
 	resourceName := pd.Status.ResourceName
-	// check if device is currently permitted
-	devPermitted := false
-	for i, permittedPCIDev := range permittedPCIDevices {
-		if permittedPCIDev.ResourceName == resourceName {
-			if permittedPCIDev.ExternalResourceProvider {
-				devPermitted = true
-			}
-			// remove device so it can be re-added
-			permittedPCIDevices = append(permittedPCIDevices[:i], permittedPCIDevices[i+1:]...)
-			break
+
+	for i := range kv.Spec.Configuration.PermittedHostDevices.PciHostDevices {
+		if kv.Spec.Configuration.PermittedHostDevices.PciHostDevices[i].ResourceName == resourceName {
+			// resourceName exists already in kubevirt cr
+			// ensure external resource provider is set to true for the device
+			kv.Spec.Configuration.PermittedHostDevices.PciHostDevices[i].ExternalResourceProvider = true
+			return kv
 		}
 	}
 
-	if !devPermitted {
-		vendorID := pd.Status.VendorID
-		deviceID := pd.Status.DeviceID
-		devToPermit := kubevirtv1.PciHostDevice{
-			PCIVendorSelector:        fmt.Sprintf("%s:%s", vendorID, deviceID),
-			ResourceName:             resourceName,
-			ExternalResourceProvider: true,
-		}
-		kv.Spec.Configuration.PermittedHostDevices.PciHostDevices = append(permittedPCIDevices, devToPermit)
+	vendorID := pd.Status.VendorID
+	deviceID := pd.Status.DeviceID
+	devToPermit := kubevirtv1.PciHostDevice{
+		PCIVendorSelector:        fmt.Sprintf("%s:%s", vendorID, deviceID),
+		ResourceName:             resourceName,
+		ExternalResourceProvider: true,
 	}
+	kv.Spec.Configuration.PermittedHostDevices.PciHostDevices = append(kv.Spec.Configuration.PermittedHostDevices.PciHostDevices, devToPermit)
+
 	return kv
 }
 
