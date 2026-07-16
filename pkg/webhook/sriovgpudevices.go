@@ -54,7 +54,7 @@ func (v *sriovGPUValidator) Update(_ *types.Request, oldObj runtime.Object, newO
 		return v.checkGPUUsage(newGPUObj)
 	}
 
-	return nil
+	return verifyMIGAnnotation(oldGPUObj, newGPUObj)
 }
 
 func (v *sriovGPUValidator) Delete(_ *types.Request, obj runtime.Object) error {
@@ -85,5 +85,23 @@ func (v *sriovGPUValidator) checkGPUUsage(obj *devicesv1beta1.SRIOVGPUDevice) er
 			return err
 		}
 	}
+	return nil
+}
+
+func verifyMIGAnnotation(obj *devicesv1beta1.SRIOVGPUDevice, newObj *devicesv1beta1.SRIOVGPUDevice) error {
+	// new sriovgpudevice is disabled so no need to verify any annotations
+	// or old sriovgpudevice is disabled so no need to verify any annotations
+	if !newObj.Spec.Enabled || !obj.Spec.Enabled {
+		return nil
+	}
+
+	newVal, newOK := newObj.Annotations[devicesv1beta1.SkipMIGConfigurationAnnotationKey]
+	oldVal, oldOK := obj.Annotations[devicesv1beta1.SkipMIGConfigurationAnnotationKey]
+
+	// block addition/removal of annotation on sriovgpudevice if it is enabled
+	if newOK != oldOK || newVal != oldVal {
+		return fmt.Errorf("cannot add/remove annotation %s on enabled sriovgpudevice %s", devicesv1beta1.SkipMIGConfigurationAnnotationKey, newObj.Name)
+	}
+
 	return nil
 }
