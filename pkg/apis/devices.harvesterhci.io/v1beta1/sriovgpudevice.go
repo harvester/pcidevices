@@ -73,4 +73,6 @@ const (
 	GPUContainerWorkloadKey                          = "harvesterhci.io/gpu-baremetal-workloads"
 	GPUContainerWorkloadValue                        = "true"
 	EnabledSRIOVGPUDevicesByNodeNameIndex            = "harvesterhci.io/enabledSRIOVGPUDevicesByNodeName"
+	SkipMIGConfigurationAnnotationKey                = "harvesterhci.io/skip-mig-configuration"
+	SkipMIGConfigurationAnnotationValue              = "true"
 )
