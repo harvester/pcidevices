@@ -57,6 +57,7 @@ type VGPUDeviceStatus struct {
 type VGPUStatus string
 
 const (
+<<<<<<< HEAD
 	HarvesterVGPUType                    = "vgpu.harvesterhci.io/type"
 	VGPUEnabled               VGPUStatus = "vGPUConfigured"
 	VGPUDisabled              VGPUStatus = ""
@@ -70,4 +71,24 @@ const (
 	NvidiaDriverNeededKey                = "sriovgpu.harvesterhci.io/driver-needed"
 	CreatableVGPUTypes                   = "creatable_vgpu_types"
 	CurrentVGPUType                      = "current_vgpu_type"
+=======
+	HarvesterVGPUType                                = "vgpu.harvesterhci.io/type"
+	VGPUEnabled                           VGPUStatus = "vGPUConfigured"
+	VGPUDisabled                          VGPUStatus = ""
+	SysDevRoot                                       = "/sys/bus/pci/devices/"
+	MdevRoot                                         = "/sys/bus/mdev/devices/"
+	MdevBusClassRoot                                 = "/sys/class/mdev_bus/"
+	MdevSupportTypesDir                              = "mdev_supported_types"
+	ParentSRIOVGPUDeviceLabel                        = "harvesterhci.io/parentSRIOVGPUDevice"
+	DefaultNamespace                                 = "harvester-system"
+	NvidiaDriverLabel                                = "app=nvidia-driver-daemonset"
+	NvidiaDriverNeededKey                            = "sriovgpu.harvesterhci.io/driver-needed"
+	CreatableVGPUTypes                               = "creatable_vgpu_types"
+	CurrentVGPUType                                  = "current_vgpu_type"
+	GPUContainerWorkloadKey                          = "harvesterhci.io/gpu-baremetal-workloads"
+	GPUContainerWorkloadValue                        = "true"
+	EnabledSRIOVGPUDevicesByNodeNameIndex            = "harvesterhci.io/enabledSRIOVGPUDevicesByNodeName"
+	SkipMIGConfigurationAnnotationKey                = "harvesterhci.io/skip-mig-configuration"
+	SkipMIGConfigurationAnnotationValue              = "true"
+>>>>>>> bf4c999 (allow configuring SRIOVGPUDevices in timeslicing mode if the GPU supports both MIG / Timeslicing mode)
 )

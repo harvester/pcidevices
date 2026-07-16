@@ -422,3 +422,18 @@ func generateDeleteGPUInstanceCommand(address, instance string) string {
 func generateEnableMIGModeCommand(address string) string {
 	return fmt.Sprintf("nvidia-smi -i %s -mig 1", address)
 }
+
+// DisableMIGMode will disable MIG mode on the underlying GPU
+func DisableMIGMode(ex executor.Executor, deviceAddress string) error {
+	disableMIGModeCommand := generateDisableMIGModeCommand(deviceAddress)
+	disableMIGModeCommandOutput, err := ex.Run(disableMIGModeCommand, nil)
+	if err != nil {
+		return fmt.Errorf("error executing %s: %w", disableMIGModeCommand, err)
+	}
+	logrus.Debugf("MIG mode disable results for GPU %s: %s", deviceAddress, string(disableMIGModeCommandOutput))
+	return nil
+}
+
+func generateDisableMIGModeCommand(address string) string {
+	return fmt.Sprintf("nvidia-smi -i %s -mig 0", address)
+}

@@ -158,3 +158,156 @@ func Test_SriovGPUDelete(t *testing.T) {
 		}
 	}
 }
+
+func Test_verifyMIGAnnotation(t *testing.T) {
+	var testCases = []struct {
+		name        string
+		oldSRIOVGPU *devicesv1beta1.SRIOVGPUDevice
+		newSRIOVGPU *devicesv1beta1.SRIOVGPUDevice
+		expectError bool
+	}{
+		{
+			name: "annotation added to enabled sriovgpudevice",
+			oldSRIOVGPU: &devicesv1beta1.SRIOVGPUDevice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "gpu1",
+					Annotations: map[string]string{},
+				},
+				Spec: devicesv1beta1.SRIOVGPUDeviceSpec{
+					Enabled:  true,
+					NodeName: "node1",
+				},
+			},
+			newSRIOVGPU: &devicesv1beta1.SRIOVGPUDevice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "gpu1",
+					Annotations: map[string]string{
+						devicesv1beta1.SkipMIGConfigurationAnnotationKey: devicesv1beta1.SkipMIGConfigurationAnnotationValue,
+					},
+				},
+				Spec: devicesv1beta1.SRIOVGPUDeviceSpec{
+					Enabled:  true,
+					NodeName: "node1",
+				},
+			},
+			expectError: true,
+		},
+		{
+			name: "annotation removed from enabled sriovgpudevice",
+			oldSRIOVGPU: &devicesv1beta1.SRIOVGPUDevice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "gpu1",
+					Annotations: map[string]string{
+						devicesv1beta1.SkipMIGConfigurationAnnotationKey: devicesv1beta1.SkipMIGConfigurationAnnotationValue,
+					},
+				},
+				Spec: devicesv1beta1.SRIOVGPUDeviceSpec{
+					Enabled:  true,
+					NodeName: "node1",
+				},
+			},
+			newSRIOVGPU: &devicesv1beta1.SRIOVGPUDevice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "gpu1",
+					Annotations: map[string]string{},
+				},
+				Spec: devicesv1beta1.SRIOVGPUDeviceSpec{
+					Enabled:  true,
+					NodeName: "node1",
+				},
+			},
+			expectError: true,
+		},
+		{
+			name: "annotation removed from disabled sriovgpudevice",
+			oldSRIOVGPU: &devicesv1beta1.SRIOVGPUDevice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "gpu1",
+					Annotations: map[string]string{
+						devicesv1beta1.SkipMIGConfigurationAnnotationKey: devicesv1beta1.SkipMIGConfigurationAnnotationValue,
+					},
+				},
+				Spec: devicesv1beta1.SRIOVGPUDeviceSpec{
+					Enabled:  true,
+					NodeName: "node1",
+				},
+			},
+			newSRIOVGPU: &devicesv1beta1.SRIOVGPUDevice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "gpu1",
+					Annotations: map[string]string{},
+				},
+				Spec: devicesv1beta1.SRIOVGPUDeviceSpec{
+					Enabled:  false,
+					NodeName: "node1",
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "annotation added to disabled sriovgpudevice",
+			oldSRIOVGPU: &devicesv1beta1.SRIOVGPUDevice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "gpu1",
+					Annotations: map[string]string{},
+				},
+				Spec: devicesv1beta1.SRIOVGPUDeviceSpec{
+					Enabled:  true,
+					NodeName: "node1",
+				},
+			},
+			newSRIOVGPU: &devicesv1beta1.SRIOVGPUDevice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "gpu1",
+					Annotations: map[string]string{
+						devicesv1beta1.SkipMIGConfigurationAnnotationKey: devicesv1beta1.SkipMIGConfigurationAnnotationValue,
+					},
+				},
+				Spec: devicesv1beta1.SRIOVGPUDeviceSpec{
+					Enabled:  false,
+					NodeName: "node1",
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "annotation added while enabling sriovgpudevice",
+			oldSRIOVGPU: &devicesv1beta1.SRIOVGPUDevice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "gpu1",
+					Annotations: map[string]string{},
+				},
+				Spec: devicesv1beta1.SRIOVGPUDeviceSpec{
+					Enabled:  false,
+					NodeName: "node1",
+				},
+			},
+			newSRIOVGPU: &devicesv1beta1.SRIOVGPUDevice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "gpu1",
+					Annotations: map[string]string{
+						devicesv1beta1.SkipMIGConfigurationAnnotationKey: devicesv1beta1.SkipMIGConfigurationAnnotationValue,
+					},
+				},
+				Spec: devicesv1beta1.SRIOVGPUDeviceSpec{
+					Enabled:  true,
+					NodeName: "node1",
+				},
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert := require.New(t)
+			err := verifyMIGAnnotation(tc.oldSRIOVGPU, tc.newSRIOVGPU)
+			if tc.expectError {
+				assert.Error(err, fmt.Sprintf("expected to find error for test case %s", tc.name))
+			} else {
+				assert.NoError(err, fmt.Sprintf("expected to find no errorerror for test case %s", tc.name))
+			}
+		})
+	}
+
+}
