@@ -23,6 +23,7 @@ import (
 	"github.com/harvester/pcidevices/pkg/controller/sriovdevice"
 	"github.com/harvester/pcidevices/pkg/controller/usbdevice"
 	ctl "github.com/harvester/pcidevices/pkg/generated/controllers/devices.harvesterhci.io/v1beta1"
+	"github.com/harvester/pcidevices/pkg/util/gpuhelper"
 	"github.com/harvester/pcidevices/pkg/util/nichelper"
 )
 
@@ -109,6 +110,18 @@ func (h *handler) reconcileNodeDevices(name string, node *v1beta1.Node) (*v1beta
 		baremetalGPU = true
 	}
 
+	// update gpu addresses in node status early to allow webhook to be able to block pcideviceclaims for addresses on node with baremetal usage
+	gpuAddresses, err := gpuhelper.IdentifyNVIDIAGPUs()
+	if err != nil {
+		return nil, fmt.Errorf("error identify NVIDIA GPUs for node %s: %w", h.nodeName, err)
+	}
+
+	nodeCopy := node.DeepCopy()
+	nodeCopy.Status.GPUAddresses = gpuAddresses
+	if !reflect.DeepEqual(node.Status.GPUAddresses, nodeCopy.Status.GPUAddresses) {
+		return h.nodeCtl.Update(nodeCopy)
+	}
+
 	pci, err := ghw.PCI()
 	if err != nil {
 		return node, fmt.Errorf("error listing pcidevices: %v", err)
@@ -140,13 +153,13 @@ func (h *handler) reconcileNodeDevices(name string, node *v1beta1.Node) (*v1beta
 	if err != nil {
 		return nil, fmt.Errorf("error setting up sriov devices for node %s: %v", h.nodeName, err)
 	}
-	gpuhelper, _ := gpudevice.NewHandler(h.ctx, h.sriovGPUController, h.vGPUController, h.pciDeviceClaimController, h.pciDeviceCtl, h.migConfigurationController, nil, nil, nil)
-	err = gpuhelper.SetupSRIOVGPUDevices(baremetalGPU)
+	gpuhandler, _ := gpudevice.NewHandler(h.ctx, h.sriovGPUController, h.vGPUController, h.pciDeviceClaimController, h.pciDeviceCtl, h.migConfigurationController, nil, nil, nil)
+	err = gpuhandler.SetupSRIOVGPUDevices(baremetalGPU)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up SRIOV GPU devices for node %s: %v", h.nodeName, err)
 	}
 
-	err = gpuhelper.SetupVGPUDevices(baremetalGPU)
+	err = gpuhandler.SetupVGPUDevices(baremetalGPU)
 	if err != nil {
 		return nil, fmt.Errorf("error setting VGPU devices for node %s: %v", h.nodeName, err)
 	}

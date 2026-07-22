@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	kubevirtctl "github.com/harvester/harvester/pkg/generated/controllers/kubevirt.io/v1"
@@ -28,15 +29,17 @@ type pciDeviceClaimValidator struct {
 	usbDeviceClaimCache v1beta1.USBDeviceClaimCache
 	usbDeviceCache      v1beta1.USBDeviceCache
 	nodeCache           ctlcorev1.NodeCache
+	deviceNodeCache     v1beta1.NodeCache
 }
 
-func NewPCIDeviceClaimValidator(deviceCache v1beta1.PCIDeviceCache, kubevirtCache kubevirtctl.VirtualMachineCache, usbDeviceClaimCache v1beta1.USBDeviceClaimCache, usbDeviceCache v1beta1.USBDeviceCache, nodeCache ctlcorev1.NodeCache) types.Validator {
+func NewPCIDeviceClaimValidator(deviceCache v1beta1.PCIDeviceCache, kubevirtCache kubevirtctl.VirtualMachineCache, usbDeviceClaimCache v1beta1.USBDeviceClaimCache, usbDeviceCache v1beta1.USBDeviceCache, nodeCache ctlcorev1.NodeCache, deviceNodeCache v1beta1.NodeCache) types.Validator {
 	return &pciDeviceClaimValidator{
 		deviceCache:         deviceCache,
 		usbDeviceClaimCache: usbDeviceClaimCache,
 		usbDeviceCache:      usbDeviceCache,
 		kubevirtCache:       kubevirtCache,
 		nodeCache:           nodeCache,
+		deviceNodeCache:     deviceNodeCache,
 	}
 }
 
@@ -106,7 +109,10 @@ func (pdc *pciDeviceClaimValidator) Create(_ *types.Request, newObj runtime.Obje
 		logrus.Error(err.Error())
 		return err
 	}
-	return nil
+
+	// verify if node is setup for baremetal GPU container workloads, and block creation of PCIDeviceClaim if device is an NVIDIA GPU
+
+	return pdc.verifyBaremetalGPUDeviceClaim(pciClaimObj)
 }
 
 func (pdc *pciDeviceClaimValidator) Delete(req *types.Request, oldObj runtime.Object) error {
@@ -142,6 +148,24 @@ func (pdc *pciDeviceClaimValidator) Delete(req *types.Request, oldObj runtime.Ob
 		if ref.Kind == VGPUDeviceKind && req.UserInfo.Username != HarvesterPCIDevicesControllerUser {
 			return fmt.Errorf("pcideviceclaim %s cannot be deleted as it is owned by VGPUDevice %s", pciClaimObj.Name, ref.Name)
 		}
+	}
+	return nil
+}
+
+func (pdc *pciDeviceClaimValidator) verifyBaremetalGPUDeviceClaim(pciClaimObj *devicesv1beta1.PCIDeviceClaim) error {
+	nodeObj, err := pdc.deviceNodeCache.Get(pciClaimObj.Spec.NodeName)
+	if err != nil {
+		return fmt.Errorf("error looking up node for PCIDeviceClaim %s from device node cache: %w", pciClaimObj.Name, err)
+	}
+
+	containerWorkload, ok := nodeObj.Labels[devicesv1beta1.GPUContainerWorkloadKey]
+	if !ok || containerWorkload != devicesv1beta1.GPUContainerWorkloadValue {
+		// Node does not have GPUContainerWorkload label set to true, so no further checks are needed
+		return nil
+	}
+
+	if slices.Contains(nodeObj.Status.GPUAddresses, pciClaimObj.Spec.Address) {
+		return fmt.Errorf("PCI GPU Device %s is already in use on node %s for baremetal workloads", pciClaimObj.Spec.Address, pciClaimObj.Spec.NodeName)
 	}
 	return nil
 }
