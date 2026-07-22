@@ -279,3 +279,19 @@ func parseCurrentVGPUTypes(contents []byte) map[string]string {
 
 	return availableTypes
 }
+
+// IdentifyNVIDIAGPUs identifies the NVIDIA GPUs present on the node and returns their PCI addresses.
+func IdentifyNVIDIAGPUs() ([]string, error) {
+	mgr := nvpci.New()
+	nvidiaGPU, err := mgr.GetGPUs()
+	if err != nil {
+		return nil, fmt.Errorf("error querying GPU's: %v", err)
+	}
+
+	gpuAddresses := make([]string, 0, len(nvidiaGPU))
+	for _, device := range nvidiaGPU {
+		gpuAddresses = append(gpuAddresses, device.Address)
+	}
+
+	return gpuAddresses, nil
+}

@@ -27,8 +27,8 @@ import "time"
 //
 // The baked-in data was last generated:
 //
-// 2026-05-28 14:51:27.375146 +0800 CST m=+1.081143793
-var LastUpdate = time.Unix(0, 1779951087375146000)
+// 2026-07-22 05:39:21.132900893 +0000 UTC m=+3.319843655
+var LastUpdate = time.Unix(0, 1784698761132900893)
 
 const usbIDListData = `#
 #	List of USB ID's
@@ -41,8 +41,8 @@ const usbIDListData = `#
 #	The latest version can be obtained from
 #		http://www.linux-usb.org/usb.ids
 #
-# Version: 2025.12.13
-# Date:    2025-12-13 20:34:01
+# Version: 2026.06.26
+# Date:    2026-06-26 20:34:02
 #
 
 # Vendors, devices and interfaces. Please keep sorted.
@@ -11351,6 +11351,7 @@ const usbIDListData = `#
 	4500  LV-20 Digital Camera
 	6101  fx-9750gII
 	6102  fx-CP400
+	6103  fx-CG50
 	6801  PL-40R
 	6802  MIDI Keyboard
 	6803  CTK-3500 (MIDI keyboard)
@@ -13089,6 +13090,7 @@ const usbIDListData = `#
 	5804  BCM5880 Secure Applications Processor with fingerprint swipe sensor
 	5832  BCM5880 Secure Applications Processor Smartcard reader
 	5843  BCM58200 ControlVault 3 (FingerPrint sensor + Contacted SmartCard)
+	5865  Fingerprint Reader (Dell Control Vault)
 	6300  Pirelli Remote NDIS Device
 	6410  BCM20703A1 Bluetooth 4.1 + LE
 	bd11  BCM4320 802.11bg Wireless Adapter
