@@ -83,3 +83,5 @@ COPY --from=generate /go/src/github.com/harvester/pcidevices/charts/templates/ /
 FROM scratch AS generate-bin-data
 COPY --from=generate /go/src/github.com/harvester/pcidevices/pkg/util/gousb/usbid/ /usbid/
 
+FROM scratch AS generated-types
+COPY --from=generate /go/src/github.com/harvester/pcidevices/pkg/apis/devices.harvesterhci.io/v1beta1/ /v1beta1/
