@@ -17,6 +17,7 @@ func Validation(clients *Clients) (http.Handler, []types.Resource, error) {
 			clients.DeviceFactory.Devices().V1beta1().USBDeviceClaim().Cache(),
 			clients.DeviceFactory.Devices().V1beta1().USBDevice().Cache(),
 			clients.CoreFactory.Core().V1().Node().Cache(),
+			clients.DeviceFactory.Devices().V1beta1().Node().Cache(),
 		),
 		NewVGPUValidator(clients.KubevirtFactory.Kubevirt().V1().VirtualMachine().Cache(),
 			clients.CoreFactory.Core().V1().Node().Cache()),

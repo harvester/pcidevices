@@ -221,6 +221,15 @@ spec:
         properties:
           spec:
             type: object
+          status:
+            properties:
+              gpuAddresses:
+                items:
+                  nullable: true
+                  type: string
+                nullable: true
+                type: array
+            type: object
         type: object
     served: true
     storage: true
@@ -813,6 +822,15 @@ spec:
     openAPIV3Schema:
       properties:
         spec:
+          type: object
+        status:
+          properties:
+            gpuAddresses:
+              items:
+                nullable: true
+                type: string
+              nullable: true
+              type: array
           type: object
       type: object
   version: v1beta1

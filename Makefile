@@ -107,6 +107,7 @@ generate: gen-version-env
 	$(BANNER)
 	$(DOCKER_BUILD) --target generate-template-output --output type=local,dest=$(ROOT)/charts/
 	$(DOCKER_BUILD) --target generate-bin-data --output type=local,dest=$(ROOT)/pkg/util/gousb/
+	$(DOCKER_BUILD) --target generated-types --output type=local,dest=$(ROOT)/pkg/apis/devices.harvesterhci.io/
 
 # ---- Clean ----
 clean:
