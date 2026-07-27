@@ -20,6 +20,7 @@ package deviceplugins
  */
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -32,7 +33,6 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"kubevirt.io/client-go/log"
 	"kubevirt.io/kubevirt/pkg/util"
