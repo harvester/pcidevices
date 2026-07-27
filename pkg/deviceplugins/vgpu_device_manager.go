@@ -20,6 +20,7 @@ package deviceplugins
  */
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -32,7 +33,6 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"kubevirt.io/kubevirt/pkg/util"
 	pluginapi "kubevirt.io/kubevirt/pkg/virt-handler/device-manager/deviceplugin/v1beta1"
