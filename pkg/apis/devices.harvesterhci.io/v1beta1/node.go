@@ -23,7 +23,7 @@ type NodeStatus struct {
 	// GPUAddresses is used to track NVIDIA GPU addresses on the node
 	// this can be used by validator to block pcidevice claims for addresses if node is
 	// setup to be used for baremetal gpu container workloads
-	GPUAddresses []string `json:"gpuAddresses,omitempty"`
+	GPUAddresses []string `json:"gpuAddresses"`
 }
 
 const (
