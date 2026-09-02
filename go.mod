@@ -21,7 +21,7 @@ require (
 	github.com/urfave/cli/v2 v2.11.1
 	github.com/vishvananda/netlink v1.3.1
 	github.com/vishvananda/netns v0.0.5
-	google.golang.org/grpc v1.82.1
+	google.golang.org/grpc v1.83.1
 	k8s.io/api v0.33.1
 	k8s.io/apimachinery v0.33.1
 	k8s.io/cli-runtime v0.33.1
@@ -106,7 +106,7 @@ require (
 	go.uber.org/automaxprocs v1.6.0 // indirect
 	golang.org/x/tools/go/packages/packagestest v0.1.1-deprecated // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	howett.net/plist v1.0.0 // indirect
 	k8s.io/apiserver v0.33.1 // indirect
@@ -196,7 +196,7 @@ replace (
 	github.com/rancher/wrangler => github.com/rancher/wrangler/v3 v3.1.0
 	github.com/u-root/u-root => github.com/u-root/u-root v0.10.0
 	golang.org/x/text => golang.org/x/text v0.39.0
-	google.golang.org/grpc => google.golang.org/grpc v1.82.1
+	google.golang.org/grpc => google.golang.org/grpc v1.83.1
 	google.golang.org/protobuf => google.golang.org/protobuf v1.33.0
 	k8s.io/api => k8s.io/api v0.31.1
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.31.1
