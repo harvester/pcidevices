@@ -2,6 +2,7 @@ package pcidevice
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	ctlnetworkv1beta1 "github.com/harvester/harvester-network-controller/pkg/generated/controllers/network.harvesterhci.io/v1beta1"
@@ -54,7 +55,7 @@ func (h *Handler) ReconcilePCIDevices(nodename string) error {
 	commonLabels := map[string]string{"nodename": nodename} // label
 	var setOfRealPCIAddrs = make(map[string]bool)
 	for _, dev := range h.pci.Devices {
-		if !containsString(h.skipAddresses, dev.Address) {
+		if !slices.Contains(h.skipAddresses, dev.Address) {
 			setOfRealPCIAddrs[dev.Address] = true
 			name := v1beta1.PCIDeviceNameForHostname(dev.Address, nodename)
 			// Check if device is stored
@@ -136,16 +137,6 @@ func (h *Handler) ReconcilePCIDevices(nodename string) error {
 	}
 
 	return nil
-}
-
-func containsString(elements []string, element string) bool {
-	for _, v := range elements {
-		if v == element {
-			return true
-		}
-	}
-
-	return false
 }
 
 // IdentifyPCIBridgeDevices will identify devices which are pci bridges to skip the same
