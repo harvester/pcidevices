@@ -21,7 +21,7 @@ require (
 	github.com/urfave/cli/v2 v2.27.7
 	github.com/vishvananda/netlink v1.3.1
 	github.com/vishvananda/netns v0.0.5
-	google.golang.org/grpc v1.83.1
+	google.golang.org/grpc v1.83.2
 	k8s.io/api v0.34.1
 	k8s.io/apimachinery v0.34.1
 	k8s.io/cli-runtime v0.34.1
@@ -195,7 +195,7 @@ replace (
 	//github.com/rancher/wrangler => github.com/rancher/wrangler/v3 v3.1.0
 	github.com/u-root/u-root => github.com/u-root/u-root v0.16.0
 	golang.org/x/text => golang.org/x/text v0.39.0
-	google.golang.org/grpc => google.golang.org/grpc v1.83.1
+	google.golang.org/grpc => google.golang.org/grpc v1.83.2
 	google.golang.org/protobuf => google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api => k8s.io/api v0.33.7
