@@ -107,9 +107,9 @@ func EnableMIGProfiles(ex executor.Executor, migConfig *v1beta1.MigConfiguration
 	// nvidia-smi assigns the larger profiles a smaller ID
 	// we will sort impactedProfiles to ensure larger profiles are created first
 	// to avoid potential placement issues
-	sortedProfiles := sort.IntSlice(impactedProfiles)
+	sort.Ints(impactedProfiles)
 
-	for _, profile := range sortedProfiles {
+	for _, profile := range impactedProfiles {
 		for i := 0; i < requestMap[profile]; i++ {
 			err := CreateMIGInstance(ex, migConfig.Spec.GPUAddress, profile)
 			if err != nil {
