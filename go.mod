@@ -194,7 +194,7 @@ replace (
 	github.com/rancher/rancher/pkg/client => github.com/rancher/rancher/pkg/client v0.0.0-20240919204204-3da2ae0cabd1
 	//github.com/rancher/wrangler => github.com/rancher/wrangler/v3 v3.1.0
 	github.com/u-root/u-root => github.com/u-root/u-root v0.16.0
-	golang.org/x/text => golang.org/x/text v0.39.0
+	golang.org/x/text => golang.org/x/text v0.41.0
 	google.golang.org/grpc => google.golang.org/grpc v1.83.2
 	google.golang.org/protobuf => google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.1
