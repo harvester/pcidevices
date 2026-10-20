@@ -235,8 +235,14 @@ func (h *Handler) checkAndClearDeviceAllocation(vmi *kubevirtv1.VirtualMachineIn
 	if !ok {
 		return nil
 	}
-	delete(vmObj.Annotations, v1beta1.DeviceAllocationKey)
-	_, err = h.vmClient.Update(vmObj)
+	// 1. Make a deep copy to isolate modifications from the shared cache
+	vmCopy := vmObj.DeepCopy()
+
+	// 2. Mutate the copy, not the cache object
+	delete(vmCopy.Annotations, v1beta1.DeviceAllocationKey)
+
+	// 3. Send the copy to the client update method
+	_, err = h.vmClient.Update(vmCopy)
 	return err
 }
 
@@ -329,17 +335,13 @@ func (h *Handler) reconcileVMResourceAllocationAnnotation(vmi *kubevirtv1.Virtua
 		return fmt.Errorf("error fetching vm %s from cache: %v", vmi.Name, err)
 	}
 
-	var currentAnnotationValue string
-	// update device allocation details
-	if vmObj.Annotations == nil {
-		vmObj.Annotations = make(map[string]string)
-	} else {
-		currentAnnotationValue = vmObj.Annotations[v1beta1.DeviceAllocationKey]
-	}
-
-	if currentAnnotationValue != deviceDetails {
-		vmObj.Annotations[v1beta1.DeviceAllocationKey] = deviceDetails
-		_, err = h.vmClient.Update(vmObj)
+	if vmObj.Annotations[v1beta1.DeviceAllocationKey] != deviceDetails {
+		vmCopy := vmObj.DeepCopy()
+		if vmCopy.Annotations == nil {
+			vmCopy.Annotations = make(map[string]string)
+		}
+		vmCopy.Annotations[v1beta1.DeviceAllocationKey] = deviceDetails
+		_, err = h.vmClient.Update(vmCopy)
 	}
 	return err
 }
@@ -403,19 +405,19 @@ func (h *Handler) OnVMIDeletion(_ string, vmi *kubevirtv1.VirtualMachineInstance
 
 	vmObjCopy := vmObj.DeepCopy()
 	if len(vmi.Spec.Domain.Devices.HostDevices) > 0 {
-		patchHostDevices(vmObj, allocationDetails.HostDevices)
+		patchHostDevices(vmObjCopy, allocationDetails.HostDevices)
 	}
 
 	if len(vmi.Spec.Domain.Devices.GPUs) > 0 {
-		patchGPUDevices(vmObj, allocationDetails.GPUs)
+		patchGPUDevices(vmObjCopy, allocationDetails.GPUs)
 	}
 
 	if !reflect.DeepEqual(vmObj.Spec.Template.Spec.Domain.Devices, vmObjCopy.Spec.Template.Spec.Domain.Devices) {
 		logrus.WithFields(logrus.Fields{
 			"name":      vmi.Name,
 			"namespace": vmi.Namespace,
-		}).Debugf("updating vm device allocation details: %v", vmObj.Spec.Template.Spec.Domain.Devices)
-		_, err := h.vmClient.Update(vmObj)
+		}).Debugf("updating vm device allocation details: %v", vmObjCopy.Spec.Template.Spec.Domain.Devices)
+		_, err := h.vmClient.Update(vmObjCopy)
 		return vmi, err
 	}
 	return vmi, nil
@@ -424,8 +426,10 @@ func (h *Handler) OnVMIDeletion(_ string, vmi *kubevirtv1.VirtualMachineInstance
 func patchHostDevices(vm *kubevirtv1.VirtualMachine, deviceInfo map[string][]string) {
 	for i, device := range vm.Spec.Template.Spec.Domain.Devices.HostDevices {
 		actualDevices, ok := deviceInfo[device.DeviceName]
-		if !ok {
-			continue // should not ideally be possible but in case it does happen we ignore and continue
+		if !ok || len(actualDevices) == 0 {
+			// should not ideally be possible but in case it does happen we ignore and continue
+			// note: if this is a usb device, it hits `!ok`
+			continue
 		}
 		// pop first element of the actualDevices and set to deviceNames
 		vm.Spec.Template.Spec.Domain.Devices.HostDevices[i].Name = actualDevices[0]
@@ -437,7 +441,7 @@ func patchHostDevices(vm *kubevirtv1.VirtualMachine, deviceInfo map[string][]str
 func patchGPUDevices(vm *kubevirtv1.VirtualMachine, deviceInfo map[string][]string) {
 	for i, device := range vm.Spec.Template.Spec.Domain.Devices.GPUs {
 		actualDevices, ok := deviceInfo[device.DeviceName]
-		if !ok {
+		if !ok || len(actualDevices) == 0 {
 			continue // should not ideally be possible but in case it does happen we ignore and continue
 		}
 		// pop first element of the actualDevices and set to deviceNames

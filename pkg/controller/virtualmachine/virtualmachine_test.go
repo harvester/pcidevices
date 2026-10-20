@@ -46,6 +46,52 @@ func Test_patchHostDevices(t *testing.T) {
 
 }
 
+func Test_patchHostDevices_FewerRecords(t *testing.T) {
+	assert := require.New(t)
+
+	// Only 1 record provided, but the VM spec requests 2 devices with the same DeviceName
+	HostDevices := map[string][]string{
+		"device.com/sample": {"node1dev1"}, // Fewer records than requested
+	}
+
+	vm := &kubevirtv1.VirtualMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo",
+			Namespace: "default",
+		},
+		Spec: kubevirtv1.VirtualMachineSpec{
+			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Domain: kubevirtv1.DomainSpec{
+						Devices: kubevirtv1.Devices{
+							HostDevices: []kubevirtv1.HostDevice{
+								{
+									Name:       "originalName1",
+									DeviceName: "device.com/sample",
+								},
+								{
+									Name:       "originalName2",
+									DeviceName: "device.com/sample",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Verify it executes safely without panicking
+	assert.NotPanics(func() {
+		patchHostDevices(vm, HostDevices)
+	}, "patchHostDevices should not panic when given fewer records")
+
+	// The first device gets successfully assigned the available record
+	assert.Equal(vm.Spec.Template.Spec.Domain.Devices.HostDevices[0].Name, "node1dev1")
+	// The second device safely keeps its original name because records ran out
+	assert.Equal(vm.Spec.Template.Spec.Domain.Devices.HostDevices[1].Name, "originalName2")
+}
+
 func Test_patchGPUDevices(t *testing.T) {
 	assert := require.New(t)
 
