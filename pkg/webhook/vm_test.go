@@ -645,3 +645,127 @@ func Test_ReconcileDeviceAllocationAnnotation_AllDevicesRemoved(t *testing.T) {
 	_, exists := patchedVM.Annotations[devicesv1beta1.DeviceAllocationKey]
 	assert.False(exists, "expected annotation to be removed")
 }
+
+func Test_VMCreate_HostDevices(t *testing.T) {
+	assert := require.New(t)
+	fakeClient := fake.NewSimpleClientset(node1dev1, node1dev2, node1dev3, node2dev1, node1dev1Claim)
+	pciDeviceCache := fakeclients.PCIDevicesCache(fakeClient.DevicesV1beta1().PCIDevices)
+	pciClaimClient := fakeclients.PCIDeviceClaimsClient(fakeClient.DevicesV1beta1().PCIDeviceClaims)
+	pciClaimCache := fakeclients.PCIDeviceClaimsCache(fakeClient.DevicesV1beta1().PCIDeviceClaims)
+
+	harvClient := harvfake.NewSimpleClientset()
+	vmiCache := fakeclients.VirtualMachineInstanceCache(harvClient.KubevirtV1().VirtualMachineInstances)
+
+	vmPCIMutator := &vmPCIMutator{
+		deviceCache:    pciDeviceCache,
+		pciClaimCache:  pciClaimCache,
+		pciClaimClient: pciClaimClient,
+		vmiCache:       vmiCache,
+	}
+
+	// VM being created with node1dev1 in HostDevices
+	// Since node1dev2 shares IOMMU group 89 with node1dev1,
+	// the mutator should automatically discover and patch/claim node1dev2 as well.
+	newVM := &kubevirtv1.VirtualMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-create-vm",
+			Namespace: "default",
+		},
+		Spec: kubevirtv1.VirtualMachineSpec{
+			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Domain: kubevirtv1.DomainSpec{
+						Devices: kubevirtv1.Devices{
+							HostDevices: []kubevirtv1.HostDevice{
+								{
+									Name:       node1dev1.Name,
+									DeviceName: node1dev1.Status.ResourceName,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	patchOps, err := vmPCIMutator.Create(nil, newVM)
+	assert.NoError(err, "expect no error during create mutation")
+	assert.NotEmpty(patchOps, "expected patch operations to be generated for IOMMU group devices")
+
+	// Verify that the peer device (node1dev2) claim was automatically created
+	createdClaim, err := vmPCIMutator.pciClaimCache.Get(node1dev2.Name)
+	assert.NoError(err, "expect no error looking up the automatically created claim for node1dev2")
+	assert.Equal(node1dev1Claim.Spec.UserName, createdClaim.Spec.UserName, "expected claim username to match owner")
+}
+
+func Test_VMUpdate_HostDevices(t *testing.T) {
+	assert := require.New(t)
+	fakeClient := fake.NewSimpleClientset(node1dev1, node1dev2, node1dev3, node2dev1, node1dev1Claim)
+	pciDeviceCache := fakeclients.PCIDevicesCache(fakeClient.DevicesV1beta1().PCIDevices)
+	pciClaimClient := fakeclients.PCIDeviceClaimsClient(fakeClient.DevicesV1beta1().PCIDeviceClaims)
+	pciClaimCache := fakeclients.PCIDeviceClaimsCache(fakeClient.DevicesV1beta1().PCIDeviceClaims)
+
+	harvClient := harvfake.NewSimpleClientset()
+	vmiCache := fakeclients.VirtualMachineInstanceCache(harvClient.KubevirtV1().VirtualMachineInstances)
+
+	vmPCIMutator := &vmPCIMutator{
+		deviceCache:    pciDeviceCache,
+		pciClaimCache:  pciClaimCache,
+		pciClaimClient: pciClaimClient,
+		vmiCache:       vmiCache,
+	}
+
+	// Old VM without the device in spec
+	oldVM := &kubevirtv1.VirtualMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-vm",
+			Namespace: "default",
+		},
+		Spec: kubevirtv1.VirtualMachineSpec{
+			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Domain: kubevirtv1.DomainSpec{
+						Devices: kubevirtv1.Devices{
+							HostDevices: []kubevirtv1.HostDevice{},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// New VM with node1dev1 added to HostDevices
+	newVM := &kubevirtv1.VirtualMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-vm",
+			Namespace: "default",
+		},
+		Spec: kubevirtv1.VirtualMachineSpec{
+			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Domain: kubevirtv1.DomainSpec{
+						Devices: kubevirtv1.Devices{
+							HostDevices: []kubevirtv1.HostDevice{
+								{
+									Name:       node1dev1.Name,
+									DeviceName: node1dev1.Status.ResourceName,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// 1. Test Update triggers host devices patch when HostDevices differ
+	patchOps, err := vmPCIMutator.Update(nil, oldVM, newVM)
+	assert.NoError(err, "expect no error during update")
+	assert.NotEmpty(patchOps, "expected patches to be generated for added host devices")
+
+	// 2. Test Update produces no patches when HostDevices are identical
+	patchOpsNoChange, err := vmPCIMutator.Update(nil, newVM, newVM)
+	assert.NoError(err, "expect no error during update with identical spec")
+	assert.Empty(patchOpsNoChange, "expected no patches when host devices are unchanged")
+}
