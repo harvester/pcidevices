@@ -88,9 +88,9 @@ func (vm *vmPCIMutator) Create(_ *types.Request, newObj runtime.Object) (types.P
 	return patches, nil
 }
 
-func (vm *vmPCIMutator) Update(_ *types.Request, _ runtime.Object, newObj runtime.Object) (types.PatchOps, error) {
+func (vm *vmPCIMutator) Update(_ *types.Request, oldObj runtime.Object, newObj runtime.Object) (types.PatchOps, error) {
 	vmObj := newObj.(*kubevirtv1.VirtualMachine)
-	oldVMObj := newObj.(*kubevirtv1.VirtualMachine)
+	oldVMObj := oldObj.(*kubevirtv1.VirtualMachine)
 
 	var patches types.PatchOps
 	if !reflect.DeepEqual(oldVMObj.Spec.Template.Spec.Domain.Devices.HostDevices, vmObj.Spec.Template.Spec.Domain.Devices.HostDevices) {
