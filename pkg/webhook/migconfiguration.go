@@ -52,10 +52,12 @@ func (m *migConfigurationValidator) Update(_ *types.Request, oldObj runtime.Obje
 		return fmt.Errorf("MIGConfiguration %s Invalid: Cannot have more than %d instances defined, found %d", newMigConfiguration.Name, MaxMIGInstanceCount, count)
 	}
 
-	// attempt to configure instances while configuration is already synced/out-of-sync
-	// gets rejected
-	if oldMigConfiguration.Status.Status == devicesv1beta1.MIGConfigurationOutOfSync || oldMigConfiguration.Status.Status == devicesv1beta1.MIGConfigurationSynced {
-		if !reflect.DeepEqual(oldMigConfiguration.Spec.ProfileSpec, newMigConfiguration.Spec.ProfileSpec) {
+	// reconfiguration is restricted: changes are rejected if the device is
+	// already synced, out-of-sync, enabling, or disabling. Devices can only
+	// be configured when fully disabled. Both spec and status are verified
+	// to ensure proper synchronization with the controller.
+	if !reflect.DeepEqual(oldMigConfiguration.Spec.ProfileSpec, newMigConfiguration.Spec.ProfileSpec) {
+		if oldMigConfiguration.Spec.Enabled || (oldMigConfiguration.Status.Status != devicesv1beta1.MIGConfigurationInitial && oldMigConfiguration.Status.Status != devicesv1beta1.MIGConfigurationDisabled) {
 			return fmt.Errorf("MIGConfiguration %s cannot be modified unless configuration is disabled", oldMigConfiguration.Name)
 		}
 	}

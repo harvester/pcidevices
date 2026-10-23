@@ -54,7 +54,10 @@ type MigProfileRequest struct {
 type MIGConfigurationStatus string
 
 const (
+	MIGConfigurationInitial   MIGConfigurationStatus = ""
+	MIGConfigurationEnabling  MIGConfigurationStatus = "enabling"
 	MIGConfigurationSynced    MIGConfigurationStatus = "synced"
 	MIGConfigurationOutOfSync MIGConfigurationStatus = "out-of-sync"
+	MIGConfigurationDisabling MIGConfigurationStatus = "disabling"
 	MIGConfigurationDisabled  MIGConfigurationStatus = "disabled"
 )
