@@ -769,3 +769,53 @@ func Test_VMUpdate_HostDevices(t *testing.T) {
 	assert.NoError(err, "expect no error during update with identical spec")
 	assert.Empty(patchOpsNoChange, "expected no patches when host devices are unchanged")
 }
+
+func Test_VMWithMixedUSBAndPCIDevices(t *testing.T) {
+	assert := require.New(t)
+
+	fakeClient := fake.NewSimpleClientset(node1dev1, node1dev2, node1dev1Claim)
+	pciDeviceCache := fakeclients.PCIDevicesCache(fakeClient.DevicesV1beta1().PCIDevices)
+	pciClaimClient := fakeclients.PCIDeviceClaimsClient(fakeClient.DevicesV1beta1().PCIDeviceClaims)
+	pciClaimCache := fakeclients.PCIDeviceClaimsCache(fakeClient.DevicesV1beta1().PCIDeviceClaims)
+
+	vmPCIMutator := &vmPCIMutator{
+		deviceCache:    pciDeviceCache,
+		pciClaimCache:  pciClaimCache,
+		pciClaimClient: pciClaimClient,
+	}
+
+	vmWithMixedDevices := &kubevirtv1.VirtualMachine{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "vm-with-mixed-devices",
+			Namespace: "default",
+		},
+		Spec: kubevirtv1.VirtualMachineSpec{
+			Template: &kubevirtv1.VirtualMachineInstanceTemplateSpec{
+				Spec: kubevirtv1.VirtualMachineInstanceSpec{
+					Domain: kubevirtv1.DomainSpec{
+						Devices: kubevirtv1.Devices{
+							HostDevices: []kubevirtv1.HostDevice{
+								{
+									Name:       "usb-device-1", // Triggers IsNotFound
+									DeviceName: "usb.com/device1",
+								},
+								{
+									Name:       node1dev1.Name, // Valid PCI device in cache
+									DeviceName: node1dev1.Status.ResourceName,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	patchOps, err := vmPCIMutator.generateHostDevicesPatch(vmWithMixedDevices)
+	assert.NoError(err, "expect no error when processing mixed USB and PCI devices")
+	assert.Len(patchOps, 1, "expected patch operation to be generated for the valid PCI peer device")
+
+	newPCIDeviceClaimObj, err := vmPCIMutator.pciClaimCache.Get(node1dev2.Name)
+	assert.NoError(err, "expect no error while looking up claim for node1dev2")
+	assert.Equal(node1dev1Claim.Spec.UserName, newPCIDeviceClaimObj.Spec.UserName, "expected username to be copied")
+}

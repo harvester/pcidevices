@@ -130,15 +130,19 @@ func (vm *vmPCIMutator) generateHostDevicesPatch(vmObj *kubevirtv1.VirtualMachin
 		pciDeviceObj, err := vm.deviceCache.Get(v.Name)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
-				return nil, nil // pre 1.1.2 UI changes the device name did not match pcidevice. This avoids breaking
+				// pre 1.1.2 UI changes the device name did not match pcidevice. This avoids breaking
+				// Additional note:
+				// the HostDevices could be other types than PCI devices, try as more as possible
+				continue
 			}
 			return nil, fmt.Errorf("error looking up pcidevice %s from cache: %v", v.Name, err)
 		}
 
 		pciDeviceClaimObj, err := vm.pciClaimCache.Get(v.Name)
 		if err != nil {
+			// Refer test case vm-without-iommu-devices
 			if apierrors.IsNotFound(err) {
-				return nil, nil
+				continue
 			}
 			return nil, fmt.Errorf("error looking up pcidevice %s from cache: %v", v.Name, err)
 		}
