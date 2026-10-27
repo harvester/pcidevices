@@ -150,12 +150,15 @@ var (
 )
 
 func Test_ValidateMaxMIGProfiles(t *testing.T) {
-	migConfig1Copy := migConfig1.DeepCopy()
-	migConfig1Copy.Spec.ProfileSpec[0].Requested = 6
-	migConfig1Copy.Spec.ProfileSpec[1].Requested = 1
-	migConfig1Copy.Spec.Enabled = true
+	migOld := migConfig1.DeepCopy()
+	migOld.Spec.Enabled = false
+
+	migNew := migOld.DeepCopy()
+	migNew.Spec.ProfileSpec[0].Requested = 6
+	migNew.Spec.ProfileSpec[1].Requested = 1
+	migNew.Spec.Enabled = true
 	assert := require.New(t)
-	err := migValidator.Update(nil, migConfig1, migConfig1Copy)
+	err := migValidator.Update(nil, migOld, migNew)
 	assert.NoError(err, "expected no error during migconfiguration validation")
 }
 
@@ -213,4 +216,52 @@ func Test_DisableMigConfigurationWithoutInUseVGPU(t *testing.T) {
 	assert := require.New(t)
 	err := migValidator.Update(nil, migConfig2, migConfig2Copy)
 	assert.NoError(err, "expected no error while disabling MIGConfiguration")
+}
+
+// Test_ChangeMigConfigurationWhileEnabled checks if MIGConfiguration is enabled when try to change it
+// and blocks the attempt to disable MIG Configuration
+func Test_ChangeMigConfigurationWhileEnabled(t *testing.T) {
+	// old object is enabled, status does not matter
+	migOld := migConfig1.DeepCopy()
+	migOld.Spec.Enabled = true
+
+	// new object changes profile
+	migNew := migOld.DeepCopy()
+	migNew.Spec.ProfileSpec[0].Requested = 1
+	assert := require.New(t)
+	err := migValidator.Update(nil, migOld, migNew)
+	assert.Error(err, "expected error while change MIG configuration as MIG is enabled")
+}
+
+// Test_ChangeMigConfigurationWhileDisabled only allows changes when the old object is disabled and fully stopped.
+func Test_ChangeMigConfigurationWhileDisabled(t *testing.T) {
+	// potential correct status when disabled
+	testStatus := []devicesv1beta1.MIGConfigurationStatus{devicesv1beta1.MIGConfigurationInitial, devicesv1beta1.MIGConfigurationDisabled}
+	for i := range testStatus {
+		// old object is fully stopped
+		migOld := migConfig1.DeepCopy()
+		migOld.Status.Status = testStatus[i]
+
+		// new object changes profile
+		migNew := migConfig1.DeepCopy()
+		migNew.Spec.ProfileSpec[0].Requested = 1
+		assert := require.New(t)
+		err := migValidator.Update(nil, migOld, migNew)
+		assert.NoError(err, "expected no error while change MIG configuration as MIG is disabled or initialized")
+	}
+
+	// potential ongoing status when disabled, webhook denies profile changes
+	testStatus = []devicesv1beta1.MIGConfigurationStatus{devicesv1beta1.MIGConfigurationEnabling, devicesv1beta1.MIGConfigurationSynced, devicesv1beta1.MIGConfigurationOutOfSync, devicesv1beta1.MIGConfigurationDisabling}
+	for i := range testStatus {
+		// old object is not fully stopped yet
+		migOld := migConfig1.DeepCopy()
+		migOld.Status.Status = testStatus[i]
+
+		// new object changes profile
+		migNew := migConfig1.DeepCopy()
+		migNew.Spec.ProfileSpec[0].Requested = 1
+		assert := require.New(t)
+		err := migValidator.Update(nil, migOld, migNew)
+		assert.Error(err, "expected error while change MIG configuration as MIG is not fully disabled yet, status %v", testStatus[i])
+	}
 }
