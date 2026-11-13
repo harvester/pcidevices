@@ -47,6 +47,10 @@ const (
 	PCIResourcePrefix = "PCI_RESOURCE"
 )
 
+// kubeletSocket is the kubelet registration socket. It is a variable so that
+// tests can point it to a fake kubelet.
+var kubeletSocket = pluginapi.KubeletSocket
+
 type PCIDevice struct {
 	pciID      string
 	driver     string
@@ -70,6 +74,8 @@ type PCIDevicePlugin struct {
 	initialized   bool
 	lock          *sync.Mutex
 	deregistered  chan struct{}
+	restart       chan struct{}
+	stopLock      sync.Mutex
 	starter       *DeviceStarter
 	ctx           context.Context
 }
@@ -162,15 +168,50 @@ func (dp *PCIDevicePlugin) Started() bool {
 }
 
 func (dp *PCIDevicePlugin) Stop() error {
+	// Close the stop channel so that Start does not restart the plugin.
+	if !IsChanClosed(dp.starter.stopChan) {
+		close(dp.starter.stopChan)
+	}
 	return dp.stopDevicePlugin()
 }
 
-// Start starts the device plugin
-func (dp *PCIDevicePlugin) Start(stop <-chan struct{}) (err error) {
+// Start runs the device plugin until stop is closed. When the plugin socket is
+// removed (kubelet restarted) or the gRPC server fails, the plugin is started
+// again and re-registered with kubelet after a backoff, the same way the
+// KubeVirt device manager handles its own device plugins.
+func (dp *PCIDevicePlugin) Start(stop <-chan struct{}) error {
+	retries := 0
+	for {
+		err := dp.run(stop)
+		if err != nil {
+			logrus.Errorf("error running %s device plugin: %v", dp.resourceName, err)
+			retries = min(retries+1, len(dp.starter.backoff)-1)
+		} else {
+			retries = 0
+		}
+
+		select {
+		case <-stop:
+			return nil
+		case <-dp.ctx.Done():
+			return dp.ctx.Err()
+		case <-time.After(dp.starter.backoff[retries]):
+			logrus.Infof("Restarting DevicePlugin: %s", dp.resourceName)
+		}
+	}
+}
+
+// run starts the gRPC server, registers it with kubelet and blocks until the
+// plugin socket is removed, the gRPC server stops or stop is closed.
+func (dp *PCIDevicePlugin) run(stop <-chan struct{}) (err error) {
 	logger := log.DefaultLogger()
+	dp.stopLock.Lock()
 	dp.stop = stop
 	dp.done = make(chan struct{})
 	dp.deregistered = make(chan struct{})
+	dp.restart = make(chan struct{}, 1)
+	restart := dp.restart
+	dp.stopLock.Unlock()
 
 	err = dp.cleanup()
 	if err != nil {
@@ -182,14 +223,18 @@ func (dp *PCIDevicePlugin) Start(stop <-chan struct{}) (err error) {
 		return fmt.Errorf("error creating GRPC server socket: %v", err)
 	}
 
-	dp.server = grpc.NewServer([]grpc.ServerOption{}...)
+	server := grpc.NewServer([]grpc.ServerOption{}...)
+	dp.stopLock.Lock()
+	dp.server = server
+	dp.stopLock.Unlock()
+	defer dp.stopDevicePlugin() //nolint:errcheck
 
-	pluginapi.RegisterDevicePluginServer(dp.server, dp)
+	pluginapi.RegisterDevicePluginServer(server, dp)
 
 	errChan := make(chan error, 1)
 
 	go func() {
-		errChan <- dp.server.Serve(sock)
+		errChan <- server.Serve(sock)
 	}()
 
 	err = waitForGRPCServer(dp.ctx, dp.socketPath, connectionTimeout)
@@ -205,16 +250,25 @@ func (dp *PCIDevicePlugin) Start(stop <-chan struct{}) (err error) {
 	dp.setInitialized(true)
 	logger.Infof("Initialized DevicePlugin: %s", dp.resourceName)
 	dp.starter.started = true
-	err = <-errChan
 
-	return err
+	select {
+	case err = <-errChan:
+		return err
+	case <-restart:
+		logger.Infof("Re-registering DevicePlugin: %s", dp.resourceName)
+		return nil
+	case <-stop:
+		return nil
+	}
 }
 
 func (dp *PCIDevicePlugin) ListAndWatch(_ *pluginapi.Empty, s pluginapi.DevicePlugin_ListAndWatchServer) error {
+	// Use the channels of the current run, the plugin may be restarted.
+	done, deregistered, restart := dp.done, dp.deregistered, dp.restart
 
 	errChan := make(chan error, 1)
 	go func() {
-		errChan <- dp.healthCheck()
+		errChan <- dp.healthCheck(restart)
 	}()
 
 	emptyList := []*pluginapi.Device{}
@@ -222,7 +276,7 @@ func (dp *PCIDevicePlugin) ListAndWatch(_ *pluginapi.Empty, s pluginapi.DevicePl
 	if err != nil {
 		return err
 	}
-	done := false
+	finished := false
 	for {
 		select {
 		case devHealth := <-dp.health:
@@ -236,11 +290,11 @@ func (dp *PCIDevicePlugin) ListAndWatch(_ *pluginapi.Empty, s pluginapi.DevicePl
 			}
 			logrus.Debugf("Sending ListAndWatchResponse for device with dpi.devs = %v", dp.devs)
 		case <-dp.stop:
-			done = true
-		case <-dp.done:
-			done = true
+			finished = true
+		case <-done:
+			finished = true
 		}
-		if done {
+		if finished {
 			break
 		}
 	}
@@ -249,7 +303,7 @@ func (dp *PCIDevicePlugin) ListAndWatch(_ *pluginapi.Empty, s pluginapi.DevicePl
 	if err := s.Send(&pluginapi.ListAndWatchResponse{Devices: emptyList}); err != nil {
 		log.DefaultLogger().Reason(err).Infof("%s device plugin failed to deregister: %s", dp.resourceName, err)
 	}
-	close(dp.deregistered)
+	close(deregistered)
 	return <-errChan
 }
 
@@ -291,7 +345,9 @@ func (dp *PCIDevicePlugin) Allocate(_ context.Context, r *pluginapi.AllocateRequ
 	return resp, nil
 }
 
-func (dp *PCIDevicePlugin) healthCheck() error {
+// healthCheck watches the devices and the plugin socket. When the socket is
+// removed, it notifies restart so that Start re-registers the plugin.
+func (dp *PCIDevicePlugin) healthCheck(restart chan<- struct{}) error {
 	logger := log.DefaultLogger()
 	monitoredDevices := make(map[string]string)
 	watcher, err := fsnotify.NewWatcher()
@@ -373,6 +429,10 @@ func (dp *PCIDevicePlugin) healthCheck() error {
 				}
 			} else if event.Name == dp.socketPath && event.Op == fsnotify.Remove {
 				logger.Infof("device socket file for device %s was removed, kubelet probably restarted.", dp.resourceName)
+				select {
+				case restart <- struct{}{}:
+				default:
+				}
 				return nil
 			}
 		}
@@ -389,6 +449,12 @@ func (dp *PCIDevicePlugin) GetDeviceName() string {
 
 // Stop stops the gRPC server
 func (dp *PCIDevicePlugin) stopDevicePlugin() error {
+	dp.stopLock.Lock()
+	defer dp.stopLock.Unlock()
+	if dp.server == nil {
+		return dp.cleanup()
+	}
+
 	defer func() {
 		if !IsChanClosed(dp.done) {
 			close(dp.done)
@@ -410,7 +476,7 @@ func (dp *PCIDevicePlugin) stopDevicePlugin() error {
 
 // Register the device plugin for the given resourceName with Kubelet.
 func (dp *PCIDevicePlugin) register() error {
-	conn, err := gRPCConnect(dp.ctx, pluginapi.KubeletSocket, connectionTimeout)
+	conn, err := gRPCConnect(dp.ctx, kubeletSocket, connectionTimeout)
 	if err != nil {
 		return err
 	}
