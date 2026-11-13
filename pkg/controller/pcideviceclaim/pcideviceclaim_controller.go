@@ -576,13 +576,13 @@ func (h *Handler) startDevicePlugin(
 	}
 	// Start the plugin
 	stop := make(chan struct{})
+	// Start blocks until stop is closed and re-registers the plugin with
+	// kubelet when kubelet restarts.
 	go func() {
 		err := dp.Start(stop)
 		if err != nil {
 			logrus.Errorf("error starting %s device plugin: %s", dp.GetDeviceName(), err)
 		}
-		// TODO: test if deleting this stops the DevicePlugin
-		<-stop
 	}()
 	dp.SetStarted(stop)
 	return nil
